@@ -155,6 +155,45 @@ public:
 };
 
 
+template <typename ValueType>
+class compressed_sparse_matrix  {
+public:
+    std::vector<size_t> bounds;
+    std::vector<ValueType> entries;
+    
+    
+    size_t size() const {
+        return bounds.size();
+    }
+    
+    typename std::vector<ValueType>::const_iterator cbegin(size_t index) {
+        assert(index < size());
+        return index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1];
+    }
+
+    typename std::vector<ValueType>::const_iterator cend(size_t index) {
+        assert(index < size());
+        return entries.cbegin() + bounds[index];
+    }
+    
+    template <typename Iterator>
+    void append(Iterator begin, Iterator end) {
+        for (Iterator it = begin; it != end; ++it) {
+            entries.push_back(*it);
+        }
+        bounds.push_back(entries.size());
+    }
+
+    
+    template <typename Collection>
+    void append(const Collection collection) {
+        append(collection.cbegin(), collection.cend());
+    }
+
+};
+
+
+
 int main() {
 
     distance_matrix dist;
@@ -222,5 +261,28 @@ int main() {
         std::cout << " " << vertices << std::endl;
 
     }
+    
+    
+    compressed_sparse_matrix<int> csm;
+    
+    csm.append(std::vector<int>({1,2,3}));
+    
+    csm.append(std::vector<int>({5,6,7,8}));
+
+    csm.append(std::vector<int>({10,11}));
+
+    csm.append(std::vector<int>());
+
+    csm.append(std::vector<int>({2}));
+    
+    std::cout << "compressed sparse matrix: " << std::endl;
+
+    for (int i = 0; i < csm.size(); ++i) {
+        std::cout << " " << std::vector<int>(csm.cbegin(i), csm.cend(i)) << std::endl;
+    }
+    
+    std::cout << "bounds: " << csm.bounds << std::endl;
+
+    std::cout << "entries: " << csm.entries << std::endl;
 
 }
