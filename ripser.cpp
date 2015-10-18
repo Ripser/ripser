@@ -114,13 +114,13 @@ public:
         for (int i = 0; i <= dim; ++i)
             for (int j = i + 1; j <= dim; ++j) {
                 b_diam = std::max(b_diam, dist(vertices[i], vertices[j]));
-                if (a_diam < b_diam)
+                if (a_diam > b_diam)
 //                   (((a_diam < b_diam) && !reverse) ||
 //                    ((a_diam > b_diam) && reverse))
                     return true;
             }
        
-        return (a_diam == b_diam) && (a < b);
+        return (a_diam == b_diam) && (a > b);
 //        return (a_diam == b_diam) && (((a < b) && !reverse) || ((a > b) && reverse));
     }
     
@@ -208,7 +208,29 @@ public:
 
 };
 
+template <typename Heap>
+int get_pivot(Heap& column)
+{
+    if( column.empty() )
+        return -1;
+    else {
+        int max_element = column.top();
+        column.pop();
+        while( !column.empty() && column.top() == max_element ) {
+            column.pop();
+            if( column.empty() )
+                return -1;
+            else {
+                max_element = column.top();
+                column.pop();
+            }
+        }
+        if( max_element != -1 )
+            column.push( max_element );
 
+        return max_element;
+    }
+}
 
 int main() {
 
@@ -234,8 +256,10 @@ int main() {
         {4,9,7,5,0}
     };
     
+    int n = dist.size();
+    
     int dim_max = 2;
-    binomial_coeff_table binomial_coeff(dist.size(), dim_max + 2);
+    binomial_coeff_table binomial_coeff(n, dim_max + 2);
     
     
     std::cout << dist (0,1) << std::endl;
@@ -266,22 +290,23 @@ int main() {
     int dim = 1;
     int simplex_index = 2;
     
+    double threshold = 7;
     
     std::vector<int> vertices;
     
-    get_simplex_vertices( simplex_index, dim, dist.size(), binomial_coeff, std::back_inserter(vertices) );
+    get_simplex_vertices( simplex_index, dim, n, binomial_coeff, std::back_inserter(vertices) );
 
     
     std::cout << "coboundary of simplex " << vertices << ":" << std::endl;
     
     std::vector<int> coboundary;
-    get_simplex_coboundary( simplex_index, dim, dist.size(), binomial_coeff, std::back_inserter(coboundary) );
+    get_simplex_coboundary( simplex_index, dim, n, binomial_coeff, std::back_inserter(coboundary) );
     
     
     for (int coboundary_simplex_index: coboundary) {
         std::vector<int> vertices;
     
-        get_simplex_vertices( coboundary_simplex_index, dim + 1, dist.size(), binomial_coeff, std::back_inserter(vertices) );
+        get_simplex_vertices( coboundary_simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
         std::cout << " " << coboundary_simplex_index << " " << vertices << " (" << comp1.diam(coboundary_simplex_index) << ")" << std::endl;
 
     }
@@ -310,18 +335,16 @@ int main() {
     std::cout << "entries: " << csm.entries << std::endl;
     
     
-    std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > working_boundary(comp1);
+    std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > queue(comp1);
     
-    for (int e: coboundary) working_boundary.push(e);
+    for (int e: coboundary) queue.push(e);
     
-    std::cout << "pivot of coboundary: " << working_boundary.top() << std::endl;
+    std::cout << "pivot of coboundary: " << queue.top() << std::endl;
     
     std::cout << (comp1(3,6) ? "3<6" : "3>=6") << std::endl;
     std::cout << (comp1(0,6) ? "0<6" : "0>=6") << std::endl;
     
     
-    
-    std::unordered_map<int, int> pivot_column_index;
     
     std::vector<int> columns_to_reduce = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
@@ -332,8 +355,95 @@ int main() {
     for (int index: columns_to_reduce) {
         std::vector<int> vertices;
 
-        get_simplex_vertices( index, dim, dist.size(), binomial_coeff, std::back_inserter(vertices) );
+        get_simplex_vertices( index, dim, n, binomial_coeff, std::back_inserter(vertices) );
         std::cout << " " << index << " " << vertices << " (" << comp1.diam(index) << ")" << std::endl;
     }
 
+
+
+    std::unordered_map<int, int> pivot_column_index;
+    
+    for (auto persistence_pair: pivot_column_index) {
+        
+    }
+    
+    int num_simplices = binomial_coeff(n, dim + 1);
+    
+    columns_to_reduce.clear();
+    
+    for (int index = 0; index < num_simplices; ++index) {
+        if (comp1.diam(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
+            columns_to_reduce.push_back(index);
+        }
+    }
+    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp1);
+
+    std::cout << "sorted columns to reduce: " << columns_to_reduce << std::endl;
+    
+    for (int index: columns_to_reduce) {
+        std::vector<int> vertices;
+
+        get_simplex_vertices( index, dim, n, binomial_coeff, std::back_inserter(vertices) );
+        std::cout << " " << index << " " << vertices << " (" << comp1.diam(index) << ")" << std::endl;
+    }
+
+
+    //compressed_sparse_matrix<int> reduction_matrix;
+
+    std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > working_coboundary(comp2);
+    
+    //std::vector<int> reduction_column;
+    
+    for (int index: columns_to_reduce) {
+        //reduction_column.clear();
+    
+        int pivot, column = index;
+        
+        do {
+        
+            coboundary.clear();
+            get_simplex_coboundary( column, dim, n, binomial_coeff, std::back_inserter(coboundary) );
+            for (int e: coboundary) if (comp2.diam(e) <= threshold) working_coboundary.push(e);
+            
+            pivot = get_pivot(working_coboundary);
+            
+
+            //add boundary column at index birth to working_coboundary
+            //since the boundary column is not stored explicitly,
+            //add the boundary of the column at index birth in the reduction matrix instead
+            
+            //space-efficient variant: add just the boundary column at index birth instead
+            //this avoids having to store the reduction matrix
+            
+            if (pivot != -1) {
+                auto pair = pivot_column_index.find(pivot);
+                
+                if (pair == pivot_column_index.end()) {
+                    pivot_column_index.insert(std::make_pair(pivot, index));
+                    break;
+                }
+                
+                column = pair->second;
+            }
+            
+            /*
+            coboundary.clear();
+            get_simplex_coboundary( birth, dim, n, binomial_coeff, std::back_inserter(coboundary) );
+            for (int e: coboundary) if (comp1.diam(e) <= threshold) working_coboundary.push(e);
+
+            //space-efficient variant: drop this part (and the reduction_matrix)
+            
+            for (int col = reduction_matrix.cbegin()) {
+                coboundary.clear();
+                get_simplex_coboundary( col, dim, n, binomial_coeff, std::back_inserter(coboundary) );
+                for (int e: coboundary) if (comp1.diam(e) <= threshold) working_coboundary.push(e);
+            }
+             */
+        } while ( pivot != -1 );
+
+    }
+    
+    std::cout << "pairs:" << std::endl << pivot_column_index << std::endl;
+    
+    
 }
