@@ -1,6 +1,8 @@
 #include <vector>
 #include <iostream>
 #include <cassert>
+#include <queue>
+#include <unordered_map>
 #include "prettyprint.hpp"
 //#include <boost/numeric/ublas/symmetric.hpp>
 
@@ -58,54 +60,68 @@ OutputIterator get_simplex_vertices( int idx, int dim, int n, const binomial_coe
 
 template <typename DistanceMatrix>
 class rips_filtration_comparator {
-private:
-    std::vector<int> vertices;
-    
-    const binomial_coeff_table& binomial_coeff;
-    
 public:
     const DistanceMatrix& dist;
     
     const int dim;
 
-    rips_filtration_comparator(const DistanceMatrix& _dist, const int _dim, const binomial_coeff_table& _binomial_coeff): dist(_dist), dim(_dim), vertices(_dim + 1),
-    binomial_coeff(_binomial_coeff) {};
+private:
+    std::vector<int> vertices;
+    
+    typedef decltype(dist(0,0)) dist_t;
+    
+    bool reverse;
+    
+    const binomial_coeff_table& binomial_coeff;
+    
+public:
+    rips_filtration_comparator(
+    const DistanceMatrix& _dist,
+    const int _dim,
+    const binomial_coeff_table& _binomial_coeff
+//    ,
+//    bool _reverse = true
+    ):
+    dist(_dist), dim(_dim), vertices(_dim + 1),
+    binomial_coeff(_binomial_coeff)
+//    ,
+//    reverse(_reverse)
+    {};
+    
+    dist_t diam(const int index) {
+        dist_t diam = 0;
+        get_simplex_vertices(index, dim, dist.size(), binomial_coeff, vertices.begin() );
+        
+        for (int i = 0; i <= dim; ++i)
+            for (int j = i + 1; j <= dim; ++j) {
+                auto d = dist(vertices[i], vertices[j]);
+                diam = std::max(diam, dist(vertices[i], vertices[j]));
+            }
+        return diam;
+    }
 
     bool operator()(const int a, const int b)
     {
         assert(a < binomial_coeff(dist.size(), dim + 1));
         assert(b < binomial_coeff(dist.size(), dim + 1));
         
-        decltype(dist(0,0)) a_diam = 0, b_diam = 0;
+        dist_t a_diam = 0, b_diam = 0;
 
     
-        //vertices.clear(); //std::back_inserter(vertices)
-        get_simplex_vertices(a, dim, dist.size(), binomial_coeff, vertices.begin() );
+        a_diam = diam(a);
         
-        for (int i = 0; i <= dim; ++i)
-            for (int j = i + 1; j <= dim; ++j) {
-                auto d = dist(vertices[i], vertices[j]);
-                a_diam = std::max(a_diam, dist(vertices[i], vertices[j]));
-//                std::cout << " i = " << i << " j = " << j << " d = " << d << std::endl;
-//                std::cout << " a_vertices[i] = " << vertices[i] << " a_vertices[j] = " << vertices[j] << std::endl;
-//                std::cout << " a_diam = " << a_diam << std::endl;
-            }
-        
-//        std::cout << "a_diam = " << a_diam << std::endl;
-        
-        //vertices.clear(); //std::back_inserter(vertices)
         get_simplex_vertices(b, dim, dist.size(), binomial_coeff, vertices.begin() );
-
         for (int i = 0; i <= dim; ++i)
             for (int j = i + 1; j <= dim; ++j) {
                 b_diam = std::max(b_diam, dist(vertices[i], vertices[j]));
                 if (a_diam < b_diam)
+//                   (((a_diam < b_diam) && !reverse) ||
+//                    ((a_diam > b_diam) && reverse))
                     return true;
             }
-        
-//        std::cout << "b_diam = " << b_diam << std::endl;
        
-        return (a_diam == b_diam && a <= b);
+        return (a_diam == b_diam) && (a < b);
+//        return (a_diam == b_diam) && (((a < b) && !reverse) || ((a > b) && reverse));
     }
     
 };
@@ -197,21 +213,29 @@ public:
 int main() {
 
     distance_matrix dist;
+//    dist.distances = {
+//        {0,1,2,3},
+//        {1,0,1,2},
+//        {2,1,0,1},
+//        {3,2,1,0}
+//    };
+//    dist.distances = {
+//        {0,1,1,1,1},
+//        {1,0,1,1,1},
+//        {1,1,0,1,1},
+//        {1,1,1,0,1},
+//        {1,1,1,1,0}
+//    };
     dist.distances = {
-        {0,1,2,3},
-        {1,0,1,2},
-        {2,1,0,1},
-        {3,2,1,0}
-    };
-    dist.distances = {
-        {0,1,1,1,1},
-        {1,0,1,1,1},
-        {1,1,0,1,1},
-        {1,1,1,0,1},
-        {1,1,1,1,0}
+        {0,1,3,6,4},
+        {1,0,8,2,9},
+        {3,8,0,10,7},
+        {6,2,10,0,5},
+        {4,9,7,5,0}
     };
     
-    binomial_coeff_table binomial_coeff(dist.size(), 4);
+    int dim_max = 2;
+    binomial_coeff_table binomial_coeff(dist.size(), dim_max + 2);
     
     
     std::cout << dist (0,1) << std::endl;
@@ -258,7 +282,7 @@ int main() {
         std::vector<int> vertices;
     
         get_simplex_vertices( coboundary_simplex_index, dim + 1, dist.size(), binomial_coeff, std::back_inserter(vertices) );
-        std::cout << " " << vertices << std::endl;
+        std::cout << " " << coboundary_simplex_index << " " << vertices << " (" << comp1.diam(coboundary_simplex_index) << ")" << std::endl;
 
     }
     
@@ -284,5 +308,32 @@ int main() {
     std::cout << "bounds: " << csm.bounds << std::endl;
 
     std::cout << "entries: " << csm.entries << std::endl;
+    
+    
+    std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > working_boundary(comp1);
+    
+    for (int e: coboundary) working_boundary.push(e);
+    
+    std::cout << "pivot of coboundary: " << working_boundary.top() << std::endl;
+    
+    std::cout << (comp1(3,6) ? "3<6" : "3>=6") << std::endl;
+    std::cout << (comp1(0,6) ? "0<6" : "0>=6") << std::endl;
+    
+    
+    
+    std::unordered_map<int, int> pivot_column_index;
+    
+    std::vector<int> columns_to_reduce = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
+    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp1);
+    
+    std::cout << "sorted columns to reduce: " << columns_to_reduce << std::endl;
+    
+    for (int index: columns_to_reduce) {
+        std::vector<int> vertices;
+
+        get_simplex_vertices( index, dim, dist.size(), binomial_coeff, std::back_inserter(vertices) );
+        std::cout << " " << index << " " << vertices << " (" << comp1.diam(index) << ")" << std::endl;
+    }
 
 }
