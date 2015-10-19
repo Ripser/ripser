@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <cassert>
 #include <queue>
 #include <unordered_map>
@@ -232,36 +233,93 @@ int get_pivot(Heap& column)
     }
 }
 
-int main() {
+void print_help_and_exit()
+{
+    std::cerr << "Usage: " << "ripser " << "[options] input_filename output_filename" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "Options:" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "--help        --  prints this screen" << std::endl;
+    std::cerr << "--top_dim N   --  maximal dimension to compute" << std::endl;
+    std::cerr << "--threshold D --  maximal diameter to compute" << std::endl;
+    
+    exit(-1);
+}
+
+int main( int argc, char** argv ) {
+    
+    if( argc < 3 ) print_help_and_exit();
+
+    std::string input_filename = argv[ argc - 2 ];
+    std::string output_filename = argv[ argc - 1 ];
+    
+    int dim_max = 2;
+    double threshold = std::numeric_limits<double>::max();
+
+    for( int idx = 1; idx < argc - 2; idx++ ) {
+        const std::string option = argv[ idx ];
+        if( option == "--help" ) {
+            print_help_and_exit();
+        } else if( option == "--top_dim" ) {
+            idx++;
+            if( idx >= argc - 2 )
+                print_help_and_exit();
+            std::string parameter = std::string( argv[ idx ] );
+            size_t pos_last_digit;
+            dim_max = std::stoll( parameter, &pos_last_digit );
+            if( pos_last_digit != parameter.size() )
+                print_help_and_exit();
+        } else if( option == "--threshold" ) {
+            idx++;
+            if( idx >= argc - 2 )
+                print_help_and_exit();
+            std::string parameter = std::string( argv[ idx ] );
+            size_t pos_last_digit;
+            threshold = std::stod( parameter, &pos_last_digit );
+            if( pos_last_digit != parameter.size() )
+                print_help_and_exit();
+	} else print_help_and_exit();
+    }
+
+
+    std::ifstream input_stream( input_filename.c_str( ), std::ios_base::binary | std::ios_base::in );
+    if( input_stream.fail( ) ) {
+        std::cerr << "couldn't open file" << input_filename << std::endl;
+        exit(-1);
+    }
+    
+    int64_t magic_number;
+    input_stream.read( (char*)&magic_number, sizeof( int64_t ) );
+    if( magic_number != 8067171840 ) {
+        std::cerr << input_filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
+        exit(-1);
+    }
+
+   
+    int64_t file_type;
+    input_stream.read( (char*)&file_type, sizeof( int64_t ) );
+    if( file_type != 7 ) {
+        std::cerr << input_filename << " is not a Dipha distance matrix (file type: 7)" << std::endl;
+        exit(-1);
+    }
+   
+    int64_t n;
+    input_stream.read( (char*)&n, sizeof( int64_t ) );
+    
+    std::cout << "distance matrix with " << n << " points" << std::endl;
+    
+    //std::vector<double> distances =
 
     distance_matrix dist;
-    dist.distances = {
-        {0,1,2,3},
-        {1,0,1,2},
-        {2,1,0,1},
-        {3,2,1,0}
-    };
-    dist.distances = {
-        {0,1,1,1,1},
-        {1,0,1,1,1},
-        {1,1,0,1,1},
-        {1,1,1,0,1},
-        {1,1,1,1,0}
-    };
-    dist.distances = {
-        {0,1,3,6,4},
-        {1,0,8,2,9},
-        {3,8,0,10,7},
-        {6,2,10,0,5},
-        {4,9,7,5,0}
-    };
+    dist.distances = std::vector<std::vector<double>>(n, std::vector<double>(n));;
     
-    int n = dist.size();
-    double threshold = 10;
+//    std::cout << dist.distances << std::endl;
+
+    for( int i = 0; i < n; ++i ) {
+        input_stream.read( (char*)&dist.distances[i][0], n * sizeof(int64_t) );
+    }
     
-    int dim_max = 3;
-    
-    assert(dim_max < n -1);
+    assert(dim_max < n - 1);
     
     binomial_coeff_table binomial_coeff(n, dim_max + 2);
     
@@ -399,29 +457,29 @@ int main() {
 
         //std::vector<int> reduction_column;
         
-        std::cout << "reduce columns in dim " << dim << ":" << columns_to_reduce << std::endl;
-        std::cout << " rows in dim " << dim + 1 << ":" << columns_to_reduce << std::endl;
+//        std::cout << "reduce columns in dim " << dim << ":" << columns_to_reduce << std::endl;
+//        std::cout << " rows in dim " << dim + 1 << ":" << columns_to_reduce << std::endl;
         
-        std::vector<int> rows(binomial_coeff(n, dim + 2));
-        for (int simplex_index = 0; simplex_index < binomial_coeff(n, dim + 2); ++simplex_index) {
-            rows[simplex_index] = simplex_index;
-        }
-        std::sort(rows.begin(), rows.end(), comp);
-        
-        for (int simplex_index: rows) {
-            std::vector<int> vertices;
-            
-            get_simplex_vertices( simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
-            std::cout << " " << simplex_index << " " << vertices << " (" << comp.diam(simplex_index) << ")" << std::endl;
-
-        }
+//        std::vector<int> rows(binomial_coeff(n, dim + 2));
+//        for (int simplex_index = 0; simplex_index < binomial_coeff(n, dim + 2); ++simplex_index) {
+//            rows[simplex_index] = simplex_index;
+//        }
+//        std::sort(rows.begin(), rows.end(), comp);
+//        
+//        for (int simplex_index: rows) {
+//            std::vector<int> vertices;
+//            
+//            get_simplex_vertices( simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
+//            std::cout << " " << simplex_index << " " << vertices << " (" << comp.diam(simplex_index) << ")" << std::endl;
+//
+//        }
         
         for (int index: columns_to_reduce) {
             //reduction_column.clear();
             
             std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > working_coboundary(comp);
             
-            std::cout << "reduce column " << index << std::endl;
+//            std::cout << "reduce column " << index << std::endl;
 
         
             int pivot, column = index;
@@ -432,7 +490,7 @@ int main() {
                 get_simplex_coboundary( column, dim, n, binomial_coeff, std::back_inserter(coboundary) );
                 
                 std::vector<int> sorted_coboundary = coboundary; std::sort(sorted_coboundary.begin(), sorted_coboundary.end(), comp);
-                std::cout << "add " << sorted_coboundary << " to working col" << std::endl;
+//                std::cout << "add " << sorted_coboundary << " to working col" << std::endl;
 //                for (int coboundary_simplex_index: coboundary) {
 //                    std::vector<int> vertices;
 //                
@@ -462,7 +520,7 @@ int main() {
                 //this avoids having to store the reduction matrix
                 
                 if (pivot != -1) {
-                    std::cout << "pivot: " << pivot << std::endl;
+//                    std::cout << "pivot: " << pivot << std::endl;
                     auto pair = pivot_column_index.find(pivot);
                     
                     if (pair == pivot_column_index.end()) {
@@ -488,13 +546,20 @@ int main() {
                  */
             } while ( pivot != -1 );
             
-            std::cout << std::endl;
+//            std::cout << std::endl;
 
 
         }
         
-        std::cout << "pairs:" << std::endl << pivot_column_index << std::endl;
-
+        std::cout << "dimension " << dim << " pairs:" << std::endl;
+//        std::cout << pivot_column_index << std::endl;
+        
+        rips_filtration_comparator<distance_matrix> comp_prev(dist, dim, binomial_coeff);
+        for (auto pair: pivot_column_index) {
+            double birth = comp_prev.diam(pair.second), death = comp.diam(pair.first);
+            if (birth != death)
+                std::cout << " [" << birth << "," << death << ")" << std::endl;
+        }
 
         if (dim == dim_max - 1)
             break;
@@ -511,16 +576,18 @@ int main() {
         }
         std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp);
 
-        std::cout << "sorted " << dim + 1 << "-columns to reduce: " << columns_to_reduce << std::endl;
-        
-        for (int index: columns_to_reduce) {
-            std::vector<int> vertices;
+//        std::cout << "sorted " << dim + 1 << "-columns to reduce: " << columns_to_reduce << std::endl;
+//        
+//        for (int index: columns_to_reduce) {
+//            std::vector<int> vertices;
+//
+//            get_simplex_vertices( index, dim, n, binomial_coeff, std::back_inserter(vertices) );
+//            std::cout << " " << index << " " << vertices << " (" << comp.diam(index) << ")" << std::endl;
+//        }
+//        
+//        std::cout << std::endl;
+    
 
-            get_simplex_vertices( index, dim, n, binomial_coeff, std::back_inserter(vertices) );
-            std::cout << " " << index << " " << vertices << " (" << comp.diam(index) << ")" << std::endl;
-        }
-        
-        std::cout << std::endl;
 
     }
     
