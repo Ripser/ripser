@@ -59,6 +59,12 @@ OutputIterator get_simplex_vertices( int idx, int dim, int n, const binomial_coe
     return out;
 }
 
+std::vector<int> vertices_of_simplex(int simplex_index, int dim, int n, const binomial_coeff_table& binomial_coeff) {
+    std::vector<int> vertices;
+    get_simplex_vertices( simplex_index, dim, n, binomial_coeff, std::back_inserter(vertices) );
+    return vertices;
+}
+
 template <typename DistanceMatrix>
 class rips_filtration_comparator {
 public:
@@ -319,6 +325,18 @@ int main( int argc, char** argv ) {
         input_stream.read( (char*)&dist.distances[i][0], n * sizeof(int64_t) );
     }
     
+    
+//    dist.distances = {
+//        {0,1,3,4,3,1},
+//        {1,0,1,3,4,3},
+//        {3,1,0,1,3,4},
+//        {4,3,1,0,1,3},
+//        {3,4,3,1,0,1},
+//        {1,3,4,3,1,0}
+//    };
+//    n = dist.size();
+
+    
     assert(dim_max < n - 1);
     
     binomial_coeff_table binomial_coeff(n, dim_max + 2);
@@ -457,8 +475,8 @@ int main( int argc, char** argv ) {
 
         //std::vector<int> reduction_column;
         
-//        std::cout << "reduce columns in dim " << dim << ":" << columns_to_reduce << std::endl;
-//        std::cout << " rows in dim " << dim + 1 << ":" << columns_to_reduce << std::endl;
+//        std::cout << "reduce columns in dim " << dim << ": " << columns_to_reduce << std::endl;
+//        std::cout << " rows in dim " << dim + 1 << ": " << columns_to_reduce << std::endl;
         
 //        std::vector<int> rows(binomial_coeff(n, dim + 2));
 //        for (int simplex_index = 0; simplex_index < binomial_coeff(n, dim + 2); ++simplex_index) {
@@ -555,8 +573,10 @@ int main( int argc, char** argv ) {
 //        std::cout << pivot_column_index << std::endl;
         
         rips_filtration_comparator<distance_matrix> comp_prev(dist, dim, binomial_coeff);
-        for (auto pair: pivot_column_index) {
+        for (std::pair<int,int> pair: pivot_column_index) {
             double birth = comp_prev.diam(pair.second), death = comp.diam(pair.first);
+//            std::cout << vertices_of_simplex(pair.second, dim, n, binomial_coeff) << "," <<
+//                        vertices_of_simplex(pair.first, dim + 1, n, binomial_coeff) << std::endl;
             if (birth != death)
                 std::cout << " [" << birth << "," << death << ")" << std::endl;
         }
@@ -565,11 +585,20 @@ int main( int argc, char** argv ) {
             break;
         
         
-        int num_simplices = binomial_coeff(n, dim + 1);
+        int num_simplices = binomial_coeff(n, dim + 2);
         
         columns_to_reduce.clear();
         
+//        std::cout << "columns to reduce in dim " << dim + 1 << " (" << num_simplices << " total)" << std::endl;
+        
         for (int index = 0; index < num_simplices; ++index) {
+        
+//            if (comp.diam(index) > threshold) {
+//                std::cout << " " << vertices_of_simplex(index, dim + 1, n, binomial_coeff) << ": " << comp.diam(index) << " above threshold" << std::endl;
+//            } else if (pivot_column_index.find(index) != pivot_column_index.end()) {
+//                std::cout << " " << vertices_of_simplex(index, dim + 1, n, binomial_coeff) << " appears in pair" << std::endl;
+//            }
+            
             if (comp.diam(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
                 columns_to_reduce.push_back(index);
             }
