@@ -108,12 +108,12 @@ public:
         dist_t a_diam = 0, b_diam = 0;
 
     
-        a_diam = diam(a);
+        b_diam = diam(b);
         
-        get_simplex_vertices(b, dim, dist.size(), binomial_coeff, vertices.begin() );
+        get_simplex_vertices(a, dim, dist.size(), binomial_coeff, vertices.begin() );
         for (int i = 0; i <= dim; ++i)
             for (int j = i + 1; j <= dim; ++j) {
-                b_diam = std::max(b_diam, dist(vertices[i], vertices[j]));
+                a_diam = std::max(a_diam, dist(vertices[i], vertices[j]));
                 if (a_diam > b_diam)
 //                   (((a_diam < b_diam) && !reverse) ||
 //                    ((a_diam > b_diam) && reverse))
@@ -235,19 +235,19 @@ int get_pivot(Heap& column)
 int main() {
 
     distance_matrix dist;
-//    dist.distances = {
-//        {0,1,2,3},
-//        {1,0,1,2},
-//        {2,1,0,1},
-//        {3,2,1,0}
-//    };
-//    dist.distances = {
-//        {0,1,1,1,1},
-//        {1,0,1,1,1},
-//        {1,1,0,1,1},
-//        {1,1,1,0,1},
-//        {1,1,1,1,0}
-//    };
+    dist.distances = {
+        {0,1,2,3},
+        {1,0,1,2},
+        {2,1,0,1},
+        {3,2,1,0}
+    };
+    dist.distances = {
+        {0,1,1,1,1},
+        {1,0,1,1,1},
+        {1,1,0,1,1},
+        {1,1,1,0,1},
+        {1,1,1,1,0}
+    };
     dist.distances = {
         {0,1,3,6,4},
         {1,0,8,2,9},
@@ -257,193 +257,271 @@ int main() {
     };
     
     int n = dist.size();
+    double threshold = 10;
     
-    int dim_max = 2;
+    int dim_max = 3;
+    
+    assert(dim_max < n -1);
+    
     binomial_coeff_table binomial_coeff(n, dim_max + 2);
     
     
-    std::cout << dist (0,1) << std::endl;
- 
-    rips_filtration_comparator<distance_matrix> comp1(dist, 1, binomial_coeff);
-    rips_filtration_comparator<distance_matrix> comp2(dist, 2, binomial_coeff);
-    
-    std::cout << (comp1(0,1) ? "0<1" : "0>=1") << std::endl;
-    std::cout << (comp1(1,0) ? "1<0" : "1>=0") << std::endl;
-    
-    std::cout << (comp1(0,2) ? "0<2" : "0>=2") << std::endl;
-    std::cout << (comp1(1,2) ? "1<2" : "1>=2") << std::endl;
-    
-    std::vector<int> edges = {0,1,2,3,4,5};
-    
-    std::sort(edges.begin(), edges.end(), comp1);
-    
-    std::cout << "sorted edges: " << edges << std::endl;
-   
-   
-    std::vector<int> triangles = {0,1,2,3};
-    
-    std::sort(triangles.begin(), triangles.end(), comp2);
-    
-    std::cout << "sorted triangles: " << triangles << std::endl;
-    
-    
-    int dim = 1;
-    int simplex_index = 2;
-    
-    double threshold = 7;
-    
-    std::vector<int> vertices;
-    
-    get_simplex_vertices( simplex_index, dim, n, binomial_coeff, std::back_inserter(vertices) );
+//    std::cout << dist (0,1) << std::endl;
+// 
+//    rips_filtration_comparator<distance_matrix> comp1(dist, 1, binomial_coeff);
+//    rips_filtration_comparator<distance_matrix> comp2(dist, 2, binomial_coeff);
+//    
+//    std::cout << (comp1(0,1) ? "0<1" : "0>=1") << std::endl;
+//    std::cout << (comp1(1,0) ? "1<0" : "1>=0") << std::endl;
+//    
+//    std::cout << (comp1(0,2) ? "0<2" : "0>=2") << std::endl;
+//    std::cout << (comp1(1,2) ? "1<2" : "1>=2") << std::endl;
+//    
+//    std::vector<int> edges = {0,1,2,3,4,5};
+//    
+//    std::sort(edges.begin(), edges.end(), comp1);
+//    
+//    std::cout << "sorted edges: " << edges << std::endl;
+//   
+//   
+//    std::vector<int> triangles = {0,1,2,3};
+//    
+//    std::sort(triangles.begin(), triangles.end(), comp2);
+//    
+//    std::cout << "sorted triangles: " << triangles << std::endl;
+//    
+//    
+//    int dim = 1;
+//    int simplex_index = 2;
+//    
+//    double threshold = 7;
+//    
+//    std::vector<int> vertices;
+//    
+//    get_simplex_vertices( simplex_index, dim, n, binomial_coeff, std::back_inserter(vertices) );
+//
+//    
+//    std::cout << "coboundary of simplex " << vertices << ":" << std::endl;
+//    
+//    std::vector<int> coboundary;
+//    get_simplex_coboundary( simplex_index, dim, n, binomial_coeff, std::back_inserter(coboundary) );
+//    
+//    
+//    for (int coboundary_simplex_index: coboundary) {
+//        std::vector<int> vertices;
+//    
+//        get_simplex_vertices( coboundary_simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
+//        std::cout << " " << coboundary_simplex_index << " " << vertices << " (" << comp1.diam(coboundary_simplex_index) << ")" << std::endl;
+//
+//    }
+//    
+//    
+//    compressed_sparse_matrix<int> csm;
+//    
+//    csm.append(std::vector<int>({1,2,3}));
+//    
+//    csm.append(std::vector<int>({5,6,7,8}));
+//
+//    csm.append(std::vector<int>({10,11}));
+//
+//    csm.append(std::vector<int>());
+//
+//    csm.append(std::vector<int>({2}));
+//    
+//    std::cout << "compressed sparse matrix: " << std::endl;
+//
+//    for (int i = 0; i < csm.size(); ++i) {
+//        std::cout << " " << std::vector<int>(csm.cbegin(i), csm.cend(i)) << std::endl;
+//    }
+//    
+//    std::cout << "bounds: " << csm.bounds << std::endl;
+//
+//    std::cout << "entries: " << csm.entries << std::endl;
+//    
+//    
+//    std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > queue(comp1);
+//    
+//    for (int e: coboundary) queue.push(e);
+//    
+//    std::cout << "pivot of coboundary: " << queue.top() << std::endl;
+//    
+//    std::cout << (comp1(3,6) ? "3<6" : "3>=6") << std::endl;
+//    std::cout << (comp1(0,6) ? "0<6" : "0>=6") << std::endl;
+//    
+//    
+//    
+//    std::vector<int> columns_to_reduce = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+//
+//    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp1);
+//    
+//    std::cout << "sorted 1-simplex columns to reduce: " << columns_to_reduce << std::endl;
+//    
+//    for (int index: columns_to_reduce) {
+//        std::vector<int> vertices;
+//
+//        get_simplex_vertices( index, 1, n, binomial_coeff, std::back_inserter(vertices) );
+//        std::cout << " " << index << " " << vertices << " (" << comp1.diam(index) << ")" << std::endl;
+//    }
+//    
+//    
+//    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp2);
+//    
+//    std::cout << "sorted 2-simplex columns to reduce: " << columns_to_reduce << std::endl;
+//    
+//    for (int index: columns_to_reduce) {
+//        std::vector<int> vertices;
+//
+//        get_simplex_vertices( index, 2, n, binomial_coeff, std::back_inserter(vertices) );
+//        std::cout << " " << index << " " << vertices << " (" << comp2.diam(index) << ")" << std::endl;
+//    }
+//
+//
+//
+//
+//
 
-    
-    std::cout << "coboundary of simplex " << vertices << ":" << std::endl;
+    std::vector<int> columns_to_reduce;
     
     std::vector<int> coboundary;
-    get_simplex_coboundary( simplex_index, dim, n, binomial_coeff, std::back_inserter(coboundary) );
     
-    
-    for (int coboundary_simplex_index: coboundary) {
-        std::vector<int> vertices;
-    
-        get_simplex_vertices( coboundary_simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
-        std::cout << " " << coboundary_simplex_index << " " << vertices << " (" << comp1.diam(coboundary_simplex_index) << ")" << std::endl;
-
-    }
-    
-    
-    compressed_sparse_matrix<int> csm;
-    
-    csm.append(std::vector<int>({1,2,3}));
-    
-    csm.append(std::vector<int>({5,6,7,8}));
-
-    csm.append(std::vector<int>({10,11}));
-
-    csm.append(std::vector<int>());
-
-    csm.append(std::vector<int>({2}));
-    
-    std::cout << "compressed sparse matrix: " << std::endl;
-
-    for (int i = 0; i < csm.size(); ++i) {
-        std::cout << " " << std::vector<int>(csm.cbegin(i), csm.cend(i)) << std::endl;
-    }
-    
-    std::cout << "bounds: " << csm.bounds << std::endl;
-
-    std::cout << "entries: " << csm.entries << std::endl;
-    
-    
-    std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > queue(comp1);
-    
-    for (int e: coboundary) queue.push(e);
-    
-    std::cout << "pivot of coboundary: " << queue.top() << std::endl;
-    
-    std::cout << (comp1(3,6) ? "3<6" : "3>=6") << std::endl;
-    std::cout << (comp1(0,6) ? "0<6" : "0>=6") << std::endl;
-    
-    
-    
-    std::vector<int> columns_to_reduce = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-
-    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp1);
-    
-    std::cout << "sorted columns to reduce: " << columns_to_reduce << std::endl;
-    
-    for (int index: columns_to_reduce) {
-        std::vector<int> vertices;
-
-        get_simplex_vertices( index, dim, n, binomial_coeff, std::back_inserter(vertices) );
-        std::cout << " " << index << " " << vertices << " (" << comp1.diam(index) << ")" << std::endl;
+    for (int index = 0; index < n; ++index) {
+        columns_to_reduce.push_back(index);
     }
 
-
-
-    std::unordered_map<int, int> pivot_column_index;
-    
-    for (auto persistence_pair: pivot_column_index) {
+    for (int dim = 0; dim < dim_max; ++dim) {
         
-    }
-    
-    int num_simplices = binomial_coeff(n, dim + 1);
-    
-    columns_to_reduce.clear();
-    
-    for (int index = 0; index < num_simplices; ++index) {
-        if (comp1.diam(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
-            columns_to_reduce.push_back(index);
+
+        //compressed_sparse_matrix<int> reduction_matrix;
+        
+        rips_filtration_comparator<distance_matrix> comp(dist, dim + 1, binomial_coeff);
+        
+        std::unordered_map<int, int> pivot_column_index;
+
+        //std::vector<int> reduction_column;
+        
+        std::cout << "reduce columns in dim " << dim << ":" << columns_to_reduce << std::endl;
+        std::cout << " rows in dim " << dim + 1 << ":" << columns_to_reduce << std::endl;
+        
+        std::vector<int> rows(binomial_coeff(n, dim + 2));
+        for (int simplex_index = 0; simplex_index < binomial_coeff(n, dim + 2); ++simplex_index) {
+            rows[simplex_index] = simplex_index;
         }
-    }
-    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp1);
-
-    std::cout << "sorted columns to reduce: " << columns_to_reduce << std::endl;
-    
-    for (int index: columns_to_reduce) {
-        std::vector<int> vertices;
-
-        get_simplex_vertices( index, dim, n, binomial_coeff, std::back_inserter(vertices) );
-        std::cout << " " << index << " " << vertices << " (" << comp1.diam(index) << ")" << std::endl;
-    }
-
-
-    //compressed_sparse_matrix<int> reduction_matrix;
-
-    std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > working_coboundary(comp2);
-    
-    //std::vector<int> reduction_column;
-    
-    for (int index: columns_to_reduce) {
-        //reduction_column.clear();
-    
-        int pivot, column = index;
+        std::sort(rows.begin(), rows.end(), comp);
         
-        do {
-        
-            coboundary.clear();
-            get_simplex_coboundary( column, dim, n, binomial_coeff, std::back_inserter(coboundary) );
-            for (int e: coboundary) if (comp2.diam(e) <= threshold) working_coboundary.push(e);
+        for (int simplex_index: rows) {
+            std::vector<int> vertices;
             
-            pivot = get_pivot(working_coboundary);
-            
+            get_simplex_vertices( simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
+            std::cout << " " << simplex_index << " " << vertices << " (" << comp.diam(simplex_index) << ")" << std::endl;
 
-            //add boundary column at index birth to working_coboundary
-            //since the boundary column is not stored explicitly,
-            //add the boundary of the column at index birth in the reduction matrix instead
+        }
+        
+        for (int index: columns_to_reduce) {
+            //reduction_column.clear();
             
-            //space-efficient variant: add just the boundary column at index birth instead
-            //this avoids having to store the reduction matrix
+            std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > working_coboundary(comp);
             
-            if (pivot != -1) {
-                auto pair = pivot_column_index.find(pivot);
+            std::cout << "reduce column " << index << std::endl;
+
+        
+            int pivot, column = index;
+            
+            do {
+
+                coboundary.clear();
+                get_simplex_coboundary( column, dim, n, binomial_coeff, std::back_inserter(coboundary) );
                 
-                if (pair == pivot_column_index.end()) {
-                    pivot_column_index.insert(std::make_pair(pivot, index));
-                    break;
+                std::vector<int> sorted_coboundary = coboundary; std::sort(sorted_coboundary.begin(), sorted_coboundary.end(), comp);
+                std::cout << "add " << sorted_coboundary << " to working col" << std::endl;
+//                for (int coboundary_simplex_index: coboundary) {
+//                    std::vector<int> vertices;
+//                
+//                    get_simplex_vertices( coboundary_simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
+//                    std::cout << " " << coboundary_simplex_index << " " << vertices << " (" << comp.diam(coboundary_simplex_index) << ")" << std::endl;
+//                }
+                
+                for (int e: coboundary) if (comp.diam(e) <= threshold) working_coboundary.push(e); // std::cout << "push " << e << std::endl;}
+                
+//            std::cout << "=" << std::endl;
+//                auto working_coboundary_copy = working_coboundary;
+//                while (!working_coboundary_copy.empty()) {
+//                    std::cout << " " << working_coboundary_copy.top() << std::endl;
+//                    working_coboundary_copy.pop();
+//                }
+//            std::cout << "=" << std::endl;
+
+                
+                pivot = get_pivot(working_coboundary);
+                
+
+                //add boundary column at index birth to working_coboundary
+                //since the boundary column is not stored explicitly,
+                //add the boundary of the column at index birth in the reduction matrix instead
+                
+                //space-efficient variant: add just the boundary column at index birth instead
+                //this avoids having to store the reduction matrix
+                
+                if (pivot != -1) {
+                    std::cout << "pivot: " << pivot << std::endl;
+                    auto pair = pivot_column_index.find(pivot);
+                    
+                    if (pair == pivot_column_index.end()) {
+                        pivot_column_index.insert(std::make_pair(pivot, index));
+                        break;
+                    }
+                    
+                    column = pair->second;
                 }
                 
-                column = pair->second;
-            }
-            
-            /*
-            coboundary.clear();
-            get_simplex_coboundary( birth, dim, n, binomial_coeff, std::back_inserter(coboundary) );
-            for (int e: coboundary) if (comp1.diam(e) <= threshold) working_coboundary.push(e);
-
-            //space-efficient variant: drop this part (and the reduction_matrix)
-            
-            for (int col = reduction_matrix.cbegin()) {
+                /*
                 coboundary.clear();
-                get_simplex_coboundary( col, dim, n, binomial_coeff, std::back_inserter(coboundary) );
-                for (int e: coboundary) if (comp1.diam(e) <= threshold) working_coboundary.push(e);
+                get_simplex_coboundary( birth, dim, n, binomial_coeff, std::back_inserter(coboundary) );
+                for (int e: coboundary) if (comp2.diam(e) <= threshold) working_coboundary.push(e);
+
+                //space-efficient variant: drop this part (and the reduction_matrix)
+                
+                for (int col = reduction_matrix.cbegin()) {
+                    coboundary.clear();
+                    get_simplex_coboundary( col, dim, n, binomial_coeff, std::back_inserter(coboundary) );
+                    for (int e: coboundary) if (comp2.diam(e) <= threshold) working_coboundary.push(e);
+                }
+                 */
+            } while ( pivot != -1 );
+            
+            std::cout << std::endl;
+
+
+        }
+        
+        std::cout << "pairs:" << std::endl << pivot_column_index << std::endl;
+
+
+        if (dim == dim_max - 1)
+            break;
+        
+        
+        int num_simplices = binomial_coeff(n, dim + 1);
+        
+        columns_to_reduce.clear();
+        
+        for (int index = 0; index < num_simplices; ++index) {
+            if (comp.diam(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
+                columns_to_reduce.push_back(index);
             }
-             */
-        } while ( pivot != -1 );
+        }
+        std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp);
+
+        std::cout << "sorted " << dim + 1 << "-columns to reduce: " << columns_to_reduce << std::endl;
+        
+        for (int index: columns_to_reduce) {
+            std::vector<int> vertices;
+
+            get_simplex_vertices( index, dim, n, binomial_coeff, std::back_inserter(vertices) );
+            std::cout << " " << index << " " << vertices << " (" << comp.diam(index) << ")" << std::endl;
+        }
+        
+        std::cout << std::endl;
 
     }
-    
-    std::cout << "pairs:" << std::endl << pivot_column_index << std::endl;
-    
     
 }
