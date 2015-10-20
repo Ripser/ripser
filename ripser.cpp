@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <iomanip>  
 #include <fstream>
 #include <string>
 #include <cassert>
@@ -172,12 +173,15 @@ std::vector<double> get_diameters (
 {
     long n = dist.size();
     
-    std::vector<double> diameters(binomial_coeff(n, dim + 1));
+    std::vector<double> diameters(binomial_coeff(n, dim + 1), 0);
     
     std::vector<long> coboundary;
 
-    for (long simplex = 0; simplex < n; ++simplex) {
+    for (long simplex = 0; simplex < previous_diameters.size(); ++simplex) {
         coboundary.clear();
+        
+        std::cout << "\033[Kpropagating diameter of simplex " << simplex + 1 << "/" << previous_diameters.size() << std::flush << "\r";
+
         
         get_simplex_coboundary( simplex, dim - 1, n, binomial_coeff, std::back_inserter(coboundary) );
         for (long coface: coboundary) {
@@ -185,6 +189,13 @@ std::vector<double> get_diameters (
         }
     }
     
+    std::cout << "\033[K";
+    
+//    rips_filtration_comparator<decltype(dist)> comp(dist, dim, binomial_coeff);
+//    for (long simplex = 0; simplex < diameters.size(); ++simplex) {
+//        assert(diameters[simplex] == comp.diameter(simplex));
+//    }
+
     return diameters;
 }
 
@@ -363,6 +374,7 @@ std::vector<long> move_to_column_vector(Heap& column)
 }
 
 
+
 void print_help_and_exit()
 {
     std::cerr << "Usage: " << "ripser " << "[options] input_filename output_filename" << std::endl;
@@ -377,8 +389,6 @@ void print_help_and_exit()
 }
 
 int main( int argc, char** argv ) {
-    
-    std::cout << "sizeof(long) = " << sizeof(long) << std::endl;
     
     if( argc < 3 ) print_help_and_exit();
 
@@ -584,9 +594,9 @@ int main( int argc, char** argv ) {
         columns_to_reduce.push_back(index);
     }
 
-    std::vector<double> previous_diameters( n );
+    std::vector<double> previous_diameters( n , 0 );
 
-    std::cout << "computing edge diameters" << std::endl;
+    std::cout << "precomputing 1-simplex diameters" << std::endl;
     
     std::vector<double> diameters( binomial_coeff( n, 2 ) );
     
@@ -607,12 +617,14 @@ int main( int argc, char** argv ) {
         //compressed_sparse_matrix<long> reduction_matrix;
         
         //rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
-        
         rips_filtration_diameter_comparator comp(diameters, dim + 1, binomial_coeff);
         
-        std::unordered_map<long, long> pivot_column_index;
+ //        rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
+        rips_filtration_diameter_comparator comp_prev(previous_diameters, dim, binomial_coeff);
+
+       std::unordered_map<long, long> pivot_column_index;
         
-        std::cout << "reduce columns in dim " << dim << std::endl;
+        std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
         
 //        std::cout << "reduce columns in dim " << dim << ": " << columns_to_reduce << std::endl;
 //        std::cout << " rows in dim " << dim + 1 << ": " << columns_to_reduce << std::endl;
@@ -638,9 +650,12 @@ int main( int argc, char** argv ) {
             
             std::priority_queue<long, std::vector<long>, decltype(comp) > working_coboundary(comp);
             
-//            std::cout << "reduce column " << index << " (" << i + 1 << "/" << columns_to_reduce.size() << ")" << std::endl;
+//            std::cout << "reduce column " << index << std::setw(0)
+//            << " (" << i + 1 << "/" << columns_to_reduce.size() << ")\r";
 
-        
+            std::cout << "\033[K" << "reducing column " << i + 1 << "/" << columns_to_reduce.size() << std::flush << "\r";
+            
+            
             long pivot, column = index;
             
             do {
@@ -687,6 +702,11 @@ int main( int argc, char** argv ) {
                     
                     if (pair == pivot_column_index.end()) {
                         pivot_column_index.insert(std::make_pair(pivot, index));
+                        
+                        double birth = comp_prev.diameter(index), death = comp.diameter(pivot);
+                        if (birth != death)
+                            std::cout << "\033[K" << " [" << birth << "," << death << ")" << std::endl << std::flush;
+
                         break;
                     }
                     
@@ -721,24 +741,22 @@ int main( int argc, char** argv ) {
 //            std::cout << "fill-in: " << cochain.size()-1 << std::endl;
 
 
-
         }
         
-        std::cout << "dimension " << dim << " pairs:" << std::endl;
-//        std::cout << pivot_column_index << std::endl;
-        
-        
-//        rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
-        rips_filtration_diameter_comparator comp_prev(previous_diameters, dim, binomial_coeff);
 
-        
-        for (std::pair<long,long> pair: pivot_column_index) {
-            double birth = comp_prev.diameter(pair.second), death = comp.diameter(pair.first);
-//            std::cout << vertices_of_simplex(pair.second, dim, n, binomial_coeff) << "," <<
-//                        vertices_of_simplex(pair.first, dim + 1, n, binomial_coeff) << std::endl;
-            if (birth != death)
-                std::cout << " [" << birth << "," << death << ")" << std::endl;
-        }
+//        std::cout << "dimension " << dim << " pairs:" << std::endl;
+////        std::cout << pivot_column_index << std::endl;
+//        
+//        
+//
+//        
+//        for (std::pair<long,long> pair: pivot_column_index) {
+//            double birth = comp_prev.diameter(pair.second), death = comp.diameter(pair.first);
+////            std::cout << vertices_of_simplex(pair.second, dim, n, binomial_coeff) << "," <<
+////                        vertices_of_simplex(pair.first, dim + 1, n, binomial_coeff) << std::endl;
+//            if (birth != death)
+//                std::cout << " [" << birth << "," << death << ")" << std::endl;
+//        }
 
         if (dim == dim_max - 1)
             break;
@@ -774,10 +792,12 @@ int main( int argc, char** argv ) {
 //        }
 //        
 //        std::cout << std::endl;
-    
         
-        previous_diameters = diameters;
-        diameters = get_diameters( dist, dim + 2, previous_diameters, binomial_coeff);
+        std::cout << "\033[K";
+        
+        previous_diameters = std::move(diameters);
+        std::cout << "precomputing " << dim + 1 << "-simplex diameters" << std::endl;
+        diameters = get_diameters( dist, dim + 2, previous_diameters, binomial_coeff );
         
 
 
