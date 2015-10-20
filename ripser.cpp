@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <cassert>
 #include <queue>
 #include <unordered_map>
@@ -178,6 +179,43 @@ public:
 };
 
 
+class compressed_distance_matrix  {
+public:
+    typedef double value_type;
+    std::vector<double> distances;
+    std::vector<double*> rows;
+    
+    int n;
+    
+    compressed_distance_matrix(std::vector<double>&& row_vector) noexcept {
+        n = (1 + std::sqrt(1+ 8 * row_vector.size())) / 2;
+        
+        distances = std::move(row_vector);
+        
+        rows.resize(n);
+        
+        double* pointer = &distances[0] - 1;
+        for (int i = 0; i < n - 1; ++i) {
+            rows[i] = pointer;
+            pointer += n - i - 2;
+        }
+    }
+    
+    double operator()(const int a, const int b) const {
+        if (a < b)
+            return rows[a][b];
+        else if (a > b)
+            return rows[b][a];
+        else
+            return 0;
+    }
+    
+    size_t size() const {
+        return n;
+    }
+
+};
+
 template <typename ValueType>
 class compressed_sparse_matrix  {
 public:
@@ -294,37 +332,31 @@ int main( int argc, char** argv ) {
         exit(-1);
     }
     
-    int64_t magic_number;
-    input_stream.read( (char*)&magic_number, sizeof( int64_t ) );
-    if( magic_number != 8067171840 ) {
-        std::cerr << input_filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
-        exit(-1);
-    }
-
-   
-    int64_t file_type;
-    input_stream.read( (char*)&file_type, sizeof( int64_t ) );
-    if( file_type != 7 ) {
-        std::cerr << input_filename << " is not a Dipha distance matrix (file type: 7)" << std::endl;
-        exit(-1);
-    }
-   
-    int64_t n;
-    input_stream.read( (char*)&n, sizeof( int64_t ) );
+    std::vector<double> distances;
+    std::string value_string;
+    while(std::getline(input_stream, value_string, ','))
+        distances.push_back(std::stod(value_string));
+    
+//    std::cout << "distances: " << distances << std::endl;
+    
+    compressed_distance_matrix dist(std::move(distances));
+    
+    int64_t n = dist.size();
     
     std::cout << "distance matrix with " << n << " points" << std::endl;
     
-    //std::vector<double> distances =
 
-    distance_matrix dist;
-    dist.distances = std::vector<std::vector<double>>(n, std::vector<double>(n));;
-    
-//    std::cout << dist.distances << std::endl;
+//    std::vector<std::vector<double>> distance_matrix_full(n, std::vector<double>(n));
+//    for (int i = 0; i < n; ++i)
+//        for (int j = 0; j < n; ++j)
+//            distance_matrix_full[i][j] = dist(i, j);
+//    
+//    std::cout << distance_matrix_full << std::endl;
+//    
+//    std::cout << "distances: " << distances << std::endl;
+//
+//    return 0;
 
-    for( int i = 0; i < n; ++i ) {
-        input_stream.read( (char*)&dist.distances[i][0], n * sizeof(int64_t) );
-    }
-    
     
 //    dist.distances = {
 //        {0,1,3,4,3,1},
@@ -469,11 +501,13 @@ int main( int argc, char** argv ) {
 
         //compressed_sparse_matrix<int> reduction_matrix;
         
-        rips_filtration_comparator<distance_matrix> comp(dist, dim + 1, binomial_coeff);
+        rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
         
         std::unordered_map<int, int> pivot_column_index;
 
         //std::vector<int> reduction_column;
+        
+        std::cout << "reduce columns in dim " << dim << std::endl;
         
 //        std::cout << "reduce columns in dim " << dim << ": " << columns_to_reduce << std::endl;
 //        std::cout << " rows in dim " << dim + 1 << ": " << columns_to_reduce << std::endl;
@@ -495,9 +529,9 @@ int main( int argc, char** argv ) {
         for (int index: columns_to_reduce) {
             //reduction_column.clear();
             
-            std::priority_queue<int, std::vector<int>, rips_filtration_comparator<distance_matrix> > working_coboundary(comp);
+            std::priority_queue<int, std::vector<int>, rips_filtration_comparator<decltype(dist)> > working_coboundary(comp);
             
-//            std::cout << "reduce column " << index << std::endl;
+            std::cout << "reduce column " << index << std::endl;
 
         
             int pivot, column = index;
@@ -531,6 +565,7 @@ int main( int argc, char** argv ) {
                 
 
                 //add boundary column at index birth to working_coboundary
+                
                 //since the boundary column is not stored explicitly,
                 //add the boundary of the column at index birth in the reduction matrix instead
                 
@@ -572,7 +607,7 @@ int main( int argc, char** argv ) {
         std::cout << "dimension " << dim << " pairs:" << std::endl;
 //        std::cout << pivot_column_index << std::endl;
         
-        rips_filtration_comparator<distance_matrix> comp_prev(dist, dim, binomial_coeff);
+        rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
         for (std::pair<int,int> pair: pivot_column_index) {
             double birth = comp_prev.diam(pair.second), death = comp.diam(pair.first);
 //            std::cout << vertices_of_simplex(pair.second, dim, n, binomial_coeff) << "," <<
