@@ -96,7 +96,7 @@ public:
 //    reverse(_reverse)
     {};
     
-    dist_t diam(const int index) {
+    dist_t diameter(const int index) {
         dist_t diam = 0;
         get_simplex_vertices(index, dim, dist.size(), binomial_coeff, vertices.begin() );
         
@@ -116,7 +116,7 @@ public:
         dist_t a_diam = 0, b_diam = 0;
 
     
-        b_diam = diam(b);
+        b_diam = diameter(b);
         
         get_simplex_vertices(a, dim, dist.size(), binomial_coeff, vertices.begin() );
         for (int i = 0; i <= dim; ++i)
@@ -162,6 +162,72 @@ void get_simplex_coboundary( int idx, int dim, int n, const binomial_coeff_table
     return;
 }
 
+template <typename DistanceMatrix>
+std::vector<double> get_diameters (
+    const DistanceMatrix& dist,
+    const int dim,
+    const std::vector<double>& previous_diameters,
+    const binomial_coeff_table& binomial_coeff
+    )
+{
+    int n = previous_diameters.size();
+    
+    std::vector<double> diameters(binomial_coeff(n, dim + 1));
+    
+    std::vector<int> coboundary;
+
+    for (int simplex = 0; simplex < n; ++simplex) {
+        coboundary.clear();
+        
+        get_simplex_coboundary( simplex, dim - 1, n, binomial_coeff, std::back_inserter(coboundary) );
+        for (int coface: coboundary) {
+            diameters[coface] = std::max( diameters[coface], previous_diameters[simplex]);
+        }
+    }
+    
+    return diameters;
+}
+
+
+class rips_filtration_diameter_comparator {
+private:
+    const std::vector<double>& diameters;
+    
+    const int dim;
+
+public:
+    std::vector<int> vertices;
+    
+    typedef double dist_t;
+    
+    
+    const binomial_coeff_table& binomial_coeff;
+    
+public:
+    rips_filtration_diameter_comparator(
+        const std::vector<double>& _diameters,
+        const int _dim,
+        const binomial_coeff_table& _binomial_coeff
+        ):
+        diameters(_diameters), dim(_dim),
+        binomial_coeff(_binomial_coeff)
+    {};
+    
+    double diameter(const int a) {
+        return diameters[a];
+    }
+
+    bool operator()(const int a, const int b)
+    {
+        assert(a < binomial_coeff(diameters.size(), dim + 1));
+        assert(b < binomial_coeff(diameters.size(), dim + 1));
+        
+        dist_t a_diam = diameters[a], b_diam = diameters[b];
+
+        return ((a_diam > b_diam) || ((a_diam == b_diam) && (a > b)));
+    }
+    
+};
 
 
 class distance_matrix  {
@@ -438,7 +504,7 @@ int main( int argc, char** argv ) {
 //        std::vector<int> vertices;
 //    
 //        get_simplex_vertices( coboundary_simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
-//        std::cout << " " << coboundary_simplex_index << " " << vertices << " (" << comp1.diam(coboundary_simplex_index) << ")" << std::endl;
+//        std::cout << " " << coboundary_simplex_index << " " << vertices << " (" << comp1.diameter(coboundary_simplex_index) << ")" << std::endl;
 //
 //    }
 //    
@@ -487,7 +553,7 @@ int main( int argc, char** argv ) {
 //        std::vector<int> vertices;
 //
 //        get_simplex_vertices( index, 1, n, binomial_coeff, std::back_inserter(vertices) );
-//        std::cout << " " << index << " " << vertices << " (" << comp1.diam(index) << ")" << std::endl;
+//        std::cout << " " << index << " " << vertices << " (" << comp1.diameter(index) << ")" << std::endl;
 //    }
 //    
 //    
@@ -499,7 +565,7 @@ int main( int argc, char** argv ) {
 //        std::vector<int> vertices;
 //
 //        get_simplex_vertices( index, 2, n, binomial_coeff, std::back_inserter(vertices) );
-//        std::cout << " " << index << " " << vertices << " (" << comp2.diam(index) << ")" << std::endl;
+//        std::cout << " " << index << " " << vertices << " (" << comp2.diameter(index) << ")" << std::endl;
 //    }
 //
 //
@@ -515,12 +581,22 @@ int main( int argc, char** argv ) {
         columns_to_reduce.push_back(index);
     }
 
+    std::vector<double> previous_diameters( n );
+
+    rips_filtration_comparator<decltype(dist)> comp1(dist, 1, binomial_coeff);
+    std::vector<double> diameters( binomial_coeff( n, 2 ) );
+    for (int edge = 0; edge < diameters.size(); ++edge) {
+        diameters[edge] = comp1.diameter(edge);
+    }
+    
     for (int dim = 0; dim < dim_max; ++dim) {
         
 
         //compressed_sparse_matrix<int> reduction_matrix;
         
-        rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
+        //rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
+        
+        rips_filtration_diameter_comparator comp(diameters, dim + 1, binomial_coeff);
         
         std::unordered_map<int, int> pivot_column_index;
         
@@ -539,14 +615,14 @@ int main( int argc, char** argv ) {
 //            std::vector<int> vertices;
 //            
 //            get_simplex_vertices( simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
-//            std::cout << " " << simplex_index << " " << vertices << " (" << comp.diam(simplex_index) << ")" << std::endl;
+//            std::cout << " " << simplex_index << " " << vertices << " (" << comp.diameter(simplex_index) << ")" << std::endl;
 //
 //        }
         
         for (int index: columns_to_reduce) {
-            std::priority_queue<int, std::vector<int>, rips_filtration_comparator<decltype(dist)> > reduction_column(comp);
+            std::priority_queue<int, std::vector<int>, decltype(comp) > reduction_column(comp);
             
-            std::priority_queue<int, std::vector<int>, rips_filtration_comparator<decltype(dist)> > working_coboundary(comp);
+            std::priority_queue<int, std::vector<int>, decltype(comp) > working_coboundary(comp);
             
             std::cout << "reduce column " << index << std::endl;
 
@@ -566,10 +642,10 @@ int main( int argc, char** argv ) {
 //                    std::vector<int> vertices;
 //                
 //                    get_simplex_vertices( coboundary_simplex_index, dim + 1, n, binomial_coeff, std::back_inserter(vertices) );
-//                    std::cout << " " << coboundary_simplex_index << " " << vertices << " (" << comp.diam(coboundary_simplex_index) << ")" << std::endl;
+//                    std::cout << " " << coboundary_simplex_index << " " << vertices << " (" << comp.diameter(coboundary_simplex_index) << ")" << std::endl;
 //                }
                 
-                for (int e: coboundary) if (comp.diam(e) <= threshold) working_coboundary.push(e); // std::cout << "push " << e << std::endl;}
+                for (int e: coboundary) if (comp.diameter(e) <= threshold) working_coboundary.push(e); // std::cout << "push " << e << std::endl;}
                 
 //            std::cout << "=" << std::endl;
 //                auto working_coboundary_copy = working_coboundary;
@@ -606,14 +682,14 @@ int main( int argc, char** argv ) {
                 /*
                 coboundary.clear();
                 get_simplex_coboundary( birth, dim, n, binomial_coeff, std::back_inserter(coboundary) );
-                for (int e: coboundary) if (comp2.diam(e) <= threshold) working_coboundary.push(e);
+                for (int e: coboundary) if (comp2.diameter(e) <= threshold) working_coboundary.push(e);
 
                 //space-efficient variant: drop this part (and the reduction_matrix)
                 
                 for (int col = reduction_matrix.cbegin()) {
                     coboundary.clear();
                     get_simplex_coboundary( col, dim, n, binomial_coeff, std::back_inserter(coboundary) );
-                    for (int e: coboundary) if (comp2.diam(e) <= threshold) working_coboundary.push(e);
+                    for (int e: coboundary) if (comp2.diameter(e) <= threshold) working_coboundary.push(e);
                 }
                  */
             } while ( pivot != -1 );
@@ -635,9 +711,13 @@ int main( int argc, char** argv ) {
         std::cout << "dimension " << dim << " pairs:" << std::endl;
 //        std::cout << pivot_column_index << std::endl;
         
-        rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
+        
+//        rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
+        rips_filtration_diameter_comparator comp_prev(previous_diameters, dim, binomial_coeff);
+
+        
         for (std::pair<int,int> pair: pivot_column_index) {
-            double birth = comp_prev.diam(pair.second), death = comp.diam(pair.first);
+            double birth = comp_prev.diameter(pair.second), death = comp.diameter(pair.first);
 //            std::cout << vertices_of_simplex(pair.second, dim, n, binomial_coeff) << "," <<
 //                        vertices_of_simplex(pair.first, dim + 1, n, binomial_coeff) << std::endl;
             if (birth != death)
@@ -656,13 +736,13 @@ int main( int argc, char** argv ) {
         
         for (int index = 0; index < num_simplices; ++index) {
         
-//            if (comp.diam(index) > threshold) {
-//                std::cout << " " << vertices_of_simplex(index, dim + 1, n, binomial_coeff) << ": " << comp.diam(index) << " above threshold" << std::endl;
+//            if (comp.diameter(index) > threshold) {
+//                std::cout << " " << vertices_of_simplex(index, dim + 1, n, binomial_coeff) << ": " << comp.diameter(index) << " above threshold" << std::endl;
 //            } else if (pivot_column_index.find(index) != pivot_column_index.end()) {
 //                std::cout << " " << vertices_of_simplex(index, dim + 1, n, binomial_coeff) << " appears in pair" << std::endl;
 //            }
             
-            if (comp.diam(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
+            if (comp.diameter(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
                 columns_to_reduce.push_back(index);
             }
         }
@@ -674,11 +754,15 @@ int main( int argc, char** argv ) {
 //            std::vector<int> vertices;
 //
 //            get_simplex_vertices( index, dim, n, binomial_coeff, std::back_inserter(vertices) );
-//            std::cout << " " << index << " " << vertices << " (" << comp.diam(index) << ")" << std::endl;
+//            std::cout << " " << index << " " << vertices << " (" << comp.diameter(index) << ")" << std::endl;
 //        }
 //        
 //        std::cout << std::endl;
     
+        
+        previous_diameters = diameters;
+        diameters = get_diameters( dist, dim + 1, previous_diameters, binomial_coeff);
+        
 
 
     }
