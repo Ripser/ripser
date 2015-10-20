@@ -254,7 +254,7 @@ public:
 };
 
 template <typename Heap>
-int get_pivot(Heap& column)
+int pop_pivot(Heap& column)
 {
     if( column.empty() )
         return -1;
@@ -270,12 +270,31 @@ int get_pivot(Heap& column)
                 column.pop();
             }
         }
-        if( max_element != -1 )
-            column.push( max_element );
-
         return max_element;
     }
 }
+
+template <typename Heap>
+int get_pivot(Heap& column)
+{
+    int max_element = pop_pivot(column);
+    if( max_element != -1 )
+        column.push( max_element );
+    return max_element;
+}
+
+template <typename Heap>
+std::vector<int> move_to_column_vector(Heap& column)
+{
+    std::vector<int> temp_col;
+    int pivot = pop_pivot( column );
+    while( pivot != -1 ) {
+        temp_col.push_back( pivot );
+        pivot = pop_pivot( column );
+    }
+    return temp_col;
+}
+
 
 void print_help_and_exit()
 {
@@ -504,8 +523,6 @@ int main( int argc, char** argv ) {
         rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
         
         std::unordered_map<int, int> pivot_column_index;
-
-        //std::vector<int> reduction_column;
         
         std::cout << "reduce columns in dim " << dim << std::endl;
         
@@ -527,7 +544,7 @@ int main( int argc, char** argv ) {
 //        }
         
         for (int index: columns_to_reduce) {
-            //reduction_column.clear();
+            std::priority_queue<int, std::vector<int>, rips_filtration_comparator<decltype(dist)> > reduction_column(comp);
             
             std::priority_queue<int, std::vector<int>, rips_filtration_comparator<decltype(dist)> > working_coboundary(comp);
             
@@ -537,6 +554,8 @@ int main( int argc, char** argv ) {
             int pivot, column = index;
             
             do {
+            
+                reduction_column.push( column );
 
                 coboundary.clear();
                 get_simplex_coboundary( column, dim, n, binomial_coeff, std::back_inserter(coboundary) );
@@ -599,7 +618,16 @@ int main( int argc, char** argv ) {
                  */
             } while ( pivot != -1 );
             
-//            std::cout << std::endl;
+            std::vector<int> cochain = move_to_column_vector( reduction_column );
+            std::cout << "reduction cochain: " << cochain << std::endl;
+
+//            if ( pivot != -1 ) {
+//                std::vector<int> coboundary = move_to_column_vector( working_coboundary );
+//                std::cout << "reduced coboundary: " << coboundary << std::endl;
+//            }
+
+            std::cout << "fill-in: " << cochain.size()-1 << std::endl;
+
 
 
         }
