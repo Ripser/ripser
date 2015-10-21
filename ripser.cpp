@@ -147,6 +147,69 @@ public:
     
 };
 
+template <typename DistanceMatrix, index_t dim>
+class rips_filtration_comparator_dim;
+
+template <typename DistanceMatrix>
+class rips_filtration_comparator_dim <DistanceMatrix, 2> {
+public:
+    const DistanceMatrix& dist;
+    
+private:
+    mutable std::vector<index_t> vertices;
+    
+    typedef decltype(dist(0,0)) dist_t;
+    
+    bool reverse;
+    
+    const binomial_coeff_table& binomial_coeff;
+    
+public:
+    rips_filtration_comparator_dim(
+    const DistanceMatrix& _dist,
+    const binomial_coeff_table& _binomial_coeff
+    ):
+    dist(_dist), vertices(3),
+    binomial_coeff(_binomial_coeff)
+    {};
+    
+    dist_t diameter(const index_t index) const {
+        dist_t diam = 0;
+        get_simplex_vertices(index, 2, dist.size(), binomial_coeff, vertices.begin() );
+        
+        diam = std::max(diam, dist(vertices[0], vertices[1]));
+        diam = std::max(diam, dist(vertices[0], vertices[2]));
+        diam = std::max(diam, dist(vertices[0], vertices[3]));
+        diam = std::max(diam, dist(vertices[1], vertices[2]));
+        diam = std::max(diam, dist(vertices[1], vertices[3]));
+        diam = std::max(diam, dist(vertices[2], vertices[3]));
+
+        return diam;
+    }
+
+    bool operator()(const index_t a, const index_t b) const
+    {
+        assert(a < binomial_coeff(dist.size(), 3));
+        assert(b < binomial_coeff(dist.size(), 3));
+        
+        dist_t a_diam = 0, b_diam = 0;
+
+    
+        b_diam = diameter(b);
+        
+        get_simplex_vertices(a, 2, dist.size(), binomial_coeff, vertices.begin() );
+        if ((a_diam = dist(vertices[0], vertices[1])) >= b_diam) return (a_diam > b_diam) || (a > b);
+        if ((a_diam = dist(vertices[0], vertices[2])) >= b_diam) return (a_diam > b_diam) || (a > b);
+        if ((a_diam = dist(vertices[0], vertices[3])) >= b_diam) return (a_diam > b_diam) || (a > b);
+        if ((a_diam = dist(vertices[1], vertices[2])) >= b_diam) return (a_diam > b_diam) || (a > b);
+        if ((a_diam = dist(vertices[1], vertices[3])) >= b_diam) return (a_diam > b_diam) || (a > b);
+        if ((a_diam = dist(vertices[2], vertices[3])) >= b_diam) return (a_diam > b_diam) || (a > b);
+        
+        return false;
+    }
+    
+};
+
 
 template<typename OutputIterator>
 void get_simplex_coboundary( index_t idx, index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator coboundary )
