@@ -158,7 +158,6 @@ void get_simplex_coboundary( index_t idx, index_t dim, index_t n, const binomial
     
     for( index_t k = dim + 1; k != -1 && n != -1; --k ) {
         while( binomial_coeff( n , k ) > idx ) {
-//            std::cout << "binomial_coeff(" << n << ", " << k << ") = " << binomial_coeff( n , k ) << " > " << idx << std::endl;
             *coboundary++ = modified_idx + binomial_coeff( n , k + 1 );
             if (n==0) break;
             --n;
@@ -174,6 +173,51 @@ void get_simplex_coboundary( index_t idx, index_t dim, index_t n, const binomial
  
     return;
 }
+
+class simplex_coboundary_enumerator {
+private:
+    index_t idx, modified_idx, dim, n, k;
+    
+    const binomial_coeff_table& binomial_coeff;
+    
+public:
+    simplex_coboundary_enumerator (
+        index_t _idx,
+        index_t _dim,
+        index_t _n,
+        const binomial_coeff_table& _binomial_coeff):
+        idx(_idx), modified_idx(_idx), dim(_dim), k(dim + 1), n(_n - 1), binomial_coeff(_binomial_coeff)
+    {
+        
+    }
+    
+    bool has_next()
+    {
+        while ( (k != -1 && n != -1) && (binomial_coeff( n , k ) <= idx) ) {
+            idx -= binomial_coeff( n , k );
+            
+            modified_idx -= binomial_coeff( n , k );
+            modified_idx += binomial_coeff( n , k + 1 );
+            
+            --n;
+            --k;
+        }
+        return k != -1 && n != -1;
+    }
+    
+    index_t next()
+    {
+        while ( binomial_coeff( n , k ) <= idx ) {
+            idx -= binomial_coeff( n , k );
+            
+            modified_idx -= binomial_coeff( n , k );
+            modified_idx += binomial_coeff( n , k + 1 );
+            
+            --n;
+        }
+        return modified_idx + binomial_coeff( n-- , k + 1 );
+    }
+};
 
 template <typename DistanceMatrix>
 std::vector<value_t> get_diameters (
@@ -195,8 +239,9 @@ std::vector<value_t> get_diameters (
         std::cout << "\033[Kpropagating diameter of simplex " << simplex + 1 << "/" << previous_diameters.size() << std::flush << "\r";
 
         
-        get_simplex_coboundary( simplex, dim - 1, n, binomial_coeff, std::back_inserter(coboundary) );
-        for (index_t coface: coboundary) {
+        simplex_coboundary_enumerator coboundaries(simplex, dim - 1, n, binomial_coeff);
+        while (coboundaries.has_next()) {
+            index_t coface = coboundaries.next();
             diameters[coface] = std::max( diameters[coface], previous_diameters[simplex]);
         }
     }
@@ -435,10 +480,12 @@ void compute_pairs(
                 reduction_column.push( column );
                 #endif
 
-                coboundary.clear();
-                get_simplex_coboundary( column, dim, n, binomial_coeff, std::back_inserter(coboundary) );
-                
-                for (index_t e: coboundary) if (comp.diameter(e) <= threshold) working_coboundary.push(e); // std::cout << "push " << e << std::endl;}
+                simplex_coboundary_enumerator coboundaries(column, dim, n, binomial_coeff);
+                while (coboundaries.has_next()) {
+                    index_t coface = coboundaries.next();
+                    if (comp.diameter(coface) <= threshold)
+                        working_coboundary.push(coface);
+                }
                                
                 pivot = get_pivot(working_coboundary);
                 
@@ -596,7 +643,17 @@ int main( int argc, char** argv ) {
     
     binomial_coeff_table binomial_coeff(n, dim_max + 2);
     
-
+//    std::vector<index_t> coboundary;
+//    get_simplex_coboundary( 1, 2, n, binomial_coeff, std::back_inserter(coboundary) );
+//    std::cout << coboundary <<std::endl;
+//    
+//    coboundary.clear();
+//    simplex_coboundary_enumerator coboundaries(1, 2, n, binomial_coeff);
+//    while (coboundaries.has_next())
+//        coboundary.push_back(coboundaries.next());
+//    std::cout << coboundary <<std::endl;
+   
+    
     std::vector<index_t> columns_to_reduce;
     
     
@@ -623,6 +680,7 @@ int main( int argc, char** argv ) {
     #endif
 
     
+//    std::cout << "diameters: " << diameters << std::endl;
     
     
     for (index_t dim = 0; dim < dim_max; ++dim) {
