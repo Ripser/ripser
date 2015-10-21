@@ -9,6 +9,8 @@
 #include "prettyprint.hpp"
 //#include <boost/numeric/ublas/symmetric.hpp>
 
+typedef float value_t;
+typedef long index_t;
 
 #define PRECOMPUTE_DIAMETERS
 
@@ -22,18 +24,18 @@
 
 
 class binomial_coeff_table {
-    std::vector<std::vector<long> > B;
-    long n_max, k_max;
+    std::vector<std::vector<index_t> > B;
+    index_t n_max, k_max;
     
 public:
-    binomial_coeff_table(long n, long k) {
+    binomial_coeff_table(index_t n, index_t k) {
         n_max = n;
         k_max = k;
     
         B.resize(n + 1);
-        for( long i = 0; i <= n; i++ ) {
+        for( index_t i = 0; i <= n; i++ ) {
             B[i].resize(k + 1);
-            for ( long j = 0; j <= std::min(i, k); j++ )
+            for ( index_t j = 0; j <= std::min(i, k); j++ )
             {
                 if (j == 0 || j == i)
                     B[i][j] = 1;
@@ -44,7 +46,7 @@ public:
         }
     }
     
-    long operator()(long n, long k) const {
+    index_t operator()(index_t n, index_t k) const {
 //        std::cout << "B(" << n << "," << k << ")\n";
         assert(n <= n_max);
         assert(k <= k_max);
@@ -55,11 +57,11 @@ public:
 
 
 template<typename OutputIterator>
-OutputIterator get_simplex_vertices( long idx, long dim, long n, const binomial_coeff_table& binomial_coeff, OutputIterator out  )
+OutputIterator get_simplex_vertices( index_t idx, index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator out  )
 {
     --n;
     
-    for( long k = dim + 1; k > 0; --k ) {
+    for( index_t k = dim + 1; k > 0; --k ) {
         while( binomial_coeff( n , k ) > idx ) {
             --n;
         }
@@ -72,8 +74,8 @@ OutputIterator get_simplex_vertices( long idx, long dim, long n, const binomial_
     return out;
 }
 
-std::vector<long> vertices_of_simplex(long simplex_index, long dim, long n, const binomial_coeff_table& binomial_coeff) {
-    std::vector<long> vertices;
+std::vector<index_t> vertices_of_simplex(index_t simplex_index, index_t dim, index_t n, const binomial_coeff_table& binomial_coeff) {
+    std::vector<index_t> vertices;
     get_simplex_vertices( simplex_index, dim, n, binomial_coeff, std::back_inserter(vertices) );
     return vertices;
 }
@@ -83,10 +85,10 @@ class rips_filtration_comparator {
 public:
     const DistanceMatrix& dist;
     
-    const long dim;
+    const index_t dim;
 
 private:
-    mutable std::vector<long> vertices;
+    mutable std::vector<index_t> vertices;
     
     typedef decltype(dist(0,0)) dist_t;
     
@@ -97,7 +99,7 @@ private:
 public:
     rips_filtration_comparator(
     const DistanceMatrix& _dist,
-    const long _dim,
+    const index_t _dim,
     const binomial_coeff_table& _binomial_coeff
 //    ,
 //    bool _reverse = true
@@ -108,18 +110,18 @@ public:
 //    reverse(_reverse)
     {};
     
-    dist_t diameter(const long index) const {
+    dist_t diameter(const index_t index) const {
         dist_t diam = 0;
         get_simplex_vertices(index, dim, dist.size(), binomial_coeff, vertices.begin() );
         
-        for (long i = 0; i <= dim; ++i)
-            for (long j = i + 1; j <= dim; ++j) {
+        for (index_t i = 0; i <= dim; ++i)
+            for (index_t j = i + 1; j <= dim; ++j) {
                 diam = std::max(diam, dist(vertices[i], vertices[j]));
             }
         return diam;
     }
 
-    bool operator()(const long a, const long b) const
+    bool operator()(const index_t a, const index_t b) const
     {
         assert(a < binomial_coeff(dist.size(), dim + 1));
         assert(b < binomial_coeff(dist.size(), dim + 1));
@@ -130,8 +132,8 @@ public:
         b_diam = diameter(b);
         
         get_simplex_vertices(a, dim, dist.size(), binomial_coeff, vertices.begin() );
-        for (long i = 0; i <= dim; ++i)
-            for (long j = i + 1; j <= dim; ++j) {
+        for (index_t i = 0; i <= dim; ++i)
+            for (index_t j = i + 1; j <= dim; ++j) {
                 a_diam = std::max(a_diam, dist(vertices[i], vertices[j]));
                 if (a_diam > b_diam)
 //                   (((a_diam < b_diam) && !reverse) ||
@@ -147,14 +149,14 @@ public:
 
 
 template<typename OutputIterator>
-void get_simplex_coboundary( long idx, long dim, long n, const binomial_coeff_table& binomial_coeff, OutputIterator coboundary )
+void get_simplex_coboundary( index_t idx, index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator coboundary )
 {
 
     --n;
     
-    long modified_idx = idx;
+    index_t modified_idx = idx;
     
-    for( long k = dim + 1; k >= 0 && n >= 0; --k ) {
+    for( index_t k = dim + 1; k != -1 && n != -1; --k ) {
         while( binomial_coeff( n , k ) > idx ) {
 //            std::cout << "binomial_coeff(" << n << ", " << k << ") = " << binomial_coeff( n , k ) << " > " << idx << std::endl;
             *coboundary++ = modified_idx + binomial_coeff( n , k + 1 );
@@ -174,27 +176,27 @@ void get_simplex_coboundary( long idx, long dim, long n, const binomial_coeff_ta
 }
 
 template <typename DistanceMatrix>
-std::vector<double> get_diameters (
+std::vector<value_t> get_diameters (
     const DistanceMatrix& dist,
-    const long dim,
-    const std::vector<double>& previous_diameters,
+    const index_t dim,
+    const std::vector<value_t>& previous_diameters,
     const binomial_coeff_table& binomial_coeff
     )
 {
-    long n = dist.size();
+    index_t n = dist.size();
     
-    std::vector<double> diameters(binomial_coeff(n, dim + 1), 0);
+    std::vector<value_t> diameters(binomial_coeff(n, dim + 1), 0);
     
-    std::vector<long> coboundary;
+    std::vector<index_t> coboundary;
 
-    for (long simplex = 0; simplex < previous_diameters.size(); ++simplex) {
+    for (index_t simplex = 0; simplex < previous_diameters.size(); ++simplex) {
         coboundary.clear();
         
         std::cout << "\033[Kpropagating diameter of simplex " << simplex + 1 << "/" << previous_diameters.size() << std::flush << "\r";
 
         
         get_simplex_coboundary( simplex, dim - 1, n, binomial_coeff, std::back_inserter(coboundary) );
-        for (long coface: coboundary) {
+        for (index_t coface: coboundary) {
             diameters[coface] = std::max( diameters[coface], previous_diameters[simplex]);
         }
     }
@@ -202,7 +204,7 @@ std::vector<double> get_diameters (
     std::cout << "\033[K";
     
 //    rips_filtration_comparator<decltype(dist)> comp(dist, dim, binomial_coeff);
-//    for (long simplex = 0; simplex < diameters.size(); ++simplex) {
+//    for (index_t simplex = 0; simplex < diameters.size(); ++simplex) {
 //        assert(diameters[simplex] == comp.diameter(simplex));
 //    }
 
@@ -212,34 +214,34 @@ std::vector<double> get_diameters (
 
 class rips_filtration_diameter_comparator {
 private:
-    const std::vector<double>& diameters;
+    const std::vector<value_t>& diameters;
     
-    const long dim;
+    const index_t dim;
 
 public:
-    std::vector<long> vertices;
+    std::vector<index_t> vertices;
     
-    typedef double dist_t;
+    typedef value_t dist_t;
     
     
     const binomial_coeff_table& binomial_coeff;
     
 public:
     rips_filtration_diameter_comparator(
-        const std::vector<double>& _diameters,
-        const long _dim,
+        const std::vector<value_t>& _diameters,
+        const index_t _dim,
         const binomial_coeff_table& _binomial_coeff
         ):
         diameters(_diameters), dim(_dim),
         binomial_coeff(_binomial_coeff)
     {};
     
-    double diameter(const long a) const {
+    value_t diameter(const index_t a) const {
         assert(a < diameters.size());
         return diameters[a];
     }
 
-    bool operator()(const long a, const long b) const
+    bool operator()(const index_t a, const index_t b) const
     {
         assert(a < diameters.size());
         assert(b < diameters.size());
@@ -254,9 +256,9 @@ public:
 
 class distance_matrix  {
 public:
-    typedef double value_type;
-    std::vector<std::vector<double> > distances;
-    double operator()(const long a, const long b) const {
+    typedef value_t value_type;
+    std::vector<std::vector<value_t> > distances;
+    value_t operator()(const index_t a, const index_t b) const {
         return distances[a][b];
     }
     
@@ -269,27 +271,27 @@ public:
 
 class compressed_distance_matrix  {
 public:
-    typedef double value_type;
-    std::vector<double> distances;
-    std::vector<double*> rows;
+    typedef value_t value_type;
+    std::vector<value_t> distances;
+    std::vector<value_t*> rows;
     
-    long n;
+    index_t n;
     
-    compressed_distance_matrix(std::vector<double>&& row_vector) noexcept {
+    compressed_distance_matrix(std::vector<value_t>&& row_vector) noexcept {
         n = (1 + std::sqrt(1+ 8 * row_vector.size())) / 2;
         
         distances = std::move(row_vector);
         
         rows.resize(n);
         
-        double* pointer = &distances[0] - 1;
-        for (long i = 0; i < n - 1; ++i) {
+        value_t* pointer = &distances[0] - 1;
+        for (index_t i = 0; i < n - 1; ++i) {
             rows[i] = pointer;
             pointer += n - i - 2;
         }
     }
     
-    double operator()(const long a, const long b) const {
+    value_t operator()(const index_t a, const index_t b) const {
         if (a < b)
             return rows[a][b];
         else if (a > b)
@@ -342,12 +344,12 @@ public:
 };
 
 template <typename Heap>
-long pop_pivot(Heap& column)
+index_t pop_pivot(Heap& column)
 {
     if( column.empty() )
         return -1;
     else {
-        long max_element = column.top();
+        index_t max_element = column.top();
         column.pop();
         while( !column.empty() && column.top() == max_element ) {
             column.pop();
@@ -363,19 +365,19 @@ long pop_pivot(Heap& column)
 }
 
 template <typename Heap>
-long get_pivot(Heap& column)
+index_t get_pivot(Heap& column)
 {
-    long max_element = pop_pivot(column);
+    index_t max_element = pop_pivot(column);
     if( max_element != -1 )
         column.push( max_element );
     return max_element;
 }
 
 template <typename Heap>
-std::vector<long> move_to_column_vector(Heap& column)
+std::vector<index_t> move_to_column_vector(Heap& column)
 {
-    std::vector<long> temp_col;
-    long pivot = pop_pivot( column );
+    std::vector<index_t> temp_col;
+    index_t pivot = pop_pivot( column );
     while( pivot != -1 ) {
         temp_col.push_back( pivot );
         pivot = pop_pivot( column );
@@ -400,32 +402,32 @@ void print_help_and_exit()
 
 template <typename ComparatorCofaces, typename Comparator>
 void compute_pairs(
-    std::vector<long>& columns_to_reduce,
-    std::unordered_map<long, long>& pivot_column_index,
+    std::vector<index_t>& columns_to_reduce,
+    std::unordered_map<index_t, index_t>& pivot_column_index,
     const ComparatorCofaces& comp, const Comparator& comp_prev,
-    long dim, long dim_max, long n,
-    double threshold,
+    index_t dim, index_t dim_max, index_t n,
+    value_t threshold,
     const binomial_coeff_table& binomial_coeff
 ) {
     
         std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
         
-        for (long i = 0; i < columns_to_reduce.size(); ++i) {
-            long index = columns_to_reduce[i];
+        for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
+            index_t index = columns_to_reduce[i];
             
             #ifdef ASSEMBLE_REDUCTION_COLUMN
-            std::priority_queue<long, std::vector<long>, decltype(comp) > reduction_column(comp);
+            std::priority_queue<index_t, std::vector<index_t>, decltype(comp) > reduction_column(comp);
             #endif
             
-            std::priority_queue<long, std::vector<long>, decltype(comp) > working_coboundary(comp);
+            std::priority_queue<index_t, std::vector<index_t>, decltype(comp) > working_coboundary(comp);
             
             std::cout << "\033[K" << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
             << " (diameter " << comp_prev.diameter(index) << ")"
             << std::flush << "\r";
             
-            long pivot, column = index;
+            index_t pivot, column = index;
             
-            std::vector<long> coboundary;
+            std::vector<index_t> coboundary;
 
             do {
             
@@ -436,7 +438,7 @@ void compute_pairs(
                 coboundary.clear();
                 get_simplex_coboundary( column, dim, n, binomial_coeff, std::back_inserter(coboundary) );
                 
-                for (long e: coboundary) if (comp.diameter(e) <= threshold) working_coboundary.push(e); // std::cout << "push " << e << std::endl;}
+                for (index_t e: coboundary) if (comp.diameter(e) <= threshold) working_coboundary.push(e); // std::cout << "push " << e << std::endl;}
                                
                 pivot = get_pivot(working_coboundary);
                 
@@ -455,7 +457,7 @@ void compute_pairs(
                     if (pair == pivot_column_index.end()) {
                         pivot_column_index.insert(std::make_pair(pivot, index));
                         
-                        double birth = comp_prev.diameter(index), death = comp.diameter(pivot);
+                        value_t birth = comp_prev.diameter(index), death = comp.diameter(pivot);
                         if (birth != death)
                             std::cout << "\033[K" << " [" << birth << "," << death << ")" << std::endl << std::flush;
 
@@ -469,7 +471,7 @@ void compute_pairs(
             
             
             if ( pivot == -1 ) {
-                double birth = comp_prev.diameter(index);
+                value_t birth = comp_prev.diameter(index);
                 std::cout << "\033[K" << " [" << birth << ", )" << std::endl << std::flush;
             }
 
@@ -489,10 +491,10 @@ int main( int argc, char** argv ) {
     std::string input_filename = argv[ argc - 2 ];
     std::string output_filename = argv[ argc - 1 ];
     
-    long dim_max = 1;
-    double threshold = std::numeric_limits<double>::max();
+    index_t dim_max = 1;
+    value_t threshold = std::numeric_limits<value_t>::max();
 
-    for( long idx = 1; idx < argc - 2; idx++ ) {
+    for( index_t idx = 1; idx < argc - 2; idx++ ) {
         const std::string option = argv[ idx ];
         if( option == "--help" ) {
             print_help_and_exit();
@@ -545,10 +547,10 @@ int main( int argc, char** argv ) {
     input_stream.read( (char*)&n, sizeof( int64_t ) );
     
 
-    //std::vector<double> distances =
+    //std::vector<value_t> distances =
 
     distance_matrix dist;
-    dist.distances = std::vector<std::vector<double>>(n, std::vector<double>(n));
+    dist.distances = std::vector<std::vector<value_t>>(n, std::vector<value_t>(n));
     
     for( int i = 0; i < n; ++i ) {
         input_stream.read( (char*)&dist.distances[i][0], n * sizeof(int64_t) );
@@ -561,7 +563,7 @@ int main( int argc, char** argv ) {
 
     #ifdef FILE_FORMAT_CSV
     
-    std::vector<double> distances;
+    std::vector<value_t> distances;
     std::string value_string;
     while(std::getline(input_stream, value_string, ','))
         distances.push_back(std::stod(value_string));
@@ -570,7 +572,7 @@ int main( int argc, char** argv ) {
     
     compressed_distance_matrix dist(std::move(distances));
     
-    long n = dist.size();
+    index_t n = dist.size();
     
     #endif
     
@@ -578,9 +580,9 @@ int main( int argc, char** argv ) {
     
 
 
-//    std::vector<std::vector<double>> distance_matrix_full(n, std::vector<double>(n));
-//    for (long i = 0; i < n; ++i)
-//        for (long j = 0; j < n; ++j)
+//    std::vector<std::vector<value_t>> distance_matrix_full(n, std::vector<value_t>(n));
+//    for (index_t i = 0; i < n; ++i)
+//        for (index_t j = 0; j < n; ++j)
 //            distance_matrix_full[i][j] = dist(i, j);
 //    
 //    std::cout << distance_matrix_full << std::endl;
@@ -595,26 +597,22 @@ int main( int argc, char** argv ) {
     binomial_coeff_table binomial_coeff(n, dim_max + 2);
     
 
-    std::vector<long> columns_to_reduce;
+    std::vector<index_t> columns_to_reduce;
     
     
-    for (long index = n - 1; index >= 0; --index) {
+    for (index_t index = n; index-- > 0; ) {
         columns_to_reduce.push_back(index);
     }
 
     #ifdef PRECOMPUTE_DIAMETERS
-    std::vector<double> previous_diameters( n , 0 );
+    std::vector<value_t> previous_diameters( n , 0 );
 
     std::cout << "precomputing 1-simplex diameters" << std::endl;
     
-    std::vector<double> diameters( binomial_coeff( n, 2 ) );
+    std::vector<value_t> diameters( binomial_coeff( n, 2 ) );
     
-//    rips_filtration_comparator<decltype(dist)> comp1(dist, 1, binomial_coeff);
-
-    std::vector<long> edge_vertices(2);
-    for (long edge = 0; edge < diameters.size(); ++edge) {
-//        diameters[edge] = comp1.diameter(edge);
-        
+    std::vector<index_t> edge_vertices(2);
+    for (index_t edge = 0; edge < diameters.size(); ++edge) {
         std::cout << "\033[Kstoring diameter of simplex " << edge + 1 << "/" << diameters.size() << std::flush << "\r";
 
         edge_vertices.clear();
@@ -627,9 +625,9 @@ int main( int argc, char** argv ) {
     
     
     
-    for (long dim = 0; dim < dim_max; ++dim) {
+    for (index_t dim = 0; dim < dim_max; ++dim) {
     
-        std::unordered_map<long, long> pivot_column_index;
+        std::unordered_map<index_t, index_t> pivot_column_index;
     
         #ifdef PRECOMPUTE_DIAMETERS
         rips_filtration_diameter_comparator comp(diameters, dim + 1, binomial_coeff);
@@ -649,11 +647,11 @@ int main( int argc, char** argv ) {
         );
         
         
-        long num_simplices = binomial_coeff(n, dim + 2);
+        index_t num_simplices = binomial_coeff(n, dim + 2);
         
         columns_to_reduce.clear();
         
-        for (long index = 0; index < num_simplices; ++index) {
+        for (index_t index = 0; index < num_simplices; ++index) {
 
             if (comp.diameter(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
                 columns_to_reduce.push_back(index);
@@ -678,7 +676,7 @@ int main( int argc, char** argv ) {
         
     }
     
-    long dim = dim_max;
+    index_t dim = dim_max;
     
     #ifdef PRECOMPUTE_DIAMETERS
     rips_filtration_diameter_comparator comp_prev(previous_diameters, dim, binomial_coeff);
@@ -692,7 +690,7 @@ int main( int argc, char** argv ) {
     rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
     #endif
     
-    std::unordered_map<long, long> pivot_column_index;
+    std::unordered_map<index_t, index_t> pivot_column_index;
 
     compute_pairs(
         columns_to_reduce,
