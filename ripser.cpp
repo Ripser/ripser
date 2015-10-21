@@ -10,6 +10,13 @@
 //#include <boost/numeric/ublas/symmetric.hpp>
 
 
+//#define PRECOMPUTE_DIAMETERS
+
+//#define ASSEMBLE_REDUCTION_COLUMN
+
+//#define FILE_FORMAT_DIPHA
+#define FILE_FORMAT_CSV
+
 
 class binomial_coeff_table {
     std::vector<std::vector<long> > B;
@@ -75,7 +82,7 @@ public:
     const long dim;
 
 private:
-    std::vector<long> vertices;
+    mutable std::vector<long> vertices;
     
     typedef decltype(dist(0,0)) dist_t;
     
@@ -97,7 +104,7 @@ public:
 //    reverse(_reverse)
     {};
     
-    dist_t diameter(const long index) {
+    dist_t diameter(const long index) const {
         dist_t diam = 0;
         get_simplex_vertices(index, dim, dist.size(), binomial_coeff, vertices.begin() );
         
@@ -109,7 +116,7 @@ public:
         return diam;
     }
 
-    bool operator()(const long a, const long b)
+    bool operator()(const long a, const long b) const
     {
         assert(a < binomial_coeff(dist.size(), dim + 1));
         assert(b < binomial_coeff(dist.size(), dim + 1));
@@ -430,6 +437,43 @@ int main( int argc, char** argv ) {
         exit(-1);
     }
     
+    #ifdef FILE_FORMAT_DIPHA
+    
+    int64_t magic_number;
+    input_stream.read( (char*)&magic_number, sizeof( int64_t ) );
+    if( magic_number != 8067171840 ) {
+        std::cerr << input_filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
+        exit(-1);
+    }
+
+   
+    int64_t file_type;
+    input_stream.read( (char*)&file_type, sizeof( int64_t ) );
+    if( file_type != 7 ) {
+        std::cerr << input_filename << " is not a Dipha distance matrix (file type: 7)" << std::endl;
+        exit(-1);
+    }
+   
+    int64_t n;
+    input_stream.read( (char*)&n, sizeof( int64_t ) );
+    
+
+    //std::vector<double> distances =
+
+    distance_matrix dist;
+    dist.distances = std::vector<std::vector<double>>(n, std::vector<double>(n));
+    
+    for( int i = 0; i < n; ++i ) {
+        input_stream.read( (char*)&dist.distances[i][0], n * sizeof(int64_t) );
+    }
+    
+    //std::cout << dist.distances << std::endl;
+    
+    #endif
+
+
+    #ifdef FILE_FORMAT_CSV
+    
     std::vector<double> distances;
     std::string value_string;
     while(std::getline(input_stream, value_string, ','))
@@ -441,8 +485,11 @@ int main( int argc, char** argv ) {
     
     long n = dist.size();
     
+    #endif
+    
     std::cout << "distance matrix with " << n << " points" << std::endl;
     
+
 
 //    std::vector<std::vector<double>> distance_matrix_full(n, std::vector<double>(n));
 //    for (long i = 0; i < n; ++i)
@@ -594,6 +641,7 @@ int main( int argc, char** argv ) {
         columns_to_reduce.push_back(index);
     }
 
+    #ifdef PRECOMPUTE_DIAMETERS
     std::vector<double> previous_diameters( n , 0 );
 
     std::cout << "precomputing 1-simplex diameters" << std::endl;
@@ -610,18 +658,23 @@ int main( int argc, char** argv ) {
         get_simplex_vertices( edge, 1, n, binomial_coeff, std::back_inserter(edge_vertices) );
         diameters[edge] = dist(edge_vertices[0], edge_vertices[1]);
     }
+    #endif
     
     for (long dim = 0; dim < dim_max; ++dim) {
         
 
         //compressed_sparse_matrix<long> reduction_matrix;
         
-        //rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
-        rips_filtration_diameter_comparator comp(diameters, dim + 1, binomial_coeff);
         
- //        rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
+        #ifdef PRECOMPUTE_DIAMETERS
+        rips_filtration_diameter_comparator comp(diameters, dim + 1, binomial_coeff);
         rips_filtration_diameter_comparator comp_prev(previous_diameters, dim, binomial_coeff);
-
+        #else
+        rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
+        rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
+         #endif
+        
+        
        std::unordered_map<long, long> pivot_column_index;
         
         std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
@@ -646,21 +699,27 @@ int main( int argc, char** argv ) {
         for (long i = 0; i < columns_to_reduce.size(); ++i) {
             long index = columns_to_reduce[i];
             
+            #ifdef ASSEMBLE_REDUCTION_COLUMN
             std::priority_queue<long, std::vector<long>, decltype(comp) > reduction_column(comp);
+            #endif
             
             std::priority_queue<long, std::vector<long>, decltype(comp) > working_coboundary(comp);
             
 //            std::cout << "reduce column " << index << std::setw(0)
 //            << " (" << i + 1 << "/" << columns_to_reduce.size() << ")\r";
 
-            std::cout << "\033[K" << "reducing column " << i + 1 << "/" << columns_to_reduce.size() << std::flush << "\r";
+            std::cout << "\033[K" << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
+            << " (diameter " << comp_prev.diameter(index) << ")"
+            << std::flush << "\r";
             
             
             long pivot, column = index;
             
             do {
             
+                #ifdef ASSEMBLE_REDUCTION_COLUMN
                 reduction_column.push( column );
+                #endif
 
                 coboundary.clear();
                 get_simplex_coboundary( column, dim, n, binomial_coeff, std::back_inserter(coboundary) );
@@ -728,17 +787,20 @@ int main( int argc, char** argv ) {
                  */
             } while ( pivot != -1 );
             
+            
 //            std::cout << "size of working column heap: " << working_coboundary.size() << std::endl;
 //            
+//            #ifdef ASSEMBLE_REDUCTION_COLUMN
 //            std::vector<long> cochain = move_to_column_vector( reduction_column );
-//            std::cout << "reduction cochain: " << cochain << std::endl;
+////            std::cout << "reduction cochain: " << cochain << std::endl;
 //
 //            if ( pivot != -1 ) {
 //                std::vector<long> coboundary = move_to_column_vector( working_coboundary );
-//                std::cout << "reduced coboundary: " << coboundary << std::endl;
+////                std::cout << "reduced coboundary: " << coboundary << std::endl;
 //            }
 //
-//            std::cout << "fill-in: " << cochain.size()-1 << std::endl;
+//            std::cout << "fill-in: " << cochain.size()-1 << std::endl << std::endl;
+//            #endif
 
 
         }
@@ -793,11 +855,14 @@ int main( int argc, char** argv ) {
 //        
 //        std::cout << std::endl;
         
+        
         std::cout << "\033[K";
         
+        #ifdef PRECOMPUTE_DIAMETERS
         previous_diameters = std::move(diameters);
         std::cout << "precomputing " << dim + 1 << "-simplex diameters" << std::endl;
         diameters = get_diameters( dist, dim + 2, previous_diameters, binomial_coeff );
+        #endif
         
 
 
