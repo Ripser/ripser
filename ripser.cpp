@@ -14,7 +14,7 @@ typedef long index_t;
 
 #define PRECOMPUTE_DIAMETERS
 
-//#define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
+#define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
 
 #define USE_BINARY_SEARCH
 
@@ -405,7 +405,7 @@ public:
 };
 
 
-class compressed_distance_matrix  {
+class compressed_upper_distance_matrix  {
 public:
     typedef value_t value_type;
     std::vector<value_t> distances;
@@ -413,7 +413,7 @@ public:
     
     index_t n;
     
-    compressed_distance_matrix(std::vector<value_t>&& row_vector) noexcept {
+    compressed_upper_distance_matrix(std::vector<value_t>&& row_vector) noexcept {
         n = (1 + std::sqrt(1+ 8 * row_vector.size())) / 2;
         
         distances = std::move(row_vector);
@@ -432,6 +432,68 @@ public:
             return rows[a][b];
         else if (a > b)
             return rows[b][a];
+        else
+            return 0;
+    }
+    
+    inline size_t size() const {
+        return n;
+    }
+
+};
+
+
+class compressed_lower_distance_matrix  {
+public:
+    typedef value_t value_type;
+    std::vector<value_t> distances;
+    std::vector<value_t*> rows;
+    
+    index_t n;
+    
+    void init () {
+        rows.resize(n);
+        distances.resize(n * (n-1) / 2);
+        
+        value_t* pointer = &distances[0];
+        for (index_t i = 1; i < n; ++i) {
+            rows[i] = pointer;
+            pointer += i;
+        }
+    }
+    
+    compressed_lower_distance_matrix(const index_t _n) : n(_n) {
+        init();
+    }
+
+    compressed_lower_distance_matrix(std::vector<value_t>&& row_vector) {
+        n = (1 + std::sqrt(1+ 8 * row_vector.size())) / 2;
+        
+        distances = std::move(row_vector);
+        
+        init();
+    }
+    
+//    template <typename DistanceMatrix>
+//    compressed_lower_distance_matrix(const DistanceMatrix& mat) : compressed_lower_distance_matrix(mat.size()) {
+    compressed_lower_distance_matrix(const compressed_upper_distance_matrix& mat) {
+        n = mat.size();
+        
+        init();
+    
+        for (index_t i = 1; i < n; ++i) {
+            for (index_t j = 0; j < i; ++j) {
+                rows[i][j] = mat(i, j);
+            }
+        }
+    }
+    
+    
+    inline value_t operator()(const index_t i, const index_t j) const {
+        if (i > j)
+            return rows[i][j];
+        else if (i < j)
+            return rows[j][i];
         else
             return 0;
     }
@@ -713,27 +775,35 @@ int main( int argc, char** argv ) {
     
 //    std::cout << "distances: " << distances << std::endl;
     
-    compressed_distance_matrix dist(std::move(distances));
+    compressed_upper_distance_matrix dist_upper(std::move(distances));
     
-    index_t n = dist.size();
+    index_t n = dist_upper.size();
     
     #endif
     
     std::cout << "distance matrix with " << n << " points" << std::endl;
     
-
-
 //    std::vector<std::vector<value_t>> distance_matrix_full(n, std::vector<value_t>(n));
 //    for (index_t i = 0; i < n; ++i)
 //        for (index_t j = 0; j < n; ++j)
-//            distance_matrix_full[i][j] = dist(i, j);
-//    
+//            distance_matrix_full[i][j] = dist_upper(i, j);
 //    std::cout << distance_matrix_full << std::endl;
-//    
-//    std::cout << "distances: " << distances << std::endl;
-//
-//    return 0;
 
+
+
+    compressed_lower_distance_matrix dist(dist_upper);
+
+    std::cout << "distance matrix transformed to lower triangular form" << std::endl;
+
+//    for (index_t i = 0; i < n; ++i)
+//        for (index_t j = 0; j < n; ++j)
+//            distance_matrix_full[i][j] = dist(i, j);
+//    std::cout << distance_matrix_full << std::endl;
+    
+    
+//    std::cout << "distances (lower): " << dist.distances << std::endl;
+
+//    return 0;
     
     assert(dim_max < n - 2);
     
@@ -757,26 +827,31 @@ int main( int argc, char** argv ) {
         columns_to_reduce.push_back(index);
     }
 
+    
     #ifdef PRECOMPUTE_DIAMETERS
     std::vector<value_t> previous_diameters( n , 0 );
 
-    std::cout << "precomputing 1-simplex diameters" << std::endl;
+
+    std::vector<value_t>& diameters = dist.distances;
     
-    std::vector<value_t> diameters( binomial_coeff( n, 2 ) );
-    
-    std::vector<index_t> edge_vertices(2);
-    for (index_t edge = 0; edge < diameters.size(); ++edge) {
-        #ifdef INDICATE_PROGRESS
-        std::cout << "\033[Kstoring diameter of simplex " << edge + 1 << "/" << diameters.size() << std::flush << "\r";
-        #endif
-        
-        edge_vertices.clear();
-        get_simplex_vertices( edge, 1, n, binomial_coeff, std::back_inserter(edge_vertices) );
-        diameters[edge] = dist(edge_vertices[0], edge_vertices[1]);
-    }
-    #ifdef INDICATE_PROGRESS
-    std::cout << "\033[K";
-    #endif
+//    std::cout << "precomputing 1-simplex diameters" << std::endl;
+//    
+//    std::vector<value_t> diameters( binomial_coeff( n, 2 ) );
+//    
+//    std::vector<index_t> edge_vertices(2);
+//    for (index_t edge = 0; edge < diameters.size(); ++edge) {
+//        #ifdef INDICATE_PROGRESS
+//        std::cout << "\033[Kstoring diameter of simplex " << edge + 1 << "/" << diameters.size() << std::flush << "\r";
+//        #endif
+//        
+//        edge_vertices.clear();
+//        get_simplex_vertices( edge, 1, n, binomial_coeff, std::back_inserter(edge_vertices) );
+//        diameters[edge] = dist(edge_vertices[0], edge_vertices[1]);
+//    }
+//    #ifdef INDICATE_PROGRESS
+//    std::cout << "\033[K";
+//    #endif
+
     #endif
 
     
