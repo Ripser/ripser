@@ -16,6 +16,7 @@ typedef long index_t;
 #define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
 
 #define USE_BINARY_SEARCH
+#define USE_EXPONENTIAL_SEARCH
 
 #define INDICATE_PROGRESS
 
@@ -69,7 +70,11 @@ OutputIterator get_simplex_vertices( index_t idx, const index_t dim, index_t n, 
         if ( binomial_coeff( n , k ) > idx ) {
             index_t count;
             
+            #ifdef USE_EXPONENTIAL_SEARCH
             for (count = 1; (binomial_coeff( n - count , k ) > idx); count = std::min(count << 1, n));
+            #else
+            count = n;
+            #endif
             
             while (count > 0) {
                 index_t i = n;
