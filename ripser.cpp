@@ -12,7 +12,6 @@ typedef float value_t;
 typedef long index_t;
 
 #define PRECOMPUTE_DIAMETERS
-
 #define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
 
 #define USE_BINARY_SEARCH
@@ -26,7 +25,8 @@ typedef long index_t;
 //#define ASSEMBLE_REDUCTION_COLUMN
 
 //#define FILE_FORMAT_DIPHA
-#define FILE_FORMAT_CSV
+//#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
+#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
 
 
 class binomial_coeff_table {
@@ -45,7 +45,6 @@ public:
             {
                 if (j == 0 || j == i)
                     B[i][j] = 1;
-
                 else
                     B[i][j] = B[i-1][j-1] + B[i-1][j];
             }
@@ -259,8 +258,7 @@ public:
         const binomial_coeff_table& _binomial_coeff
         ):
         diameters(_diameters), dim(_dim),
-        binomial_coeff(_binomial_coeff)
-    {};
+        binomial_coeff(_binomial_coeff) {}
     
     inline value_t diameter(const index_t a) const {
         assert(a < diameters.size());
@@ -579,7 +577,7 @@ int main( int argc, char** argv ) {
     #endif
 
 
-    #ifdef FILE_FORMAT_CSV
+    #ifdef FILE_FORMAT_UPPER_TRIANGULAR_CSV
     
     std::vector<value_t> distances;
     std::string value_string;
@@ -590,13 +588,30 @@ int main( int argc, char** argv ) {
     
     index_t n = dist_upper.size();
     
-    #endif
-    
     std::cout << "distance matrix with " << n << " points" << std::endl;
  
     compressed_lower_distance_matrix dist(dist_upper);
 
     std::cout << "distance matrix transformed to lower triangular form" << std::endl;
+    
+    #endif
+    
+
+    #ifdef FILE_FORMAT_LOWER_TRIANGULAR_CSV
+    
+    std::vector<value_t> distances;
+    std::string value_string;
+    while(std::getline(input_stream, value_string, ','))
+        distances.push_back(std::stod(value_string));
+    
+    compressed_lower_distance_matrix dist(std::move(distances));
+    
+    index_t n = dist.size();
+    
+    std::cout << "distance matrix with " << n << " points" << std::endl;
+     
+    #endif
+
 
     assert(dim_max < n - 2);
     
