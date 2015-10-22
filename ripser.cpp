@@ -14,7 +14,13 @@ typedef long index_t;
 
 #define PRECOMPUTE_DIAMETERS
 
-#define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
+//#define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
+
+#define USE_BINARY_SEARCH
+
+#define INDICATE_PROGRESS
+
+#define PRINT_PERSISTENCE_PAIRS
 
 
 //#define ASSEMBLE_REDUCTION_COLUMN
@@ -46,7 +52,7 @@ public:
         }
     }
     
-    index_t operator()(index_t n, index_t k) const {
+    inline index_t operator()(index_t n, index_t k) const {
 //        std::cout << "B(" << n << "," << k << ")\n";
         assert(n <= n_max);
         assert(k <= k_max);
@@ -57,14 +63,36 @@ public:
 
 
 template<typename OutputIterator>
-OutputIterator get_simplex_vertices( index_t idx, index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator out  )
+OutputIterator get_simplex_vertices( index_t idx, const index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator out  )
 {
     --n;
     
     for( index_t k = dim + 1; k > 0; --k ) {
-        while( binomial_coeff( n , k ) > idx ) {
-            --n;
+ 
+        #ifdef USE_BINARY_SEARCH
+        if ( binomial_coeff( n , k ) > idx ) {
+            index_t count;
+            
+            for (count = 1; (binomial_coeff( n - count , k ) > idx); count = std::min(count << 1, n));
+            
+            while (count > 0) {
+                index_t i = n;
+                index_t step = count >> 1;
+                i -= step;
+                if (binomial_coeff( i , k ) > idx) {
+                    n = --i;
+                    count -= step + 1;
+                } else count = step;
+            }
         }
+        #else
+        while( binomial_coeff( n , k ) > idx )
+            --n;
+        #endif
+        
+        assert( binomial_coeff( n , k ) <= idx );
+        assert( binomial_coeff( n + 1, k ) > idx );
+        
         *out++ = n;
         
         idx -= binomial_coeff( n , k );
@@ -74,7 +102,7 @@ OutputIterator get_simplex_vertices( index_t idx, index_t dim, index_t n, const 
     return out;
 }
 
-std::vector<index_t> vertices_of_simplex(index_t simplex_index, index_t dim, index_t n, const binomial_coeff_table& binomial_coeff) {
+std::vector<index_t> vertices_of_simplex(const index_t simplex_index, const index_t dim, const index_t n, const binomial_coeff_table& binomial_coeff) {
     std::vector<index_t> vertices;
     get_simplex_vertices( simplex_index, dim, n, binomial_coeff, std::back_inserter(vertices) );
     return vertices;
@@ -110,7 +138,7 @@ public:
 //    reverse(_reverse)
     {};
     
-    dist_t diameter(const index_t index) const {
+    inline dist_t diameter(const index_t index) const {
         dist_t diam = 0;
         get_simplex_vertices(index, dim, dist.size(), binomial_coeff, vertices.begin() );
         
@@ -121,7 +149,7 @@ public:
         return diam;
     }
 
-    bool operator()(const index_t a, const index_t b) const
+    inline bool operator()(const index_t a, const index_t b) const
     {
         assert(a < binomial_coeff(dist.size(), dim + 1));
         assert(b < binomial_coeff(dist.size(), dim + 1));
@@ -136,13 +164,10 @@ public:
             for (index_t j = i + 1; j <= dim; ++j) {
                 a_diam = std::max(a_diam, dist(vertices[i], vertices[j]));
                 if (a_diam > b_diam)
-//                   (((a_diam < b_diam) && !reverse) ||
-//                    ((a_diam > b_diam) && reverse))
                     return true;
             }
        
         return (a_diam == b_diam) && (a > b);
-//        return (a_diam == b_diam) && (((a < b) && !reverse) || ((a > b) && reverse));
     }
     
 };
@@ -173,7 +198,7 @@ public:
     binomial_coeff(_binomial_coeff)
     {};
     
-    dist_t diameter(const index_t index) const {
+    inline dist_t diameter(const index_t index) const {
         dist_t diam = 0;
         get_simplex_vertices(index, 2, dist.size(), binomial_coeff, vertices.begin() );
         
@@ -187,7 +212,7 @@ public:
         return diam;
     }
 
-    bool operator()(const index_t a, const index_t b) const
+    inline bool operator()(const index_t a, const index_t b) const
     {
         assert(a < binomial_coeff(dist.size(), 3));
         assert(b < binomial_coeff(dist.size(), 3));
@@ -212,7 +237,7 @@ public:
 
 
 template<typename OutputIterator>
-void get_simplex_coboundary( index_t idx, index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator coboundary )
+void inline get_simplex_coboundary( index_t idx, index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator coboundary )
 {
 
     --n;
@@ -244,7 +269,7 @@ private:
     const binomial_coeff_table& binomial_coeff;
     
 public:
-    simplex_coboundary_enumerator (
+    inline simplex_coboundary_enumerator (
         index_t _idx,
         index_t _dim,
         index_t _n,
@@ -254,7 +279,7 @@ public:
         
     }
     
-    bool has_next()
+    inline bool has_next()
     {
         while ( (k != -1 && n != -1) && (binomial_coeff( n , k ) <= idx) ) {
             idx -= binomial_coeff( n , k );
@@ -268,7 +293,7 @@ public:
         return k != -1 && n != -1;
     }
     
-    index_t next()
+    inline index_t next()
     {
         while ( binomial_coeff( n , k ) <= idx ) {
             idx -= binomial_coeff( n , k );
@@ -299,8 +324,9 @@ std::vector<value_t> get_diameters (
     for (index_t simplex = 0; simplex < previous_diameters.size(); ++simplex) {
         coboundary.clear();
         
+        #ifdef INDICATE_PROGRESS
         std::cout << "\033[Kpropagating diameter of simplex " << simplex + 1 << "/" << previous_diameters.size() << std::flush << "\r";
-
+        #endif
         
         simplex_coboundary_enumerator coboundaries(simplex, dim - 1, n, binomial_coeff);
         while (coboundaries.has_next()) {
@@ -309,7 +335,9 @@ std::vector<value_t> get_diameters (
         }
     }
     
+    #ifdef INDICATE_PROGRESS
     std::cout << "\033[K";
+    #endif
     
 //    rips_filtration_comparator<decltype(dist)> comp(dist, dim, binomial_coeff);
 //    for (index_t simplex = 0; simplex < diameters.size(); ++simplex) {
@@ -344,12 +372,12 @@ public:
         binomial_coeff(_binomial_coeff)
     {};
     
-    value_t diameter(const index_t a) const {
+    inline value_t diameter(const index_t a) const {
         assert(a < diameters.size());
         return diameters[a];
     }
 
-    bool operator()(const index_t a, const index_t b) const
+    inline bool operator()(const index_t a, const index_t b) const
     {
         assert(a < diameters.size());
         assert(b < diameters.size());
@@ -366,11 +394,11 @@ class distance_matrix  {
 public:
     typedef value_t value_type;
     std::vector<std::vector<value_t> > distances;
-    value_t operator()(const index_t a, const index_t b) const {
+    inline value_t operator()(const index_t a, const index_t b) const {
         return distances[a][b];
     }
     
-    size_t size() const {
+    inline size_t size() const {
         return distances.size();
     }
 
@@ -399,7 +427,7 @@ public:
         }
     }
     
-    value_t operator()(const index_t a, const index_t b) const {
+    inline value_t operator()(const index_t a, const index_t b) const {
         if (a < b)
             return rows[a][b];
         else if (a > b)
@@ -408,7 +436,7 @@ public:
             return 0;
     }
     
-    size_t size() const {
+    inline size_t size() const {
         return n;
     }
 
@@ -421,22 +449,22 @@ public:
     std::vector<ValueType> entries;
     
     
-    size_t size() const {
+    inline size_t size() const {
         return bounds.size();
     }
     
-    typename std::vector<ValueType>::const_iterator cbegin(size_t index) {
+    inline typename std::vector<ValueType>::const_iterator cbegin(size_t index) const {
         assert(index < size());
         return index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1];
     }
 
-    typename std::vector<ValueType>::const_iterator cend(size_t index) {
+    inline typename std::vector<ValueType>::const_iterator cend(size_t index) const {
         assert(index < size());
         return entries.cbegin() + bounds[index];
     }
     
     template <typename Iterator>
-    void append(Iterator begin, Iterator end) {
+    inline void append(Iterator begin, Iterator end) {
         for (Iterator it = begin; it != end; ++it) {
             entries.push_back(*it);
         }
@@ -445,14 +473,14 @@ public:
 
     
     template <typename Collection>
-    void append(const Collection collection) {
+    inline void append(const Collection collection) {
         append(collection.cbegin(), collection.cend());
     }
 
 };
 
 template <typename Heap>
-index_t pop_pivot(Heap& column)
+inline index_t pop_pivot(Heap& column)
 {
     if( column.empty() )
         return -1;
@@ -473,7 +501,7 @@ index_t pop_pivot(Heap& column)
 }
 
 template <typename Heap>
-index_t get_pivot(Heap& column)
+inline index_t get_pivot(Heap& column)
 {
     index_t max_element = pop_pivot(column);
     if( max_element != -1 )
@@ -482,7 +510,7 @@ index_t get_pivot(Heap& column)
 }
 
 template <typename Heap>
-std::vector<index_t> move_to_column_vector(Heap& column)
+inline std::vector<index_t> move_to_column_vector(Heap& column)
 {
     std::vector<index_t> temp_col;
     index_t pivot = pop_pivot( column );
@@ -529,9 +557,11 @@ void compute_pairs(
             
             std::priority_queue<index_t, std::vector<index_t>, decltype(comp) > working_coboundary(comp);
             
+            #ifdef INDICATE_PROGRESS
             std::cout << "\033[K" << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
             << " (diameter " << comp_prev.diameter(index) << ")"
             << std::flush << "\r";
+            #endif
             
             index_t pivot, column = index;
             
@@ -567,9 +597,11 @@ void compute_pairs(
                     if (pair == pivot_column_index.end()) {
                         pivot_column_index.insert(std::make_pair(pivot, index));
                         
+                        #ifdef PRINT_PERSISTENCE_PAIRS
                         value_t birth = comp_prev.diameter(index), death = comp.diameter(pivot);
                         if (birth != death)
                             std::cout << "\033[K" << " [" << birth << "," << death << ")" << std::endl << std::flush;
+                        #endif
 
                         break;
                     }
@@ -579,11 +611,12 @@ void compute_pairs(
 
             } while ( pivot != -1 );
             
-            
+            #ifdef PRINT_PERSISTENCE_PAIRS
             if ( pivot == -1 ) {
                 value_t birth = comp_prev.diameter(index);
                 std::cout << "\033[K" << " [" << birth << ", )" << std::endl << std::flush;
             }
+            #endif
 
         }
     
@@ -623,7 +656,7 @@ int main( int argc, char** argv ) {
                 print_help_and_exit();
             std::string parameter = std::string( argv[ idx ] );
             size_t pos_last_digit;
-            threshold = std::stod( parameter, &pos_last_digit );
+            threshold = std::stof( parameter, &pos_last_digit );
             if( pos_last_digit != parameter.size() )
                 print_help_and_exit();
 	} else print_help_and_exit();
@@ -733,13 +766,17 @@ int main( int argc, char** argv ) {
     
     std::vector<index_t> edge_vertices(2);
     for (index_t edge = 0; edge < diameters.size(); ++edge) {
+        #ifdef INDICATE_PROGRESS
         std::cout << "\033[Kstoring diameter of simplex " << edge + 1 << "/" << diameters.size() << std::flush << "\r";
-
+        #endif
+        
         edge_vertices.clear();
         get_simplex_vertices( edge, 1, n, binomial_coeff, std::back_inserter(edge_vertices) );
         diameters[edge] = dist(edge_vertices[0], edge_vertices[1]);
     }
+    #ifdef INDICATE_PROGRESS
     std::cout << "\033[K";
+    #endif
     #endif
 
     
