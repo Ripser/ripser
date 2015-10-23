@@ -23,9 +23,9 @@ typedef long coefficient_t;
 
 #define PRINT_PERSISTENCE_PAIRS
 
-#define USE_COEFFICIENTS
+//#define USE_COEFFICIENTS
 
-//#define ASSEMBLE_REDUCTION_COLUMN
+#define ASSEMBLE_REDUCTION_COLUMN
 
 //#define FILE_FORMAT_DIPHA
 //#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
@@ -59,6 +59,15 @@ public:
         return B[n][k];
     }
 };
+
+std::vector<coefficient_t> multiplicative_inverse_vector (const int m) {
+    std::vector<coefficient_t> mod_inverse(m);
+    mod_inverse[1] = 1;
+    for(coefficient_t i = 2; i < m; ++i) {
+        mod_inverse[i] = (-(m/i) * mod_inverse[m % i]) % m + m;
+    }
+    return mod_inverse;
+}
 
 template<typename OutputIterator>
 OutputIterator get_simplex_vertices( index_t idx, const index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator out  )
@@ -159,6 +168,13 @@ public:
        
         return (a_diam == b_diam) && (a > b);
     }
+    
+    template <typename Entry>
+    inline bool operator()(const Entry& a, const Entry& b) const
+    {
+        return operator()(get_index(a), get_index(b));
+    }
+
 };
 
 #ifdef USE_COEFFICIENTS
@@ -461,9 +477,6 @@ public:
 template <typename Heap>
 inline entry_t pop_pivot(Heap& column, coefficient_t modulus)
 {
-    #ifndef USE_COEFFICIENTS
-    static_assert(modulus == 2, "Modulus must be 2 when coefficients are disabled");
-    #endif
     
     if( column.empty() )
         return entry_t(-1);
@@ -471,7 +484,7 @@ inline entry_t pop_pivot(Heap& column, coefficient_t modulus)
         index_t pivot_index = get_index(column.top());
         coefficient_t coefficient = 0;
         while( !column.empty() && get_index(column.top()) == pivot_index ) {
-            coefficient = (coefficient + get_coefficient(column.top())) % modulus;
+            coefficient = (coefficient + get_coefficient(column.top()) + modulus) % modulus;
             
             column.pop();
             
@@ -508,11 +521,65 @@ void assemble_columns_to_reduce (
 
         if (comp.diameter(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
             columns_to_reduce.push_back(index);
-}
+        }
     }
 
     std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp);
 }
+
+
+template <typename ValueType>
+class compressed_sparse_matrix  {
+public:
+    std::vector<size_t> bounds;
+    std::vector<ValueType> entries;
+    
+    
+    inline size_t size() const {
+        return bounds.size();
+    }
+    
+    inline typename std::vector<ValueType>::const_iterator cbegin(size_t index) const {
+        assert(index < size());
+        return index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1];
+    }
+
+    inline typename std::vector<ValueType>::const_iterator cend(size_t index) const {
+        assert(index < size());
+        return entries.cbegin() + bounds[index];
+    }
+    
+    template <typename Iterator>
+    inline void append(Iterator begin, Iterator end) {
+        for (Iterator it = begin; it != end; ++it) {
+            entries.push_back(*it);
+        }
+        bounds.push_back(entries.size());
+    }
+
+    inline void append() {
+        bounds.push_back(entries.size());
+    }
+
+    inline void push_back(ValueType e) {
+        assert(0 < size());
+        entries.push_back(e);
+        ++bounds.back();
+    }
+    
+    inline void pop_back() {
+        assert(0 < size());
+        entries.pop_back();
+        --bounds.back();
+    }
+    
+    template <typename Collection>
+    inline void append(const Collection collection) {
+        append(collection.cbegin(), collection.cend());
+    }
+
+};
+
 
 template <typename Heap>
 inline std::vector<entry_t> get_column_vector(Heap column, coefficient_t modulus)
@@ -549,19 +616,22 @@ void compute_pairs(
     const ComparatorCofaces& comp, const Comparator& comp_prev,
     index_t dim, index_t n,
     value_t threshold, coefficient_t modulus,
-    const binomial_coeff_table& binomial_coeff
+    const binomial_coeff_table& binomial_coeff,
+    const std::vector<coefficient_t>& multiplicative_inverse
 ) {
     
     std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
+    
+    compressed_sparse_matrix <entry_t> reduction_matrix;
     
     for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
         index_t column_to_reduce = columns_to_reduce[i];
         
         #ifdef ASSEMBLE_REDUCTION_COLUMN
-        std::priority_queue<index_t, std::vector<entry_t>, decltype(comp_prev) > reduction_column(comp_prev);
+        std::priority_queue<entry_t, std::vector<entry_t>, decltype(comp_prev) > reduction_column(comp_prev);
         #endif
         
-        std::priority_queue<index_t, std::vector<entry_t>, decltype(comp) > working_coboundary(comp);
+        std::priority_queue<entry_t, std::vector<entry_t>, decltype(comp) > working_coboundary(comp);
         
         #ifdef INDICATE_PROGRESS
         std::cout << "\033[K" << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
@@ -569,55 +639,58 @@ void compute_pairs(
         << std::flush << "\r";
         #endif
         
+        index_t j = i;
+        
         index_t column_to_add = column_to_reduce;
         
-        entry_t pivot(column_to_reduce);
+        entry_t pivot = make_entry(column_to_reduce, -1);
         
         
         std::vector<index_t> coboundary;
         
-        std::cout << "reducing " << column_to_reduce << ": pivot ";
+//        std::cout << "reducing " << column_to_reduce << ": pivot ";
+        
+        reduction_matrix.append();
+        reduction_matrix.push_back(make_entry(column_to_reduce, 1));
+        
         do {
-            #ifdef ASSEMBLE_REDUCTION_COLUMN
-            reduction_column.push( column );
-            #endif
             
             #ifdef USE_COEFFICIENTS
-            coefficient_t factor = 1;
-            {
-                simplex_coboundary_enumerator coboundaries(column_to_add, dim, n, binomial_coeff);
-                while (coboundaries.has_next()) {
-                    entry_t coface = coboundaries.next();
-                    
-                    index_t coface_index = get_index(coface);
-                    if (coface_index == get_index(pivot)) {
-                        factor = get_coefficient(coface);
-                        break;
-                    }
-                }
-            }
-            factor *= -get_coefficient(pivot);
+            coefficient_t factor = -get_coefficient(pivot);
             #else
             const coefficient_t factor = 1;
             #endif
 
+            #ifdef ASSEMBLE_REDUCTION_COLUMN
+            entry_t e = make_entry( column_to_add, factor );
+            reduction_column.push( e );
+            #endif
+
 //            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
             
-//            std::priority_queue<index_t, std::vector<entry_t>, decltype(comp) > eliminating_coboundary(comp);
+            std::priority_queue<index_t, std::vector<entry_t>, decltype(comp) > eliminating_coboundary(comp);
 
-            simplex_coboundary_enumerator coboundaries(column_to_add, dim, n, binomial_coeff);
-            while (coboundaries.has_next()) {
-                entry_t coface = coboundaries.next();
-                
-                index_t coface_index = get_index(coface);
-                if (comp.diameter(coface_index) <= threshold) {
-                    entry_t e = make_entry(
-                        coface_index,
-                        factor * get_coefficient(coface));
-                    working_coboundary.push(e);
-//                    eliminating_coboundary.push(e);
+            for (auto it = reduction_matrix.cbegin(j);
+                it != reduction_matrix.cend(j); ++it) {
+                const entry_t& simplex = *it;
+    
+                simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
+                while (cofaces.has_next()) {
+                    entry_t coface = cofaces.next();
+                    
+                    index_t coface_index = get_index(coface);
+                    if (comp.diameter(coface_index) <= threshold) {
+                        entry_t e = make_entry(
+                            coface_index,
+                            factor * get_coefficient(simplex) * get_coefficient(coface)
+                        );
+                        working_coboundary.push(e);
+                        eliminating_coboundary.push(e);
+                    }
                 }
+
             }
+
             
 //            std::cout << get_heap_vector(working_coboundary) << std::endl;
 
@@ -627,15 +700,27 @@ void compute_pairs(
                            
             pivot = get_pivot(working_coboundary, modulus);
             
-            std::cout << get_index(pivot) << " ";
+//            std::cout << get_index(pivot) << " ";
         
             if (get_index(pivot) != -1) {
                 auto pair = pivot_column_index.find(get_index(pivot));
                 
                 if (pair == pivot_column_index.end()) {
-                    std::cout << std::endl;
+//                    std::cout << std::endl;
                     
-                    pivot_column_index.insert(std::make_pair(get_index(pivot), column_to_reduce));
+                    pivot_column_index.insert(std::make_pair(get_index(pivot), i));
+                    
+                    coefficient_t inverse = multiplicative_inverse[ get_coefficient( pivot ) ];
+                    
+                    std::vector< entry_t > normalized_reduction_column;
+                    
+                    reduction_matrix.pop_back();
+                    while(!reduction_column.empty()) {
+                        entry_t e = reduction_column.top();
+                        reduction_column.pop();
+                        reduction_matrix.push_back(make_entry(
+                            get_index(e), inverse * get_coefficient(e) % modulus));
+                    }
                     
                     #ifdef PRINT_PERSISTENCE_PAIRS
                     value_t birth = comp_prev.diameter(column_to_reduce), death = comp.diameter(get_index(pivot));
@@ -650,14 +735,15 @@ void compute_pairs(
                     break;
                 }
                 
-                column_to_add = pair->second;
+                j = pair->second;
+                column_to_add = columns_to_reduce[j];
             }
 
         } while ( get_index(pivot) != -1 );
         
         #ifdef PRINT_PERSISTENCE_PAIRS
         if ( get_index(pivot) == -1 ) {
-            std::cout << std::endl;
+//            std::cout << std::endl;
         
             value_t birth = comp_prev.diameter(column_to_reduce);
             #ifdef INDICATE_PROGRESS
@@ -672,6 +758,8 @@ void compute_pairs(
     #ifdef INDICATE_PROGRESS
     std::cout << "\033[K";
     #endif
+    
+    std::cout << "fill-in reduction matrix: " << columns_to_reduce.size() << " + " << reduction_matrix.entries.size() - columns_to_reduce.size() << std::endl;
 }
 
 bool is_prime(const long n) {
@@ -840,6 +928,9 @@ int main( int argc, char** argv ) {
     
     binomial_coeff_table binomial_coeff(n, dim_max + 2);
     
+    std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
+    
+    
     std::vector<index_t> columns_to_reduce;
     
     
@@ -863,7 +954,7 @@ int main( int argc, char** argv ) {
             comp, comp_prev,
             dim, n,
             threshold, modulus,
-            binomial_coeff
+            binomial_coeff, multiplicative_inverse
         );
         
         assemble_columns_to_reduce(
@@ -905,7 +996,7 @@ int main( int argc, char** argv ) {
             comp, comp_prev,
             dim, n,
             threshold, modulus,
-            binomial_coeff
+            binomial_coeff, multiplicative_inverse
         );
         
         assemble_columns_to_reduce(
@@ -921,24 +1012,24 @@ int main( int argc, char** argv ) {
 //            diameters[dim] = std::vector<value_t>();
     }
         
-        #ifdef PRECOMPUTE_DIAMETERS
-        #ifndef PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
+    #ifdef PRECOMPUTE_DIAMETERS
+    #ifndef PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
     {
         dim = dim_max;
         
         rips_filtration_diameter_comparator comp_prev(diameters[dim], dim, binomial_coeff);
-    rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
-    
-    std::unordered_map<index_t, index_t> pivot_column_index;
+        rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
+        
+        std::unordered_map<index_t, index_t> pivot_column_index;
 
-    compute_pairs(
-        columns_to_reduce,
-        pivot_column_index,
-        comp, comp_prev,
-            dim, n,
-        threshold,
-        binomial_coeff
-    );
+        compute_pairs(
+            columns_to_reduce,
+            pivot_column_index,
+            comp, comp_prev,
+                dim, n,
+            threshold,
+            binomial_coeff, multiplicative_inverse
+        );
     }
     #endif
     #endif
