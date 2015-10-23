@@ -17,18 +17,19 @@ typedef long index_t;
 #define USE_BINARY_SEARCH
 #define USE_EXPONENTIAL_SEARCH
 
-#define INDICATE_PROGRESS
+//#define INDICATE_PROGRESS
 
 #define PRINT_PERSISTENCE_PAIRS
 
-#define USE_COEFFICIENTS
+//#define USE_COEFFICIENTS
 
 //#define ASSEMBLE_REDUCTION_COLUMN
 
 //#define FILE_FORMAT_DIPHA
-#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
-//#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
+//#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
+#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
 
+static const index_t modulus = 2;
 
 class binomial_coeff_table {
     std::vector<std::vector<index_t> > B;
@@ -169,7 +170,7 @@ struct entry_t {
         index(_index), value(_value) {}
 
     entry_t(index_t _index) :
-        index(_index), value(0) {}
+        index(_index), value(1) {}
 };
 
 entry_t make_entry(index_t _index, index_t _value) {
@@ -180,12 +181,20 @@ index_t get_index(entry_t e) {
     return e.index;
 }
 
+index_t get_coefficient(entry_t e) {
+    return e.value;
+}
+
 #else
 
 typedef index_t entry_t;
 
 index_t get_index(index_t i) {
     return i;
+}
+
+index_t get_coefficient(index_t i) {
+    return 1;
 }
 
 entry_t make_entry(index_t _index, index_t _value) {
@@ -446,21 +455,24 @@ public:
 template <typename Heap>
 inline entry_t pop_pivot(Heap& column)
 {
+    #ifndef USE_COEFFICIENTS
+    static_assert(modulus == 2, "Modulus must be 2 when coefficients are disabled");
+    #endif
+    
     if( column.empty() )
         return entry_t(-1);
     else {
-        entry_t max_element = column.top();
-        column.pop();
-        while( !column.empty() && get_index(column.top()) == get_index(max_element) ) {
+        index_t pivot_index = get_index(column.top());
+        index_t coefficient = 0;
+        while( !column.empty() && get_index(column.top()) == pivot_index ) {
+            coefficient = (coefficient + get_coefficient(column.top())) % modulus;
+            
             column.pop();
-            if( column.empty() )
-                return entry_t(-1);
-            else {
-                max_element = column.top();
-                column.pop();
-            }
+            
+            if( coefficient == 0 )
+                pivot_index = column.empty() ? -1 : get_index(column.top());
         }
-        return max_element;
+        return make_entry(pivot_index, coefficient);
     }
 }
 
@@ -509,7 +521,7 @@ void compute_pairs(
     std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
     
     for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
-        index_t index = columns_to_reduce[i];
+        index_t column_to_reduce = columns_to_reduce[i];
         
         #ifdef ASSEMBLE_REDUCTION_COLUMN
         std::priority_queue<index_t, std::vector<entry_t>, decltype(comp) > reduction_column(comp);
@@ -519,11 +531,14 @@ void compute_pairs(
         
         #ifdef INDICATE_PROGRESS
         std::cout << "\033[K" << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
-        << " (diameter " << comp_prev.diameter(index) << ")"
+        << " (diameter " << comp_prev.diameter(column_to_reduce) << ")"
         << std::flush << "\r";
         #endif
         
-        index_t pivot, column = index;
+        index_t column_to_add = column_to_reduce;
+        
+        entry_t pivot(column_to_reduce);
+        
         
         std::vector<index_t> coboundary;
 
@@ -533,47 +548,56 @@ void compute_pairs(
             reduction_column.push( column );
             #endif
 
-            simplex_coboundary_enumerator coboundaries(column, dim, n, binomial_coeff);
+            simplex_coboundary_enumerator coboundaries(column_to_add, dim, n, binomial_coeff);
             while (coboundaries.has_next()) {
                 entry_t coface = coboundaries.next();
                 
                 index_t coface_index = get_index(coface);
                 if (comp.diameter(coface_index) <= threshold)
-                    working_coboundary.push(coface);
+                    working_coboundary.push(make_entry(coface_index, get_coefficient(pivot)));
             }
                            
-            pivot = get_index(get_pivot(working_coboundary));
+            pivot = get_pivot(working_coboundary);
             
-            if (pivot != -1) {
-                auto pair = pivot_column_index.find(pivot);
+            if (get_index(pivot) != -1) {
+                auto pair = pivot_column_index.find(get_index(pivot));
                 
                 if (pair == pivot_column_index.end()) {
-                    pivot_column_index.insert(std::make_pair(pivot, index));
+                    pivot_column_index.insert(std::make_pair(get_index(pivot), column_to_reduce));
                     
                     #ifdef PRINT_PERSISTENCE_PAIRS
-                    value_t birth = comp_prev.diameter(index), death = comp.diameter(pivot);
-                    if (birth != death)
-                        std::cout << "\033[K" << " [" << birth << "," << death << ")" << std::endl << std::flush;
+                    value_t birth = comp_prev.diameter(column_to_reduce), death = comp.diameter(get_index(pivot));
+                    if (birth != death) {
+                        #ifdef INDICATE_PROGRESS
+                        std::cout << "\033[K";
+                        #endif
+                        std::cout << " [" << birth << "," << death << ")" << std::endl << std::flush;
+                    }
                     #endif
 
                     break;
                 }
                 
-                column = pair->second;
+                column_to_add = pair->second;
             }
 
-        } while ( pivot != -1 );
+        } while ( get_index(pivot) != -1 );
         
         #ifdef PRINT_PERSISTENCE_PAIRS
-        if ( pivot == -1 ) {
-            value_t birth = comp_prev.diameter(index);
-            std::cout << "\033[K" << " [" << birth << ", )" << std::endl << std::flush;
+        if ( get_index(pivot) == -1 ) {
+            value_t birth = comp_prev.diameter(column_to_reduce);
+            #ifdef INDICATE_PROGRESS
+            std::cout << "\033[K";
+            #endif
+            std::cout << " [" << birth << ", )" << std::endl << std::flush;
         }
         #endif
 
     }
 
+    #ifdef INDICATE_PROGRESS
     std::cout << "\033[K";
+    #endif
 }
 
 void print_usage_and_exit(int exit_code)
@@ -692,18 +716,20 @@ int main( int argc, char** argv ) {
 
     #ifdef FILE_FORMAT_LOWER_TRIANGULAR_CSV
     
-    std::vector<value_t> distances;
+    std::vector<value_t>& distances = diameters[1];
     std::string value_string;
     while(std::getline(input_stream, value_string, ','))
         distances.push_back(std::stod(value_string));
     
-    compressed_lower_distance_matrix dist(std::move(distances));
+    compressed_lower_distance_matrix_adapter dist(distances);
     
     index_t n = dist.size();
     
     std::cout << "distance matrix with " << n << " points" << std::endl;
      
     #endif
+
+
 
     auto result = std::minmax_element(dist.distances.begin(), dist.distances.end());
     std::cout << "value range: [" << *result.first << "," << *result.second << "]" << std::endl;
