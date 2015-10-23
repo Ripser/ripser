@@ -2,6 +2,7 @@
 #include <iostream>
 #include <iomanip>  
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <cassert>
 #include <queue>
@@ -25,8 +26,8 @@ typedef long index_t;
 //#define ASSEMBLE_REDUCTION_COLUMN
 
 //#define FILE_FORMAT_DIPHA
-//#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
-#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
+#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
+//#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
 
 
 class binomial_coeff_table {
@@ -118,10 +119,6 @@ public:
 private:
     mutable std::vector<index_t> vertices;
     
-    typedef decltype(dist(0,0)) dist_t;
-    
-    bool reverse;
-    
     const binomial_coeff_table& binomial_coeff;
     
 public:
@@ -131,12 +128,12 @@ public:
         const binomial_coeff_table& _binomial_coeff
     ): dist(_dist), dim(_dim), vertices(_dim + 1), binomial_coeff(_binomial_coeff) {};
     
-    inline dist_t diameter(const index_t index) const {
-        dist_t diam = 0;
+    inline value_t diameter(const index_t index) const {
+        value_t diam = 0;
         get_simplex_vertices(index, dim, dist.size(), binomial_coeff, vertices.begin() );
         
         for (index_t i = 0; i <= dim; ++i)
-            for (index_t j = i + 1; j <= dim; ++j) {
+            for (index_t j = 0; j < i; ++j) {
                 diam = std::max(diam, dist(vertices[i], vertices[j]));
             }
         return diam;
@@ -147,7 +144,7 @@ public:
         assert(a < binomial_coeff(dist.size(), dim + 1));
         assert(b < binomial_coeff(dist.size(), dim + 1));
         
-        dist_t a_diam = 0, b_diam = 0;
+        value_t a_diam = 0, b_diam = 0;
     
         b_diam = diameter(b);
         
@@ -291,26 +288,35 @@ public:
 };
 
 
-class compressed_upper_distance_matrix  {
+class compressed_upper_distance_matrix_adapter  {
 public:
     typedef value_t value_type;
-    std::vector<value_t> distances;
+    std::vector<value_t>& distances;
     std::vector<value_t*> rows;
     
     index_t n;
     
-    compressed_upper_distance_matrix(std::vector<value_t>&& row_vector) noexcept {
-        n = (1 + std::sqrt(1+ 8 * row_vector.size())) / 2;
-        
-        distances = std::move(row_vector);
-        
+    void init_distances () {
+        distances.resize(n * (n-1) / 2);
+    }
+    
+    void init_rows () {
         rows.resize(n);
-        
         value_t* pointer = &distances[0] - 1;
         for (index_t i = 0; i < n - 1; ++i) {
             rows[i] = pointer;
             pointer += n - i - 2;
         }
+    }
+    
+    compressed_upper_distance_matrix_adapter(std::vector<value_t>& _distances) :
+        distances(_distances)
+    {
+        n = (1 + std::sqrt(1+ 8 * _distances.size())) / 2;
+        
+        assert( distances.size() == n * (n-1) / 2 );
+        
+        init_rows();
     }
     
     inline value_t operator()(const index_t a, const index_t b) const {
@@ -328,18 +334,20 @@ public:
 };
 
 
-class compressed_lower_distance_matrix  {
+class compressed_lower_distance_matrix_adapter  {
 public:
     typedef value_t value_type;
-    std::vector<value_t> distances;
+    std::vector<value_t>& distances;
     std::vector<value_t*> rows;
     
     index_t n;
     
-    void init () {
-        rows.resize(n);
+    void init_distances () {
         distances.resize(n * (n-1) / 2);
-        
+    }
+    
+    void init_rows () {
+        rows.resize(n);
         value_t* pointer = &distances[0];
         for (index_t i = 1; i < n; ++i) {
             rows[i] = pointer;
@@ -347,22 +355,29 @@ public:
         }
     }
     
-    compressed_lower_distance_matrix(const index_t _n) : n(_n) {
-        init();
+    compressed_lower_distance_matrix_adapter(
+    std::vector<value_t>& _distances, const index_t _n) :
+        distances(_distances), n(_n)
+    {
+        init_distances();
+        init_rows();
     }
 
-    compressed_lower_distance_matrix(std::vector<value_t>&& row_vector) {
-        n = (1 + std::sqrt(1+ 8 * row_vector.size())) / 2;
+    compressed_lower_distance_matrix_adapter(std::vector<value_t>& _distances) :
+        distances(_distances)
+    {
+        n = (1 + std::sqrt(1+ 8 * distances.size())) / 2;
+        assert( distances.size() == n * (n-1) / 2 );
         
-        distances = std::move(row_vector);
-        
-        init();
+        init_rows();
     }
     
-    compressed_lower_distance_matrix(const compressed_upper_distance_matrix& mat) {
-        n = mat.size();
-        
-        init();
+    template <typename DistanceMatrix>
+    compressed_lower_distance_matrix_adapter(
+    std::vector<value_t>& _distances, const DistanceMatrix& mat) :
+        distances(_distances), n(mat.size()) {
+        init_distances();
+        init_rows();
     
         for (index_t i = 1; i < n; ++i) {
             for (index_t j = 0; j < i; ++j) {
@@ -415,17 +430,27 @@ inline index_t get_pivot(Heap& column)
     return max_element;
 }
 
-void print_help_and_exit()
-{
-    std::cerr << "Usage: " << "ripser " << "[options] input_filename output_filename" << std::endl;
-    std::cerr << std::endl;
-    std::cerr << "Options:" << std::endl;
-    std::cerr << std::endl;
-    std::cerr << "--help        --  prints this screen" << std::endl;
-    std::cerr << "--top_dim N   --  maximal dimension to compute" << std::endl;
-    std::cerr << "--threshold D --  maximal diameter to compute" << std::endl;
+template <typename Comparator>
+void assemble_columns_to_reduce (
+    std::vector<index_t>& columns_to_reduce,
+    std::unordered_map<index_t, index_t>& pivot_column_index,
+    const Comparator& comp,
+    index_t dim, index_t n,
+    value_t threshold,
+    const binomial_coeff_table& binomial_coeff
+) {
+    index_t num_simplices = binomial_coeff(n, dim + 2);
     
-    exit(-1);
+    columns_to_reduce.clear();
+    
+    for (index_t index = 0; index < num_simplices; ++index) {
+
+        if (comp.diameter(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
+            columns_to_reduce.push_back(index);
+        }
+    }
+    
+    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp);
 }
 
 template <typename ComparatorCofaces, typename Comparator>
@@ -433,7 +458,7 @@ void compute_pairs(
     std::vector<index_t>& columns_to_reduce,
     std::unordered_map<index_t, index_t>& pivot_column_index,
     const ComparatorCofaces& comp, const Comparator& comp_prev,
-    index_t dim, index_t dim_max, index_t n,
+    index_t dim, index_t n,
     value_t threshold,
     const binomial_coeff_table& binomial_coeff
 ) {
@@ -506,74 +531,97 @@ void compute_pairs(
     std::cout << "\033[K";
 }
 
+void print_usage_and_exit(int exit_code)
+{
+    std::cerr << "Usage: " << "ripser " << "[options] filename" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "Options:" << std::endl;
+    std::cerr << std::endl;
+    std::cerr << "  --help           print this screen" << std::endl;
+    std::cerr << "  --top_dim <k>    compute persistent homology up to dimension <k>" << std::endl;
+    std::cerr << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl;
+    
+    exit(exit_code);
+}
 
 int main( int argc, char** argv ) {
     
-    if( argc < 3 ) print_help_and_exit();
+    if( argc < 2 ) print_usage_and_exit(-1);
 
-    std::string input_filename = argv[ argc - 2 ];
-    std::string output_filename = argv[ argc - 1 ];
+    const char *filename = nullptr;
     
     index_t dim_max = 1;
     value_t threshold = std::numeric_limits<value_t>::max();
 
-    for( index_t idx = 1; idx < argc - 2; idx++ ) {
-        const std::string option = argv[ idx ];
-        if( option == "--help" ) {
-            print_help_and_exit();
-        } else if( option == "--top_dim" ) {
-            idx++;
-            if( idx >= argc - 2 )
-                print_help_and_exit();
-            std::string parameter = std::string( argv[ idx ] );
-            size_t pos_last_digit;
-            dim_max = std::stoll( parameter, &pos_last_digit );
-            if( pos_last_digit != parameter.size() )
-                print_help_and_exit();
-        } else if( option == "--threshold" ) {
-            idx++;
-            if( idx >= argc - 2 )
-                print_help_and_exit();
-            std::string parameter = std::string( argv[ idx ] );
-            size_t pos_last_digit;
-            threshold = std::stof( parameter, &pos_last_digit );
-            if( pos_last_digit != parameter.size() )
-                print_help_and_exit();
-	} else print_help_and_exit();
+    for( index_t i = 1; i < argc; ++i ) {
+        const std::string arg(argv[ i ]);
+        if( arg == "--help" ) {
+            print_usage_and_exit(0);
+        } else if( arg == "--top_dim" ) {
+            std::string parameter = std::string( argv[ ++i ] );
+            size_t next_pos;
+            dim_max = std::stol( parameter, &next_pos );
+            if( next_pos != parameter.size() )
+                print_usage_and_exit( -1 );
+        } else if( arg == "--threshold" ) {
+            std::string parameter = std::string( argv[ ++i ] );
+            size_t next_pos;
+            threshold = std::stof( parameter, &next_pos );
+            if( next_pos != parameter.size() )
+                print_usage_and_exit( -1 );
+        } else {
+            if (filename) {
+                print_usage_and_exit( -1 );
+            }
+            filename = argv[i];
+        }
     }
 
 
-    std::ifstream input_stream( input_filename.c_str( ), std::ios_base::binary | std::ios_base::in );
+    std::ifstream input_stream( filename, std::ios_base::binary | std::ios_base::in );
     if( input_stream.fail( ) ) {
-        std::cerr << "couldn't open file" << input_filename << std::endl;
+        std::cerr << "couldn't open file" << filename << std::endl;
         exit(-1);
     }
+    
+    std::vector<std::vector<value_t>> diameters(dim_max + 1);
     
     #ifdef FILE_FORMAT_DIPHA
     
     int64_t magic_number;
-    input_stream.read( (char*)&magic_number, sizeof( int64_t ) );
+    input_stream.read( reinterpret_cast<char*>(&magic_number), sizeof( int64_t ) );
     if( magic_number != 8067171840 ) {
-        std::cerr << input_filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
+        std::cerr << filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
         exit(-1);
     }
 
     int64_t file_type;
-    input_stream.read( (char*)&file_type, sizeof( int64_t ) );
+    input_stream >> file_type;
     if( file_type != 7 ) {
-        std::cerr << input_filename << " is not a Dipha distance matrix (file type: 7)" << std::endl;
+        std::cerr << filename << " is not a Dipha distance matrix (file type: 7)" << std::endl;
         exit(-1);
     }
    
     int64_t n;
-    input_stream.read( (char*)&n, sizeof( int64_t ) );
+    input_stream.read( reinterpret_cast<char*>(&n), sizeof( int64_t ) );
     
-    distance_matrix dist;
-    dist.distances = std::vector<std::vector<value_t>>(n, std::vector<value_t>(n));
+    distance_matrix dist_full;
+    dist_full.distances = std::vector<std::vector<value_t>>(n, std::vector<value_t>(n));
     
     for( int i = 0; i < n; ++i ) {
-        input_stream.read( (char*)&dist.distances[i][0], n * sizeof(int64_t) );
+        for( int j = 0; j < n; ++j ) {
+            double val;
+            input_stream.read( reinterpret_cast<char*>(&val), n * sizeof(double) );
+            dist_full.distances[i][j] = val;
+        }
     }
+    
+    std::cout << "distance matrix with " << n << " points" << std::endl;
+
+    compressed_lower_distance_matrix_adapter dist(diameters[1], dist_full);
+
+    std::cout << "distance matrix transformed to lower triangular form" << std::endl;
+
     #endif
 
 
@@ -584,13 +632,13 @@ int main( int argc, char** argv ) {
     while(std::getline(input_stream, value_string, ','))
         distances.push_back(std::stod(value_string));
     
-    compressed_upper_distance_matrix dist_upper(std::move(distances));
+    compressed_upper_distance_matrix_adapter dist_upper(distances);
     
     index_t n = dist_upper.size();
     
     std::cout << "distance matrix with " << n << " points" << std::endl;
  
-    compressed_lower_distance_matrix dist(dist_upper);
+    compressed_lower_distance_matrix_adapter dist(diameters[1], dist_upper);
 
     std::cout << "distance matrix transformed to lower triangular form" << std::endl;
     
@@ -625,84 +673,99 @@ int main( int argc, char** argv ) {
     }
 
     
-    #ifdef PRECOMPUTE_DIAMETERS
-    std::vector<value_t> previous_diameters( n , 0 );
-
-
-    std::vector<value_t>& diameters = dist.distances;
-    #endif
     
-    for (index_t dim = 0; dim < dim_max; ++dim) {
+    index_t dim = 0;
     
-        std::unordered_map<index_t, index_t> pivot_column_index;
-    
-        #ifdef PRECOMPUTE_DIAMETERS
-        rips_filtration_diameter_comparator comp(diameters, dim + 1, binomial_coeff);
-        rips_filtration_diameter_comparator comp_prev(previous_diameters, dim, binomial_coeff);
-        #else
-        rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
+    {
+        rips_filtration_diameter_comparator comp(diameters[1], dim + 1, binomial_coeff);
         rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
-        #endif
+
+        std::unordered_map<index_t, index_t> pivot_column_index;
 
         compute_pairs(
             columns_to_reduce,
             pivot_column_index,
             comp, comp_prev,
-            dim, dim_max, n,
+            dim, n,
             threshold,
             binomial_coeff
         );
         
-        index_t num_simplices = binomial_coeff(n, dim + 2);
-        
-        columns_to_reduce.clear();
-        
-        for (index_t index = 0; index < num_simplices; ++index) {
-
-            if (comp.diameter(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
-                columns_to_reduce.push_back(index);
-            }
-        }
-        
-        std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp);
-
-        #ifdef PRECOMPUTE_DIAMETERS
-        previous_diameters = std::move(diameters);
-        
-        #ifndef PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
-        if (dim == dim_max - 1)
-            break;
-        #endif
-        
-        std::cout << "precomputing " << dim + 2 << "-simplex diameters" << std::endl;
-        diameters = get_diameters( dist, dim + 2, previous_diameters, binomial_coeff );
-        #endif
+        assemble_columns_to_reduce(
+            columns_to_reduce,
+            pivot_column_index,
+            comp,
+            dim, n,
+            threshold,
+            binomial_coeff
+        );
     }
     
-    index_t dim = dim_max;
+    #ifdef PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
+    for (dim = 1; dim <= dim_max; ++dim) {
+    #else
+    for (dim = 1; dim < dim_max; ++dim) {
+    #endif
+    
+        #ifdef PRECOMPUTE_DIAMETERS
+        
+        std::cout << "precomputing " << dim + 1 << "-simplex diameters" << std::endl;
+        diameters[dim + 1] = get_diameters( dist, dim + 1, diameters[dim], binomial_coeff );
+
+        rips_filtration_diameter_comparator comp(diameters[dim + 1], dim + 1, binomial_coeff);
+        rips_filtration_diameter_comparator comp_prev(diameters[dim], dim, binomial_coeff);
+        
+        #else
+        
+        rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
+        rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
+        
+        #endif
+        
+        std::unordered_map<index_t, index_t> pivot_column_index;
+    
+        compute_pairs(
+            columns_to_reduce,
+            pivot_column_index,
+            comp, comp_prev,
+            dim, n,
+            threshold,
+            binomial_coeff
+        );
+        
+        assemble_columns_to_reduce(
+            columns_to_reduce,
+            pivot_column_index,
+            comp,
+            dim, n,
+            threshold,
+            binomial_coeff
+        );
+
+        if ( dim > 1 )
+            diameters[dim] = std::vector<value_t>();
+    }
     
     #ifdef PRECOMPUTE_DIAMETERS
-    rips_filtration_diameter_comparator comp_prev(previous_diameters, dim, binomial_coeff);
-    #else
-    rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
-    #endif
-    
-    #ifdef PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
-    rips_filtration_diameter_comparator comp(diameters, dim + 1, binomial_coeff);
-    #else
-    rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
-    #endif
-    
-    std::unordered_map<index_t, index_t> pivot_column_index;
+    #ifndef PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
+    {
+        dim = dim_max;
+        
+        rips_filtration_diameter_comparator comp_prev(diameters[dim], dim, binomial_coeff);
+        rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
+        
+        std::unordered_map<index_t, index_t> pivot_column_index;
 
-    compute_pairs(
-        columns_to_reduce,
-        pivot_column_index,
-        comp, comp_prev,
-        dim, dim_max, n,
-        threshold,
-        binomial_coeff
-    );
-    
+        compute_pairs(
+            columns_to_reduce,
+            pivot_column_index,
+            comp, comp_prev,
+            dim, n,
+            threshold,
+            binomial_coeff
+        );
+    }
+    #endif
+    #endif
     
 }
