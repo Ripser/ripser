@@ -58,6 +58,9 @@ public:
     }
 };
 
+//
+// https://comeoncodeon.wordpress.com/2011/10/09/modular-multiplicative-inverse/
+//
 std::vector<coefficient_t> multiplicative_inverse_vector (const int m) {
     std::vector<coefficient_t> mod_inverse(m);
     mod_inverse[1] = 1;
@@ -764,8 +767,7 @@ void compute_pairs(
                     
                     reduction_matrix.pop_back();
                     while(!reduction_column.empty()) {
-                        entry_t e = reduction_column.top();
-                        reduction_column.pop();
+                        entry_t e = pop_pivot(reduction_column, modulus);
                         reduction_matrix.push_back(make_entry(
                             get_index(e),
                             #ifdef USE_COEFFICIENTS
@@ -808,15 +810,17 @@ void compute_pairs(
         }
         #endif
 
+    
+        #ifdef ASSEMBLE_REDUCTION_MATRIX
+        std::cout << "reduction matrix fill-in: " << i + 1 << " + " << reduction_matrix.entries.size() - i + 1 << std::endl;
+        #endif
+    
     }
 
     #ifdef INDICATE_PROGRESS
     std::cout << "\033[K";
     #endif
-    
-    #ifdef ASSEMBLE_REDUCTION_MATRIX
-    std::cout << "reduction matrix fill-in: " << columns_to_reduce.size() << " + " << reduction_matrix.entries.size() - columns_to_reduce.size() << std::endl;
-    #endif
+
 }
 
 bool is_prime(const long n) {
