@@ -20,13 +20,13 @@ typedef long coefficient_t;
 #define USE_EXPONENTIAL_SEARCH
 
 #define ASSEMBLE_REDUCTION_MATRIX
-//#define USE_COEFFICIENTS
+#define USE_COEFFICIENTS
 
 #define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
-//#define FILE_FORMAT_DIPHA
-#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
+#define FILE_FORMAT_DIPHA
+//#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
 //#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
 
 class binomial_coeff_table {
@@ -61,7 +61,7 @@ public:
 //
 // https://comeoncodeon.wordpress.com/2011/10/09/modular-multiplicative-inverse/
 //
-std::vector<coefficient_t> multiplicative_inverse_vector (const int m) {
+std::vector<coefficient_t> multiplicative_inverse_vector (const coefficient_t m) {
     std::vector<coefficient_t> mod_inverse(m);
     mod_inverse[1] = 1;
     for(coefficient_t i = 2; i < m; ++i) {
@@ -188,6 +188,9 @@ struct entry_t {
 
     entry_t(index_t _index) :
         index(_index), value(1) {}
+    
+    entry_t() :
+    index(0), value(1) {}
 };
 
 entry_t make_entry(index_t _index, coefficient_t _value) {
@@ -203,7 +206,7 @@ index_t get_coefficient(entry_t e) {
 }
 
 std::ostream& operator<< (std::ostream& stream, const entry_t& e) {
-    stream << "(" << get_index(e) << ": " << get_coefficient(e) << ")";
+    stream << get_index(e) << ":" << get_coefficient(e);
     return stream;
 }
 
@@ -661,6 +664,8 @@ void compute_pairs(
     
     #ifdef ASSEMBLE_REDUCTION_MATRIX
     compressed_sparse_matrix <entry_t> reduction_matrix;
+    #else
+    std::vector <entry_t> reduction_matrix;
     #endif
     
     for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
@@ -682,6 +687,10 @@ void compute_pairs(
         
         index_t column_to_add = column_to_reduce;
         
+        
+        // start with a pivot entry with coefficient -1 in order to initialize working_coboundary
+        // with the coboundary of the simplex with index column_to_reduce
+        
         entry_t pivot = make_entry(column_to_reduce, -1);
         
         
@@ -691,29 +700,31 @@ void compute_pairs(
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         reduction_matrix.append();
-        reduction_matrix.push_back(make_entry(column_to_reduce, 1));
         #endif
+        
+        // initialize reduction_matrix as identity matrix
+        reduction_matrix.push_back(make_entry(column_to_reduce, 1));
         
         do {
             
-            #ifdef ASSEMBLE_REDUCTION_MATRIX
-
             #ifdef USE_COEFFICIENTS
             coefficient_t factor = -get_coefficient(pivot);
-            #else
-            const coefficient_t factor = 1;
+//            #else
+//            const coefficient_t factor = 1;
             #endif
 
-            entry_t e = make_entry( column_to_add, factor );
-            reduction_column.push( e );
 
-//            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
-            
 //            std::priority_queue<index_t, std::vector<entry_t>, decltype(comp) > eliminating_coboundary(comp);
 
+//            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
+
+            #ifdef ASSEMBLE_REDUCTION_MATRIX
+            
             for (auto it = reduction_matrix.cbegin(j); it != reduction_matrix.cend(j); ++it) {
                 const entry_t& simplex = *it;
     
+                reduction_column.push( simplex );
+            
                 simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
                 while (cofaces.has_next()) {
                     entry_t coface = cofaces.next();
@@ -728,18 +739,42 @@ void compute_pairs(
 //                        eliminating_coboundary.push(e);
                     }
                 }
-
             }
 
+            #else
+            
+            #ifdef USE_COEFFICIENTS
+            const entry_t& simplex = reduction_matrix[j];
+            
+            simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
+            while (cofaces.has_next()) {
+                entry_t coface = cofaces.next();
+                
+                index_t coface_index = get_index(coface);
+                if (comp.diameter(coface_index) <= threshold) {
+                    entry_t e = make_entry(
+                        coface_index,
+                        factor * get_coefficient(simplex) * get_coefficient(coface)
+                    );
+                    working_coboundary.push(e);
+//                    eliminating_coboundary.push(e);
+                }
+            }
+            
             #else
             
             simplex_coboundary_enumerator cofaces(column_to_add, dim, n, binomial_coeff);
             while (cofaces.has_next()) {
                 index_t coface_index = cofaces.next();
-                if (comp.diameter(coface_index) <= threshold)
+                if (comp.diameter(coface_index) <= threshold) {
                     working_coboundary.push(coface_index);
+//                    eliminating_coboundary.push(e);
+                }
             }
             #endif
+            
+            #endif
+
 
             
 //            std::cout << get_heap_vector(working_coboundary) << std::endl;
@@ -747,7 +782,6 @@ void compute_pairs(
 //            std::cout << "e:" << get_column_vector(eliminating_coboundary, modulus) << std::endl;
 //            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl << std::endl;
             
-                           
             pivot = get_pivot(working_coboundary, modulus);
             
 //            std::cout << get_index(pivot) << " ";
@@ -760,14 +794,19 @@ void compute_pairs(
                     
                     pivot_column_index.insert(std::make_pair(get_index(pivot), i));
                     
-                    #ifdef ASSEMBLE_REDUCTION_MATRIX
                     #ifdef USE_COEFFICIENTS
-                    coefficient_t inverse = multiplicative_inverse[ get_coefficient( pivot ) ];
+                    const coefficient_t inverse = multiplicative_inverse[ get_coefficient( pivot ) ];
+                    #else
+                    const coefficient_t inverse = 1;
                     #endif
                     
+                    // replace current column of reduction_matrix (with a single diagonal 1 entry)
+                    // by reduction_column (possibly with a different entry on the diagonal)
                     reduction_matrix.pop_back();
-                    while(!reduction_column.empty()) {
-                        entry_t e = pop_pivot(reduction_column, modulus);
+                    
+                    #ifdef ASSEMBLE_REDUCTION_MATRIX
+                    entry_t e;
+                    while (get_index(e = pop_pivot(reduction_column, modulus)) != -1) {
                         reduction_matrix.push_back(make_entry(
                             get_index(e),
                             #ifdef USE_COEFFICIENTS
@@ -777,6 +816,8 @@ void compute_pairs(
                             #endif
                         ));
                     }
+                    #else
+                    reduction_matrix.push_back(make_entry(column_to_reduce, inverse));
                     #endif
                     
                     #ifdef PRINT_PERSISTENCE_PAIRS
@@ -811,9 +852,9 @@ void compute_pairs(
         #endif
 
     
-        #ifdef ASSEMBLE_REDUCTION_MATRIX
-        std::cout << "reduction matrix fill-in: " << i + 1 << " + " << reduction_matrix.entries.size() - i + 1 << std::endl;
-        #endif
+//        #ifdef ASSEMBLE_REDUCTION_MATRIX
+//        std::cout << "reduction matrix fill-in: " << i + 1 << " + " << reduction_matrix.entries.size() - (i + 1) << std::endl;
+//        #endif
     
     }
 
@@ -1035,8 +1076,10 @@ int main( int argc, char** argv ) {
     #endif
     
         #ifdef PRECOMPUTE_DIAMETERS
-    
+        
+        #ifdef INDICATE_PROGRESS
         std::cout << "precomputing " << dim + 1 << "-simplex diameters" << std::endl;
+        #endif
         diameters[dim + 1] = get_diameters( dist, dim + 1, diameters[dim], binomial_coeff );
     
         rips_filtration_diameter_comparator comp(diameters[dim + 1], dim + 1, binomial_coeff);
