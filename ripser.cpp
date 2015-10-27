@@ -19,8 +19,8 @@ typedef long coefficient_t;
 #define USE_BINARY_SEARCH
 #define USE_EXPONENTIAL_SEARCH
 
-#define ASSEMBLE_REDUCTION_MATRIX
-#define USE_COEFFICIENTS
+//#define ASSEMBLE_REDUCTION_MATRIX
+//#define USE_COEFFICIENTS
 
 #define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
@@ -490,7 +490,9 @@ inline entry_t pop_pivot(Heap& column, coefficient_t modulus)
 
         coefficient_t coefficient = 0;
         while( !column.empty() && get_index(column.top()) == pivot_index ) {
-            coefficient = (coefficient + get_coefficient(column.top()) + modulus) % modulus;
+            coefficient_t new_coefficient = (coefficient + get_coefficient(column.top())) % modulus;
+            assert(new_coefficient >= 0);
+            coefficient = new_coefficient;
             column.pop();
             
             if( coefficient == 0 )
@@ -662,10 +664,15 @@ void compute_pairs(
     
     std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
     
+    
     #ifdef ASSEMBLE_REDUCTION_MATRIX
     compressed_sparse_matrix <entry_t> reduction_matrix;
     #else
+    
+    #ifdef USE_COEFFICIENTS
     std::vector <entry_t> reduction_matrix;
+    #endif
+    
     #endif
     
     for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
@@ -698,6 +705,8 @@ void compute_pairs(
         
 //        std::cout << "reducing " << column_to_reduce << ": pivot ";
         
+        #ifdef USE_COEFFICIENTS
+
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         reduction_matrix.append();
         #endif
@@ -705,10 +714,11 @@ void compute_pairs(
         // initialize reduction_matrix as identity matrix
         reduction_matrix.push_back(make_entry(column_to_reduce, 1));
         
+        #endif
         do {
             
             #ifdef USE_COEFFICIENTS
-            coefficient_t factor = -get_coefficient(pivot);
+            coefficient_t factor = modulus - get_coefficient(pivot);
 //            #else
 //            const coefficient_t factor = 1;
             #endif
@@ -731,10 +741,18 @@ void compute_pairs(
                     
                     index_t coface_index = get_index(coface);
                     if (comp.diameter(coface_index) <= threshold) {
-                        entry_t e = make_entry(
-                            coface_index,
-                            factor * get_coefficient(simplex) * get_coefficient(coface)
-                        );
+                        coefficient_t coface_coefficient = get_coefficient(coface) + modulus;
+                        coface_coefficient %= modulus;
+                        
+                        coface_coefficient *= get_coefficient(simplex);
+                        coface_coefficient %= modulus;
+                        
+                        coface_coefficient *= factor;
+                        coface_coefficient %= modulus;
+                        
+                        assert(coface_coefficient >= 0);
+                        
+                        entry_t e = make_entry(coface_index, coface_coefficient);
                         working_coboundary.push(e);
 //                        eliminating_coboundary.push(e);
                     }
@@ -752,10 +770,16 @@ void compute_pairs(
                 
                 index_t coface_index = get_index(coface);
                 if (comp.diameter(coface_index) <= threshold) {
-                    entry_t e = make_entry(
-                        coface_index,
-                        factor * get_coefficient(simplex) * get_coefficient(coface)
-                    );
+                    coefficient_t coface_coefficient = get_coefficient(coface) + modulus;
+                    coface_coefficient %= modulus;
+                    
+                    coface_coefficient *= get_coefficient(simplex);
+                    coface_coefficient %= modulus;
+                    
+                    coface_coefficient *= factor;
+                    coface_coefficient %= modulus;
+                    
+                    entry_t e = make_entry(coface_index, coface_coefficient);
                     working_coboundary.push(e);
 //                    eliminating_coboundary.push(e);
                 }
@@ -796,28 +820,30 @@ void compute_pairs(
                     
                     #ifdef USE_COEFFICIENTS
                     const coefficient_t inverse = multiplicative_inverse[ get_coefficient( pivot ) ];
-                    #else
-                    const coefficient_t inverse = 1;
                     #endif
                     
+                    #ifdef ASSEMBLE_REDUCTION_MATRIX
                     // replace current column of reduction_matrix (with a single diagonal 1 entry)
                     // by reduction_column (possibly with a different entry on the diagonal)
                     reduction_matrix.pop_back();
-                    
-                    #ifdef ASSEMBLE_REDUCTION_MATRIX
-                    entry_t e;
-                    while (get_index(e = pop_pivot(reduction_column, modulus)) != -1) {
-                        reduction_matrix.push_back(make_entry(
-                            get_index(e),
-                            #ifdef USE_COEFFICIENTS
-                                inverse * get_coefficient(e) % modulus
-                            #else
-                                1
-                            #endif
-                        ));
+                    while (true) {
+                        entry_t e = pop_pivot(reduction_column, modulus);
+                        index_t index = get_index(e);
+                        if (index == -1)
+                            break;
+                        #ifdef USE_COEFFICIENTS
+                        const coefficient_t coefficient = inverse * get_coefficient(e) % modulus;
+                        assert(coefficient > 0);
+                        reduction_matrix.push_back(make_entry(index, coefficient));
+                        #else
+                        reduction_matrix.push_back(make_entry(index));
+                        #endif
                     }
                     #else
+                    #ifdef USE_COEFFICIENTS
+                    reduction_matrix.pop_back();
                     reduction_matrix.push_back(make_entry(column_to_reduce, inverse));
+                    #endif
                     #endif
                     
                     #ifdef PRINT_PERSISTENCE_PAIRS
