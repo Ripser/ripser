@@ -13,7 +13,7 @@ typedef float value_t;
 typedef long index_t;
 typedef long coefficient_t;
 
-#define PRECOMPUTE_DIAMETERS
+//#define PRECOMPUTE_DIAMETERS
 //#define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
 
 #define USE_BINARY_SEARCH
@@ -22,7 +22,7 @@ typedef long coefficient_t;
 //#define ASSEMBLE_REDUCTION_MATRIX
 //#define USE_COEFFICIENTS
 
-#define INDICATE_PROGRESS
+//#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
 #define FILE_FORMAT_DIPHA
@@ -71,7 +71,7 @@ std::vector<coefficient_t> multiplicative_inverse_vector (const coefficient_t m)
 }
 
 template<typename OutputIterator>
-OutputIterator get_simplex_vertices( index_t idx, const index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator out  )
+inline OutputIterator get_simplex_vertices( index_t idx, const index_t dim, index_t n, const binomial_coeff_table& binomial_coeff, OutputIterator out  )
 {
     --n;
     
@@ -193,15 +193,15 @@ struct entry_t {
     index(0), value(1) {}
 };
 
-entry_t make_entry(index_t _index, coefficient_t _value) {
+inline entry_t make_entry(index_t _index, coefficient_t _value) {
     return entry_t(_index, _value);
 }
 
-index_t get_index(entry_t e) {
+inline index_t get_index(entry_t e) {
     return e.index;
 }
 
-index_t get_coefficient(entry_t e) {
+inline index_t get_coefficient(entry_t e) {
     return e.value;
 }
 
@@ -214,15 +214,15 @@ std::ostream& operator<< (std::ostream& stream, const entry_t& e) {
 
 typedef index_t entry_t;
 
-index_t get_index(entry_t i) {
+inline index_t get_index(entry_t i) {
     return i;
 }
 
-index_t get_coefficient(entry_t i) {
+inline index_t get_coefficient(entry_t i) {
     return 1;
 }
 
-entry_t make_entry(index_t _index, coefficient_t _value) {
+inline entry_t make_entry(index_t _index, coefficient_t _value) {
     return entry_t(_index);
 }
 
@@ -668,11 +668,9 @@ void compute_pairs(
     #ifdef ASSEMBLE_REDUCTION_MATRIX
     compressed_sparse_matrix <entry_t> reduction_matrix;
     #else
-    
     #ifdef USE_COEFFICIENTS
-    std::vector <entry_t> reduction_matrix;
+    std::vector <entry_t> reduction_coefficients;
     #endif
-    
     #endif
     
     for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
@@ -705,23 +703,23 @@ void compute_pairs(
         
 //        std::cout << "reducing " << column_to_reduce << ": pivot ";
         
-        #ifdef USE_COEFFICIENTS
-
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         reduction_matrix.append();
         #endif
         
+
         // initialize reduction_matrix as identity matrix
+        #ifdef ASSEMBLE_REDUCTION_MATRIX
         reduction_matrix.push_back(make_entry(column_to_reduce, 1));
-        
+        #else
+        #ifdef USE_COEFFICIENTS
+        reduction_coefficients.push_back(make_entry(column_to_reduce, 1));
         #endif
+        #endif
+        
         do {
             
-            #ifdef USE_COEFFICIENTS
-            coefficient_t factor = modulus - get_coefficient(pivot);
-//            #else
-//            const coefficient_t factor = 1;
-            #endif
+            const coefficient_t factor = modulus - get_coefficient(pivot);
 
 
 //            std::priority_queue<index_t, std::vector<entry_t>, decltype(comp) > eliminating_coboundary(comp);
@@ -762,7 +760,7 @@ void compute_pairs(
             #else
             
             #ifdef USE_COEFFICIENTS
-            const entry_t& simplex = reduction_matrix[j];
+            const entry_t& simplex = reduction_coefficients[j];
             
             simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
             while (cofaces.has_next()) {
@@ -820,29 +818,27 @@ void compute_pairs(
                     
                     #ifdef USE_COEFFICIENTS
                     const coefficient_t inverse = multiplicative_inverse[ get_coefficient( pivot ) ];
+                    #else
+                    const coefficient_t inverse = 1;
                     #endif
                     
-                    #ifdef ASSEMBLE_REDUCTION_MATRIX
                     // replace current column of reduction_matrix (with a single diagonal 1 entry)
                     // by reduction_column (possibly with a different entry on the diagonal)
+                    #ifdef ASSEMBLE_REDUCTION_MATRIX
                     reduction_matrix.pop_back();
                     while (true) {
                         entry_t e = pop_pivot(reduction_column, modulus);
                         index_t index = get_index(e);
                         if (index == -1)
                             break;
-                        #ifdef USE_COEFFICIENTS
                         const coefficient_t coefficient = inverse * get_coefficient(e) % modulus;
                         assert(coefficient > 0);
                         reduction_matrix.push_back(make_entry(index, coefficient));
-                        #else
-                        reduction_matrix.push_back(make_entry(index));
-                        #endif
                     }
                     #else
                     #ifdef USE_COEFFICIENTS
-                    reduction_matrix.pop_back();
-                    reduction_matrix.push_back(make_entry(column_to_reduce, inverse));
+                    reduction_coefficients.pop_back();
+                    reduction_coefficients.push_back(make_entry(column_to_reduce, inverse));
                     #endif
                     #endif
                     
@@ -928,7 +924,7 @@ int main( int argc, char** argv ) {
     #ifdef USE_COEFFICIENTS
     coefficient_t modulus = 2;
     #else
-    static const coefficient_t modulus = 2;
+    const coefficient_t modulus = 2;
     #endif
 
     for( index_t i = 1; i < argc; ++i ) {
@@ -1095,10 +1091,14 @@ int main( int argc, char** argv ) {
         );
     }
     
+    #ifdef PRECOMPUTE_DIAMETERS
     #ifdef PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
     for (dim = 1; dim <= dim_max; ++dim) {
     #else
     for (dim = 1; dim < dim_max; ++dim) {
+    #endif
+    #else
+    for (dim = 1; dim <= dim_max; ++dim) {
     #endif
     
         #ifdef PRECOMPUTE_DIAMETERS
