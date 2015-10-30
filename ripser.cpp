@@ -10,6 +10,8 @@
 #include "prettyprint.hpp"
 
 typedef float value_t;
+//typedef uint16_t value_t;
+
 typedef long index_t;
 typedef long coefficient_t;
 
@@ -17,7 +19,7 @@ typedef long coefficient_t;
 //#define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
 
 #define USE_BINARY_SEARCH
-#define USE_EXPONENTIAL_SEARCH
+//#define USE_EXPONENTIAL_SEARCH
 
 //#define ASSEMBLE_REDUCTION_MATRIX
 //#define USE_COEFFICIENTS
@@ -732,6 +734,17 @@ void compute_pairs(
                 const entry_t& simplex = *it;
     
                 reduction_column.push( simplex );
+                
+            #else
+            
+            {
+                #ifdef USE_COEFFICIENTS
+                const entry_t& simplex = reduction_coefficients[j];
+                #else
+                const entry_t simplex = column_to_add;
+                #endif
+            
+            #endif
             
                 simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
                 while (cofaces.has_next()) {
@@ -757,45 +770,6 @@ void compute_pairs(
                 }
             }
 
-            #else
-            
-            #ifdef USE_COEFFICIENTS
-            const entry_t& simplex = reduction_coefficients[j];
-            
-            simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
-            while (cofaces.has_next()) {
-                entry_t coface = cofaces.next();
-                
-                index_t coface_index = get_index(coface);
-                if (comp.diameter(coface_index) <= threshold) {
-                    coefficient_t coface_coefficient = get_coefficient(coface) + modulus;
-                    coface_coefficient %= modulus;
-                    
-                    coface_coefficient *= get_coefficient(simplex);
-                    coface_coefficient %= modulus;
-                    
-                    coface_coefficient *= factor;
-                    coface_coefficient %= modulus;
-                    
-                    entry_t e = make_entry(coface_index, coface_coefficient);
-                    working_coboundary.push(e);
-//                    eliminating_coboundary.push(e);
-                }
-            }
-            
-            #else
-            
-            simplex_coboundary_enumerator cofaces(column_to_add, dim, n, binomial_coeff);
-            while (cofaces.has_next()) {
-                index_t coface_index = cofaces.next();
-                if (comp.diameter(coface_index) <= threshold) {
-                    working_coboundary.push(coface_index);
-//                    eliminating_coboundary.push(e);
-                }
-            }
-            #endif
-            
-            #endif
 
 
             
@@ -819,7 +793,9 @@ void compute_pairs(
                     #ifdef USE_COEFFICIENTS
                     const coefficient_t inverse = multiplicative_inverse[ get_coefficient( pivot ) ];
                     #else
+                    #ifdef ASSEMBLE_REDUCTION_MATRIX
                     const coefficient_t inverse = 1;
+                    #endif
                     #endif
                     
                     // replace current column of reduction_matrix (with a single diagonal 1 entry)
@@ -962,7 +938,7 @@ int main( int argc, char** argv ) {
 
     std::ifstream input_stream( filename, std::ios_base::binary | std::ios_base::in );
     if( input_stream.fail( ) ) {
-        std::cerr << "couldn't open file" << filename << std::endl;
+        std::cerr << "couldn't open file " << filename << std::endl;
         exit(-1);
     }
     
