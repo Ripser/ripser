@@ -25,7 +25,7 @@ typedef long coefficient_t;
 //#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
-#define PRINT_PERSISTENCE_PAIRS
+//#define PRINT_PERSISTENCE_PAIRS
 
 #define FILE_FORMAT_DIPHA
 //#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
@@ -664,8 +664,9 @@ void compute_pairs(
     const std::vector<coefficient_t>& multiplicative_inverse
 ) {
     
+    #ifdef PRINT_PERSISTENCE_PAIRS
     std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
-    
+    #endif
     
     #ifdef ASSEMBLE_REDUCTION_MATRIX
     compressed_sparse_matrix <entry_t> reduction_matrix;
@@ -700,9 +701,6 @@ void compute_pairs(
         
         entry_t pivot = make_entry(column_to_reduce, -1);
         
-        
-        std::vector<index_t> coboundary;
-        
 //        std::cout << "reducing " << column_to_reduce << ": pivot ";
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
@@ -729,23 +727,21 @@ void compute_pairs(
 //            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
 
             #ifdef ASSEMBLE_REDUCTION_MATRIX
-            
-            for (auto it = reduction_matrix.cbegin(j); it != reduction_matrix.cend(j); ++it) {
-                const entry_t& simplex = *it;
-    
-                reduction_column.push( simplex );
-                
-            #else
-            
+            for (auto it = reduction_matrix.cbegin(j); it != reduction_matrix.cend(j); ++it)
+            #endif
             {
+
+                #ifdef ASSEMBLE_REDUCTION_MATRIX
+                const entry_t& simplex = *it;
+                reduction_column.push( simplex );
+                #else
                 #ifdef USE_COEFFICIENTS
                 const entry_t& simplex = reduction_coefficients[j];
                 #else
                 const entry_t simplex = column_to_add;
                 #endif
-            
-            #endif
-            
+                #endif
+                
                 simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
                 while (cofaces.has_next()) {
                     entry_t coface = cofaces.next();
@@ -762,14 +758,14 @@ void compute_pairs(
                         coface_coefficient %= modulus;
                         
                         assert(coface_coefficient >= 0);
-                        
+                            
                         entry_t e = make_entry(coface_index, coface_coefficient);
                         working_coboundary.push(e);
-//                        eliminating_coboundary.push(e);
+    //                    eliminating_coboundary.push(e);
                     }
                 }
             }
-
+            
 
 
             
@@ -938,7 +934,7 @@ int main( int argc, char** argv ) {
 
     std::ifstream input_stream( filename, std::ios_base::binary | std::ios_base::in );
     if( input_stream.fail( ) ) {
-        std::cerr << "couldn't open file " << filename << std::endl;
+        std::cerr << "couldn't open file" << filename << std::endl;
         exit(-1);
     }
     
