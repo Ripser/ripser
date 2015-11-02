@@ -1101,14 +1101,15 @@ int main( int argc, char** argv ) {
             binomial_coeff, multiplicative_inverse
         );
         
-        assemble_columns_to_reduce(
-            columns_to_reduce,
-            pivot_column_index,
-            comp,
-            dim, n,
-            threshold,
-            binomial_coeff
-        );
+        if (dim < dim_max)
+            assemble_columns_to_reduce(
+                columns_to_reduce,
+                pivot_column_index,
+                comp,
+                dim, n,
+                threshold,
+                binomial_coeff
+            );
         
 //        if ( dim > 1 )
 //            diameters[dim] = std::vector<value_t>();
