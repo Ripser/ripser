@@ -494,7 +494,7 @@ struct greater_diameter_or_index {
         if (get_diameter(a) > get_diameter(b))
             return true;
         else
-            return ((get_diameter(a) == get_diameter(b)) &&(get_index(a) > get_index(b))
+            return ((get_diameter(a) == get_diameter(b)) && (get_index(a) > get_index(b))
         );
     }
 };
@@ -538,22 +538,21 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
     if( column.empty() )
         return -1;
     else {
-        index_t pivot_index = get_index(column.top());
+        entry_diameter_t pivot_entry = column.top();
         column.pop();
-        while( !column.empty() && get_index(column.top()) == pivot_index ) {
+        while( !column.empty() && get_index(column.top()) == get_index(pivot_entry) ) {
             column.pop();
             if( column.empty() )
                 return -1;
             else {
-                pivot_index = get_index(column.top());
+                pivot_entry = column.top();
                 column.pop();
             }
         }
-        if( get_index(pivot_index) != -1 ) {
-            value_t diameter = get_diameter(column.top());
-            column.push( std::make_pair(pivot_index, diameter) );
+        if( get_index(pivot_entry) != -1 ) {
+            column.push(pivot_entry);
         }
-        return pivot_index;
+        return get_index(pivot_entry);
     }
 }
 
@@ -577,7 +576,7 @@ void push_entry_with_diameter(Heap& column, entry_t e, value_t diameter) {
 
 template <typename Comparator>
 void assemble_columns_to_reduce (
-    std::vector<index_t>& columns_to_reduce,
+    std::vector<std::pair<value_t, index_t>>& columns_to_reduce,
     std::unordered_map<index_t, index_t>& pivot_column_index,
     const Comparator& comp,
     index_t dim, index_t n,
@@ -589,13 +588,14 @@ void assemble_columns_to_reduce (
     columns_to_reduce.clear();
     
     for (index_t index = 0; index < num_simplices; ++index) {
-
-        if (comp.diameter(index) <= threshold && pivot_column_index.find(index) == pivot_column_index.end()) {
-            columns_to_reduce.push_back(index);
+        if (pivot_column_index.find(index) == pivot_column_index.end()) {
+            value_t diameter = comp.diameter(index);
+            if (diameter <= threshold)
+                columns_to_reduce.push_back(std::make_pair(diameter, index));
         }
     }
 
-    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp);
+    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), std::greater<std::pair<value_t, index_t>>());
 }
 
 
@@ -680,7 +680,7 @@ inline std::vector<entry_t> get_heap_vector(Heap heap)
 
 template <typename ComparatorCofaces, typename Comparator>
 void compute_pairs(
-    std::vector<index_t>& columns_to_reduce,
+    std::vector<std::pair<value_t, index_t>>& columns_to_reduce,
     std::unordered_map<index_t, index_t>& pivot_column_index,
     const ComparatorCofaces& comp, const Comparator& comp_prev,
     index_t dim, index_t n,
@@ -702,7 +702,7 @@ void compute_pairs(
     #endif
     
     for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
-        index_t column_to_reduce = columns_to_reduce[i];
+        index_t column_to_reduce = columns_to_reduce[i].second;
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         std::priority_queue<entry_t, std::vector<entry_t>, decltype(comp_prev) > reduction_column(comp_prev);
@@ -726,7 +726,7 @@ void compute_pairs(
         
         entry_t pivot = make_entry(column_to_reduce, -1);
         
-        std::cout << "reducing " << column_to_reduce << ": pivot ";
+//        std::cout << "reducing " << column_to_reduce << ": pivot " << std::flush;
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         reduction_matrix.append();
@@ -802,13 +802,13 @@ void compute_pairs(
             
             pivot = get_pivot(working_coboundary, modulus);
             
-            std::cout << get_index(pivot) << " ";
+//            std::cout << get_index(pivot) << " " << std::flush;
         
             if (get_index(pivot) != -1) {
                 auto pair = pivot_column_index.find(get_index(pivot));
                 
                 if (pair == pivot_column_index.end()) {
-                    std::cout << std::endl;
+//                    std::cout << std::endl;
                     
                     pivot_column_index.insert(std::make_pair(get_index(pivot), i));
                     
@@ -854,7 +854,7 @@ void compute_pairs(
                 }
                 
                 j = pair->second;
-                column_to_add = columns_to_reduce[j];
+                column_to_add = columns_to_reduce[j].second;
             }
 
         } while ( get_index(pivot) != -1 );
@@ -1053,11 +1053,11 @@ int main( int argc, char** argv ) {
     std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
     
     
-    std::vector<index_t> columns_to_reduce;
+    std::vector<std::pair<value_t, index_t>> columns_to_reduce;
     
     
     for (index_t index = n; index-- > 0; ) {
-        columns_to_reduce.push_back(index);
+        columns_to_reduce.push_back(std::make_pair(0, index));
     }
 
     
