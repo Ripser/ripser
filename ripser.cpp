@@ -18,6 +18,8 @@ typedef long coefficient_t;
 //#define PRECOMPUTE_DIAMETERS
 //#define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
 
+//#define STORE_DIAMETERS
+
 #define USE_BINARY_SEARCH
 //#define USE_EXPONENTIAL_SEARCH
 
@@ -216,6 +218,8 @@ std::ostream& operator<< (std::ostream& stream, const entry_t& e) {
 
 typedef index_t entry_t;
 
+#endif
+
 inline index_t get_index(entry_t i) {
     return i;
 }
@@ -228,7 +232,6 @@ inline entry_t make_entry(index_t _index, coefficient_t _value) {
     return entry_t(_index);
 }
 
-#endif
 
 struct greater_index {
     bool operator() (const entry_t& a, const entry_t& b) {
@@ -488,7 +491,7 @@ public:
 
 
 
-
+#ifdef STORE_DIAMETERS
 typedef std::pair<entry_t, value_t> entry_diameter_t;
 
 inline const entry_t& get_entry(const entry_diameter_t& p) { return p.first; }
@@ -497,7 +500,7 @@ inline coefficient_t get_coefficient(const entry_diameter_t& p) { return get_coe
 inline const value_t& get_diameter(const entry_diameter_t& p) { return p.second; }
 
 struct greater_diameter_or_index {
-    bool operator() (const entry_diameter_t& a, const entry_diameter_t& b) {
+    inline bool operator() (const entry_diameter_t& a, const entry_diameter_t& b) {
         if (get_diameter(a) > get_diameter(b))
             return true;
         else
@@ -505,8 +508,9 @@ struct greater_diameter_or_index {
         );
     }
 };
-
-
+#else
+typedef entry_t entry_diameter_t;
+#endif
 
 
 #ifdef USE_COEFFICIENTS
@@ -578,17 +582,19 @@ inline entry_t pop_pivot(Heap& column, coefficient_t modulus)
     return result;
 }
 
-template <typename Heap>
-void push_entry_with_diameter(Heap& column, entry_t e, value_t diameter) {
-    column.push( std::make_pair(e, diameter) );
+
+#ifdef STORE_DIAMETERS
+typedef std::pair<value_t, index_t> diameter_index_t;
+inline index_t get_index(diameter_index_t i) {
+    return i.second;
 }
-
-
-
+#else
+typedef index_t diameter_index_t;
+#endif
 
 template <typename Comparator>
 void assemble_columns_to_reduce (
-    std::vector<std::pair<value_t, index_t>>& columns_to_reduce,
+    std::vector<diameter_index_t>& columns_to_reduce,
     std::unordered_map<index_t, index_t>& pivot_column_index,
     const Comparator& comp,
     index_t dim, index_t n,
@@ -603,11 +609,16 @@ void assemble_columns_to_reduce (
         if (pivot_column_index.find(index) == pivot_column_index.end()) {
             value_t diameter = comp.diameter(index);
             if (diameter <= threshold)
+                #ifdef STORE_DIAMETERS
                 columns_to_reduce.push_back(std::make_pair(diameter, index));
+                #else
+                columns_to_reduce.push_back(index);
+                #endif
+
         }
     }
 
-    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), std::greater<std::pair<value_t, index_t>>());
+    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), std::greater<diameter_index_t>());
 }
 
 
@@ -689,16 +700,26 @@ inline std::vector<entry_t> get_heap_vector(Heap heap)
 }
 
 
+template <typename Heap>
+inline void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
+    entry_t e = make_entry(i, c);
+#ifdef STORE_DIAMETERS
+    column.push(std::make_pair(e, diameter));
+#else
+    column.push(e);
+#endif
+}
+
 
 template <typename ComparatorCofaces, typename Comparator>
 void compute_pairs(
-    std::vector<std::pair<value_t, index_t>>& columns_to_reduce,
+    std::vector<diameter_index_t>& columns_to_reduce,
     std::unordered_map<index_t, index_t>& pivot_column_index,
     const ComparatorCofaces& comp, const Comparator& comp_prev,
     index_t dim, index_t n,
-    value_t threshold, coefficient_t modulus,
-    const binomial_coeff_table& binomial_coeff,
-    const std::vector<coefficient_t>& multiplicative_inverse
+    value_t threshold,
+    coefficient_t modulus, const std::vector<coefficient_t>& multiplicative_inverse,
+    const binomial_coeff_table& binomial_coeff
 ) {
     
     #ifdef PRINT_PERSISTENCE_PAIRS
@@ -714,17 +735,25 @@ void compute_pairs(
     #endif
     
     for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
-        index_t column_to_reduce = columns_to_reduce[i].second;
+        index_t column_to_reduce = get_index(columns_to_reduce[i]);
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
-        #ifdef USE_COEFFICIENTS
+        
+        #ifdef STORE_DIAMETERS
         std::priority_queue<entry_t, std::vector<entry_t>, greater_index> reduction_column;
         #else
-        std::priority_queue<entry_t> reduction_column;
-        #endif
+        std::priority_queue<entry_t, std::vector<entry_t>, Comparator> reduction_column(comp_prev);
         #endif
         
+        #endif
+        
+        
+        #ifdef STORE_DIAMETERS
         std::priority_queue<entry_diameter_t, std::vector<entry_diameter_t>, greater_diameter_or_index > working_coboundary;
+        #else
+        std::priority_queue<entry_t, std::vector<entry_t>, decltype(comp) > working_coboundary(comp);
+        #endif
+        
         
         #ifdef INDICATE_PROGRESS
         std::cout << "\033[K" << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
@@ -800,9 +829,8 @@ void compute_pairs(
                         coface_coefficient %= modulus;
                         
                         assert(coface_coefficient >= 0);
-                            
-                        entry_t e = make_entry(coface_index, coface_coefficient);
-                        push_entry_with_diameter(working_coboundary, e, coface_diameter);
+                        
+                        push_entry(working_coboundary, coface_index, coface_coefficient, coface_diameter);
     //                    eliminating_coboundary.push(e);
                     }
                 }
@@ -870,7 +898,7 @@ void compute_pairs(
                 }
                 
                 j = pair->second;
-                column_to_add = columns_to_reduce[j].second;
+                column_to_add = get_index(columns_to_reduce[j]);
             }
 
         } while ( get_index(pivot) != -1 );
@@ -1068,12 +1096,16 @@ int main( int argc, char** argv ) {
     
     std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
     
-    
-    std::vector<std::pair<value_t, index_t>> columns_to_reduce;
+    std::vector<diameter_index_t> columns_to_reduce;
     
     
     for (index_t index = n; index-- > 0; ) {
+        #ifdef STORE_DIAMETERS
         columns_to_reduce.push_back(std::make_pair(0, index));
+        #else
+        columns_to_reduce.push_back(index);
+        #endif
+
     }
 
     
@@ -1091,8 +1123,9 @@ int main( int argc, char** argv ) {
             pivot_column_index,
             comp, comp_prev,
             dim, n,
-            threshold, modulus,
-            binomial_coeff, multiplicative_inverse
+            threshold,
+            modulus, multiplicative_inverse,
+            binomial_coeff
         );
         
         assemble_columns_to_reduce(
@@ -1139,8 +1172,10 @@ int main( int argc, char** argv ) {
             pivot_column_index,
             comp, comp_prev,
             dim, n,
-            threshold, modulus,
-            binomial_coeff, multiplicative_inverse
+            threshold,
+            modulus,
+            multiplicative_inverse,
+            binomial_coeff
         );
         
         if (dim < dim_max)
@@ -1172,8 +1207,10 @@ int main( int argc, char** argv ) {
             pivot_column_index,
             comp, comp_prev,
             dim, n,
-            threshold, modulus,
-            binomial_coeff, multiplicative_inverse
+            threshold,
+            modulus,
+            multiplicative_inverse,
+            binomial_coeff
         );
     }
     #endif
