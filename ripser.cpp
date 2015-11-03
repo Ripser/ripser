@@ -228,8 +228,14 @@ inline entry_t make_entry(index_t _index, coefficient_t _value) {
     return entry_t(_index);
 }
 
-
 #endif
+
+struct greater_index {
+    bool operator() (const entry_t& a, const entry_t& b) {
+        return get_index(a) > get_index(b);
+    }
+};
+
 
 class simplex_coboundary_enumerator {
 private:
@@ -487,6 +493,7 @@ typedef std::pair<entry_t, value_t> entry_diameter_t;
 
 inline const entry_t& get_entry(const entry_diameter_t& p) { return p.first; }
 inline index_t get_index(const entry_diameter_t& p) { return get_index(get_entry(p)); }
+inline coefficient_t get_coefficient(const entry_diameter_t& p) { return get_coefficient(get_entry(p)); }
 inline const value_t& get_diameter(const entry_diameter_t& p) { return p.second; }
 
 struct greater_diameter_or_index {
@@ -510,22 +517,27 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
     if( column.empty() )
         return entry_t(-1);
     else {
-        index_t pivot_index = get_index(column.top());
+        auto pivot_entry = column.top();
 
         coefficient_t coefficient = 0;
-        while( !column.empty() && get_index(column.top()) == pivot_index ) {
+        while( !column.empty() && get_index(column.top()) == get_index(pivot_entry) ) {
             coefficient_t new_coefficient = (coefficient + get_coefficient(column.top())) % modulus;
             assert(new_coefficient >= 0);
             coefficient = new_coefficient;
             column.pop();
             
-            if( coefficient == 0 )
-                pivot_index = column.empty() ? -1 : get_index(column.top());
+            if( coefficient == 0 ) {
+                if (column.empty()) {
+                    return entry_t(-1);
+                } else {
+                    pivot_entry = column.top();
+                }
+            }
         }
-        entry_t result = make_entry(pivot_index, coefficient);
-        if( get_index(pivot_index) != -1 ) {
-            value_t diameter = get_diameter(column.top());
-result        }
+        if( get_index(pivot_entry) != -1 ) {
+            column.push(pivot_entry);
+        }
+        return get_index(pivot_entry);
     }
 }
 
@@ -538,7 +550,7 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
     if( column.empty() )
         return -1;
     else {
-        entry_diameter_t pivot_entry = column.top();
+        auto pivot_entry = column.top();
         column.pop();
         while( !column.empty() && get_index(column.top()) == get_index(pivot_entry) ) {
             column.pop();
@@ -705,7 +717,11 @@ void compute_pairs(
         index_t column_to_reduce = columns_to_reduce[i].second;
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
-        std::priority_queue<entry_t, std::vector<entry_t>, decltype(comp_prev) > reduction_column(comp_prev);
+        #ifdef USE_COEFFICIENTS
+        std::priority_queue<entry_t, std::vector<entry_t>, greater_index> reduction_column;
+        #else
+        std::priority_queue<entry_t> reduction_column;
+        #endif
         #endif
         
         std::priority_queue<entry_diameter_t, std::vector<entry_diameter_t>, greater_diameter_or_index > working_coboundary;
