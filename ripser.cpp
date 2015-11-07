@@ -24,14 +24,14 @@ typedef long coefficient_t;
 //#define USE_EXPONENTIAL_SEARCH
 
 //#define ASSEMBLE_REDUCTION_MATRIX
-//#define USE_COEFFICIENTS
+#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
-//#define PRINT_PERSISTENCE_PAIRS
+#define PRINT_PERSISTENCE_PAIRS
 
-#define FILE_FORMAT_DIPHA
+//#define FILE_FORMAT_DIPHA
 //#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
-//#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
+#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
 
 class binomial_coeff_table {
     std::vector<std::vector<index_t> > B;
@@ -527,7 +527,7 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
         return entry_t(-1);
     else {
         auto pivot = column.top();
-        
+
         coefficient_t coefficient = 0;
         while( !column.empty() && get_index(column.top()) == get_index(pivot) ) {
             coefficient_t new_coefficient = (coefficient + get_coefficient(column.top())) % modulus;
@@ -540,12 +540,12 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
                     return entry_t(-1);
                 } else {
                     pivot = column.top();
-                }
-            }
         }
+    }
+}
         if( get_index(pivot) != -1 ) {
             column.push(pivot);
-        }
+}
         return get_entry(pivot);
     }
 }
@@ -572,9 +572,9 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
         }
         if( get_index(pivot) != -1 ) {
             column.push(pivot);
-        }
-        return get_entry(pivot);
     }
+        return get_entry(pivot);
+}
 }
 
 #endif
@@ -781,7 +781,7 @@ void compute_pairs(
         
         entry_t pivot = make_entry(column_to_reduce, modulus - 1);
         
-//        std::cout << "reducing " << column_to_reduce << ": pivot " << std::flush;
+        std::cout << "reducing " << column_to_reduce << ": pivot " << std::flush;
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         reduction_matrix.append();
@@ -842,7 +842,7 @@ void compute_pairs(
                         coface_coefficient %= modulus;
                         
                         assert(coface_coefficient >= 0);
-                        
+                            
                         push_entry(working_coboundary, coface_index, coface_coefficient, coface_diameter);
 //                        push_entry(eliminating_coboundary, coface_index, coface_coefficient, coface_diameter);
                     }
@@ -859,13 +859,13 @@ void compute_pairs(
             
             pivot = get_pivot(working_coboundary, modulus);
             
-//            std::cout << get_index(pivot) << " " << std::flush;
+            std::cout << get_index(pivot) << " ";
         
             if (get_index(pivot) != -1) {
                 auto pair = pivot_column_index.find(get_index(pivot));
                 
                 if (pair == pivot_column_index.end()) {
-//                    std::cout << std::endl;
+                    std::cout << std::endl;
                     
                     pivot_column_index.insert(std::make_pair(get_index(pivot), i));
                     
@@ -1192,14 +1192,14 @@ int main( int argc, char** argv ) {
         );
         
         if (dim < dim_max)
-            assemble_columns_to_reduce(
-                columns_to_reduce,
-                pivot_column_index,
-                comp,
-                dim, n,
-                threshold,
-                binomial_coeff
-            );
+        assemble_columns_to_reduce(
+            columns_to_reduce,
+            pivot_column_index,
+            comp,
+            dim, n,
+            threshold,
+            binomial_coeff
+        );
         
 //        if ( dim > 1 )
 //            diameters[dim] = std::vector<value_t>();
