@@ -209,6 +209,10 @@ inline index_t get_coefficient(entry_t e) {
     return e.value;
 }
 
+bool operator== (const entry_t& e1, const entry_t& e2) {
+    return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
+}
+
 std::ostream& operator<< (std::ostream& stream, const entry_t& e) {
     stream << get_index(e) << ":" << get_coefficient(e);
     return stream;
@@ -231,6 +235,8 @@ inline entry_t make_entry(index_t _index, coefficient_t _value) {
 }
 
 #endif
+
+inline const entry_t& get_entry(const entry_t& e) { return e; }
 
 struct greater_index {
     bool operator() (const entry_t& a, const entry_t& b) {
@@ -520,10 +526,10 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
     if( column.empty() )
         return entry_t(-1);
     else {
-        auto pivot_entry = column.top();
-
+        auto pivot = column.top();
+        
         coefficient_t coefficient = 0;
-        while( !column.empty() && get_index(column.top()) == get_index(pivot_entry) ) {
+        while( !column.empty() && get_index(column.top()) == get_index(pivot) ) {
             coefficient_t new_coefficient = (coefficient + get_coefficient(column.top())) % modulus;
             assert(new_coefficient >= 0);
             coefficient = new_coefficient;
@@ -533,14 +539,14 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
                 if (column.empty()) {
                     return entry_t(-1);
                 } else {
-                    pivot_entry = column.top();
+                    pivot = column.top();
                 }
             }
         }
-        if( get_index(pivot_entry) != -1 ) {
-            column.push(pivot_entry);
+        if( get_index(pivot) != -1 ) {
+            column.push(pivot);
         }
-        return get_index(pivot_entry);
+        return get_entry(pivot);
     }
 }
 
@@ -553,21 +559,21 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
     if( column.empty() )
         return -1;
     else {
-        auto pivot_entry = column.top();
+        auto pivot = column.top();
         column.pop();
-        while( !column.empty() && get_index(column.top()) == get_index(pivot_entry) ) {
+        while( !column.empty() && get_index(column.top()) == get_index(pivot) ) {
             column.pop();
             if( column.empty() )
                 return -1;
             else {
-                pivot_entry = column.top();
+                pivot = column.top();
                 column.pop();
             }
         }
-        if( get_index(pivot_entry) != -1 ) {
-            column.push(pivot_entry);
+        if( get_index(pivot) != -1 ) {
+            column.push(pivot);
         }
-        return get_index(pivot_entry);
+        return get_entry(pivot);
     }
 }
 
@@ -773,7 +779,7 @@ void compute_pairs(
         // start with a pivot entry with coefficient -1 in order to initialize working_coboundary
         // with the coboundary of the simplex with index column_to_reduce
         
-        entry_t pivot = make_entry(column_to_reduce, -1);
+        entry_t pivot = make_entry(column_to_reduce, modulus - 1);
         
 //        std::cout << "reducing " << column_to_reduce << ": pivot " << std::flush;
         
@@ -796,7 +802,7 @@ void compute_pairs(
             const coefficient_t factor = modulus - get_coefficient(pivot);
 
 
-//            std::priority_queue<index_t, std::vector<entry_t>, decltype(comp) > eliminating_coboundary(comp);
+//            std::priority_queue<entry_diameter_t, std::vector<entry_diameter_t>, decltype(comp) > eliminating_coboundary(comp);
 
 //            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
 
@@ -806,8 +812,11 @@ void compute_pairs(
             {
 
                 #ifdef ASSEMBLE_REDUCTION_MATRIX
-                const entry_t& simplex = *it;
-                reduction_column.push( simplex );
+                entry_t simplex = *it;
+                coefficient_t simplex_coefficient = get_coefficient(simplex);
+                simplex_coefficient *= factor;
+                simplex_coefficient %= modulus;
+                reduction_column.push( make_entry( get_index(simplex), simplex_coefficient ) );
                 #else
                 #ifdef USE_COEFFICIENTS
                 const entry_t& simplex = reduction_coefficients[j];
@@ -835,7 +844,7 @@ void compute_pairs(
                         assert(coface_coefficient >= 0);
                         
                         push_entry(working_coboundary, coface_index, coface_coefficient, coface_diameter);
-    //                    eliminating_coboundary.push(e);
+//                        push_entry(eliminating_coboundary, coface_index, coface_coefficient, coface_diameter);
                     }
                 }
             }
