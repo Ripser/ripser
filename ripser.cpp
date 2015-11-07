@@ -781,7 +781,7 @@ void compute_pairs(
         
         entry_t pivot = make_entry(column_to_reduce, modulus - 1);
         
-        std::cout << "reducing " << column_to_reduce << ": pivot " << std::flush;
+        std::cout << "reducing " << column_to_reduce << ":" << std::endl;
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         reduction_matrix.append();
@@ -802,9 +802,9 @@ void compute_pairs(
             const coefficient_t factor = modulus - get_coefficient(pivot);
 
 
-//            std::priority_queue<entry_diameter_t, std::vector<entry_diameter_t>, decltype(comp) > eliminating_coboundary(comp);
+            std::priority_queue<entry_diameter_t, std::vector<entry_diameter_t>, decltype(comp) > eliminating_coboundary(comp);
 
-//            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
+            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
 
             #ifdef ASSEMBLE_REDUCTION_MATRIX
             for (auto it = reduction_matrix.cbegin(j); it != reduction_matrix.cend(j); ++it)
@@ -844,7 +844,7 @@ void compute_pairs(
                         assert(coface_coefficient >= 0);
                             
                         push_entry(working_coboundary, coface_index, coface_coefficient, coface_diameter);
-//                        push_entry(eliminating_coboundary, coface_index, coface_coefficient, coface_diameter);
+                        push_entry(eliminating_coboundary, coface_index, coface_coefficient, coface_diameter);
                     }
                 }
             }
@@ -854,12 +854,12 @@ void compute_pairs(
             
 //            std::cout << get_heap_vector(working_coboundary) << std::endl;
 
-//            std::cout << "e:" << get_column_vector(eliminating_coboundary, modulus) << std::endl;
-//            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl << std::endl;
+            std::cout << "e:" << get_column_vector(eliminating_coboundary, modulus) << std::endl;
+            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl << std::endl;
             
             pivot = get_pivot(working_coboundary, modulus);
             
-            std::cout << get_index(pivot) << " ";
+            std::cout << "pivot " << get_index(pivot) << std::endl;
         
             if (get_index(pivot) != -1) {
                 auto pair = pivot_column_index.find(get_index(pivot));
