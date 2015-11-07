@@ -218,8 +218,6 @@ std::ostream& operator<< (std::ostream& stream, const entry_t& e) {
 
 typedef index_t entry_t;
 
-#endif
-
 inline index_t get_index(entry_t i) {
     return i;
 }
@@ -232,6 +230,7 @@ inline entry_t make_entry(index_t _index, coefficient_t _value) {
     return entry_t(_index);
 }
 
+#endif
 
 struct greater_index {
     bool operator() (const entry_t& a, const entry_t& b) {
@@ -578,7 +577,8 @@ template <typename Heap>
 inline entry_t pop_pivot(Heap& column, coefficient_t modulus)
 {
     entry_t result = get_pivot(column, modulus);
-    column.pop();
+    if (!column.empty())
+        column.pop();
     return result;
 }
 
@@ -618,7 +618,11 @@ void assemble_columns_to_reduce (
         }
     }
 
+    #ifdef STORE_DIAMETERS
     std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), std::greater<diameter_index_t>());
+    #else
+    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp);
+    #endif
 }
 
 
