@@ -18,12 +18,12 @@ typedef long coefficient_t;
 //#define PRECOMPUTE_DIAMETERS
 //#define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
 
-//#define STORE_DIAMETERS
+#define STORE_DIAMETERS
 
 #define USE_BINARY_SEARCH
 //#define USE_EXPONENTIAL_SEARCH
 
-//#define ASSEMBLE_REDUCTION_MATRIX
+#define ASSEMBLE_REDUCTION_MATRIX
 #define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
@@ -68,7 +68,7 @@ public:
 std::vector<coefficient_t> multiplicative_inverse_vector (const coefficient_t m) {
     std::vector<coefficient_t> mod_inverse(m);
     mod_inverse[1] = 1;
-    for(coefficient_t i = 2; i < m; ++i) {
+    for (coefficient_t i = 2; i < m; ++i) {
         mod_inverse[i] = (-(m/i) * mod_inverse[m % i]) % m + m;
     }
     return mod_inverse;
@@ -209,6 +209,9 @@ inline index_t get_coefficient(entry_t e) {
     return e.value;
 }
 
+inline void set_coefficient(entry_t& e, const coefficient_t c) { e.value = c; }
+
+
 bool operator== (const entry_t& e1, const entry_t& e2) {
     return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
 }
@@ -283,7 +286,7 @@ public:
         }
         return make_entry(
             modified_idx + binomial_coeff( n-- , k + 1 ),
-            k & 1 ? 1 : -1
+            k & 1 ? -1 : 1
         );
     }
 };
@@ -500,17 +503,16 @@ public:
 typedef std::pair<entry_t, value_t> entry_diameter_t;
 
 inline const entry_t& get_entry(const entry_diameter_t& p) { return p.first; }
-inline index_t get_index(const entry_diameter_t& p) { return get_index(get_entry(p)); }
-inline coefficient_t get_coefficient(const entry_diameter_t& p) { return get_coefficient(get_entry(p)); }
+inline const index_t get_index(const entry_diameter_t& p) { return get_index(get_entry(p)); }
+inline const coefficient_t get_coefficient(const entry_diameter_t& p) { return get_coefficient(get_entry(p)); }
 inline const value_t& get_diameter(const entry_diameter_t& p) { return p.second; }
+inline void set_coefficient(entry_diameter_t& p, const coefficient_t c) { set_coefficient(p.first, c); }
+
 
 struct greater_diameter_or_index {
     inline bool operator() (const entry_diameter_t& a, const entry_diameter_t& b) {
-        if (get_diameter(a) > get_diameter(b))
-            return true;
-        else
-            return ((get_diameter(a) == get_diameter(b)) && (get_index(a) > get_index(b))
-        );
+        return (get_diameter(a) > get_diameter(b)) ||
+            ((get_diameter(a) == get_diameter(b)) && (get_index(a) > get_index(b)));
     }
 };
 #else
@@ -527,7 +529,7 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
         return entry_t(-1);
     else {
         auto pivot = column.top();
-
+        
         coefficient_t coefficient = 0;
         do {
             coefficient = (coefficient + get_coefficient(column.top())) % modulus;
@@ -540,9 +542,9 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
                     pivot = column.top();
                 }
             }
-        } while( !column.empty() && get_index(column.top()) == get_index(pivot) );
+        } while ( !column.empty() && get_index(column.top()) == get_index(pivot) );
         if( get_index(pivot) != -1 ) {
-            pivot = make_entry(get_index(pivot), coefficient);
+            set_coefficient(pivot, coefficient);
             column.push(pivot);
         }
         return get_entry(pivot);
@@ -775,10 +777,10 @@ void compute_pairs(
         index_t column_to_add = column_to_reduce;
         
         
-        // start with a pivot entry with coefficient -1 in order to initialize working_coboundary
+        // start with a dummy pivot entry with coefficient -1 in order to initialize working_coboundary
         // with the coboundary of the simplex with index column_to_reduce
         
-        entry_t pivot = make_entry(column_to_reduce, modulus - 1);
+        entry_t pivot = make_entry(-1, modulus - 1);
         
 //        std::cout << "reducing " << column_to_reduce << ":" << std::endl;
         
@@ -841,7 +843,7 @@ void compute_pairs(
                         coface_coefficient %= modulus;
                         
                         assert(coface_coefficient >= 0);
-                            
+                        
                         push_entry(working_coboundary, coface_index, coface_coefficient, coface_diameter);
                         push_entry(eliminating_coboundary, coface_index, coface_coefficient, coface_diameter);
                     }
@@ -1016,7 +1018,7 @@ int main( int argc, char** argv ) {
 
     std::ifstream input_stream( filename, std::ios_base::binary | std::ios_base::in );
     if( input_stream.fail( ) ) {
-        std::cerr << "couldn't open file" << filename << std::endl;
+        std::cerr << "couldn't open file " << filename << std::endl;
         exit(-1);
     }
     
@@ -1102,7 +1104,7 @@ int main( int argc, char** argv ) {
     std::cout << "value range: [" << *result.first << "," << *result.second << "]" << std::endl;
     
 
-    assert(dim_max < n - 2);
+    assert(dim_max <= n - 2);
     
     binomial_coeff_table binomial_coeff(n, dim_max + 2);
     
@@ -1191,14 +1193,14 @@ int main( int argc, char** argv ) {
         );
         
         if (dim < dim_max)
-        assemble_columns_to_reduce(
-            columns_to_reduce,
-            pivot_column_index,
-            comp,
-            dim, n,
-            threshold,
-            binomial_coeff
-        );
+            assemble_columns_to_reduce(
+                columns_to_reduce,
+                pivot_column_index,
+                comp,
+                dim, n,
+                threshold,
+                binomial_coeff
+            );
         
 //        if ( dim > 1 )
 //            diameters[dim] = std::vector<value_t>();
