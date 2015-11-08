@@ -550,7 +550,7 @@ public:
 
 #ifdef USE_COEFFICIENTS
 template <typename Heap>
-inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
+inline entry_diameter_t pop_pivot(Heap& column, coefficient_t modulus)
 {
     
     if( column.empty() )
@@ -573,7 +573,6 @@ inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
         } while ( !column.empty() && get_index(column.top()) == get_index(pivot) );
         if( get_index(pivot) != -1 ) {
             set_coefficient(pivot, coefficient);
-            column.push(pivot);
         }
         return pivot;
     }
@@ -582,7 +581,7 @@ inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
 #else
 
 template <typename Heap>
-inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
+inline entry_diameter_t pop_pivot(Heap& column, coefficient_t modulus)
 {
     
     if( column.empty() )
@@ -599,9 +598,6 @@ inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
                 column.pop();
             }
         }
-        if( get_index(pivot) != -1 ) {
-            column.push(pivot);
-        }
         return pivot;
     }
 }
@@ -609,11 +605,12 @@ inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
 #endif
 
 template <typename Heap>
-inline entry_diameter_t pop_pivot(Heap& column, coefficient_t modulus)
+inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
 {
-    entry_diameter_t result = get_pivot(column, modulus);
-    if (!column.empty())
-        column.pop();
+    entry_diameter_t result = pop_pivot(column, modulus);
+    if( get_index(result) != -1 ) {
+        column.push(result);
+    }
     return result;
 }
 
