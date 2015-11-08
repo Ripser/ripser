@@ -529,10 +529,8 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
         auto pivot = column.top();
 
         coefficient_t coefficient = 0;
-        while( !column.empty() && get_index(column.top()) == get_index(pivot) ) {
-            coefficient_t new_coefficient = (coefficient + get_coefficient(column.top())) % modulus;
-            assert(new_coefficient >= 0);
-            coefficient = new_coefficient;
+        do {
+            coefficient = (coefficient + get_coefficient(column.top())) % modulus;
             column.pop();
             
             if( coefficient == 0 ) {
@@ -540,12 +538,13 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
                     return entry_t(-1);
                 } else {
                     pivot = column.top();
-        }
-    }
-}
+                }
+            }
+        } while( !column.empty() && get_index(column.top()) == get_index(pivot) );
         if( get_index(pivot) != -1 ) {
+            pivot = make_entry(get_index(pivot), coefficient);
             column.push(pivot);
-}
+        }
         return get_entry(pivot);
     }
 }
@@ -572,9 +571,9 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
         }
         if( get_index(pivot) != -1 ) {
             column.push(pivot);
-    }
+        }
         return get_entry(pivot);
-}
+    }
 }
 
 #endif
@@ -781,7 +780,7 @@ void compute_pairs(
         
         entry_t pivot = make_entry(column_to_reduce, modulus - 1);
         
-        std::cout << "reducing " << column_to_reduce << ":" << std::endl;
+//        std::cout << "reducing " << column_to_reduce << ":" << std::endl;
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         reduction_matrix.append();
@@ -804,7 +803,7 @@ void compute_pairs(
 
             std::priority_queue<entry_diameter_t, std::vector<entry_diameter_t>, decltype(comp) > eliminating_coboundary(comp);
 
-            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
+//            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
 
             #ifdef ASSEMBLE_REDUCTION_MATRIX
             for (auto it = reduction_matrix.cbegin(j); it != reduction_matrix.cend(j); ++it)
@@ -854,18 +853,18 @@ void compute_pairs(
             
 //            std::cout << get_heap_vector(working_coboundary) << std::endl;
 
-            std::cout << "e:" << get_column_vector(eliminating_coboundary, modulus) << std::endl;
-            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl << std::endl;
+//            std::cout << "e:" << get_column_vector(eliminating_coboundary, modulus) << std::endl;
+//            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl << std::endl;
             
             pivot = get_pivot(working_coboundary, modulus);
             
-            std::cout << "pivot " << get_index(pivot) << std::endl;
+//            std::cout << "pivot " << get_index(pivot) << std::endl;
         
             if (get_index(pivot) != -1) {
                 auto pair = pivot_column_index.find(get_index(pivot));
                 
                 if (pair == pivot_column_index.end()) {
-                    std::cout << std::endl;
+//                    std::cout << std::endl;
                     
                     pivot_column_index.insert(std::make_pair(get_index(pivot), i));
                     
