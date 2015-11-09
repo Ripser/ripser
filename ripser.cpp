@@ -813,7 +813,7 @@ void compute_pairs(
             const coefficient_t factor = modulus - get_coefficient(pivot);
 
 
-            std::priority_queue<entry_diameter_t, std::vector<entry_diameter_t>, decltype(comp) > eliminating_coboundary(comp);
+//            std::priority_queue<entry_diameter_t, std::vector<entry_diameter_t>, decltype(comp) > eliminating_coboundary(comp);
 
 //            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
 
@@ -855,7 +855,7 @@ void compute_pairs(
                         assert(coface_coefficient >= 0);
                         
                         push_entry(working_coboundary, coface_index, coface_coefficient, coface_diameter);
-                        push_entry(eliminating_coboundary, coface_index, coface_coefficient, coface_diameter);
+//                        push_entry(eliminating_coboundary, coface_index, coface_coefficient, coface_diameter);
                     }
                 }
             }
