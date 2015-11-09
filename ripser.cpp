@@ -18,20 +18,20 @@ typedef long coefficient_t;
 //#define PRECOMPUTE_DIAMETERS
 //#define PRECOMPUTE_DIAMETERS_IN_TOP_DIMENSION
 
-#define STORE_DIAMETERS
+//#define STORE_DIAMETERS
 
 #define USE_BINARY_SEARCH
 //#define USE_EXPONENTIAL_SEARCH
 
-#define ASSEMBLE_REDUCTION_MATRIX
-#define USE_COEFFICIENTS
+//#define ASSEMBLE_REDUCTION_MATRIX
+//#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
-#define PRINT_PERSISTENCE_PAIRS
+//#define PRINT_PERSISTENCE_PAIRS
 
 //#define FILE_FORMAT_DIPHA
-//#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
-#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
+#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
+//#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
 
 class binomial_coeff_table {
     std::vector<std::vector<index_t> > B;
@@ -124,6 +124,100 @@ std::vector<index_t> vertices_of_simplex(const index_t simplex_index, const inde
     return vertices;
 }
 
+
+
+#ifdef USE_COEFFICIENTS
+struct entry_t {
+    index_t index;
+    coefficient_t value;
+    
+    entry_t(index_t _index, coefficient_t _value) :
+        index(_index), value(_value) {}
+
+    entry_t(index_t _index) :
+        index(_index), value(1) {}
+    
+    entry_t() :
+    index(0), value(1) {}
+};
+
+inline entry_t make_entry(index_t _index, coefficient_t _value) {
+    return entry_t(_index, _value);
+}
+
+inline index_t get_index(entry_t e) {
+    return e.index;
+}
+
+inline index_t get_coefficient(entry_t e) {
+    return e.value;
+}
+
+inline void set_coefficient(entry_t& e, const coefficient_t c) { e.value = c; }
+
+
+bool operator== (const entry_t& e1, const entry_t& e2) {
+    return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
+}
+
+std::ostream& operator<< (std::ostream& stream, const entry_t& e) {
+    stream << get_index(e) << ":" << get_coefficient(e);
+    return stream;
+}
+
+#else
+
+typedef index_t entry_t;
+
+inline const index_t get_index(entry_t i) {
+    return i;
+}
+
+inline index_t get_coefficient(entry_t i) {
+    return 1;
+}
+
+inline entry_t make_entry(index_t _index, coefficient_t _value) {
+    return entry_t(_index);
+}
+
+inline void set_coefficient(index_t& e, const coefficient_t c) { e = c; }
+
+#endif
+
+inline const entry_t& get_entry(const entry_t& e) { return e; }
+
+struct greater_index {
+    bool operator() (const entry_t& a, const entry_t& b) {
+        return get_index(a) > get_index(b);
+    }
+};
+
+
+
+#ifdef STORE_DIAMETERS
+typedef std::pair<entry_t, value_t> entry_diameter_t;
+
+inline const entry_t& get_entry(const entry_diameter_t& p) { return p.first; }
+inline entry_t& get_entry(entry_diameter_t& p) { return p.first; }
+inline const index_t get_index(const entry_diameter_t& p) { return get_index(get_entry(p)); }
+inline const coefficient_t get_coefficient(const entry_diameter_t& p) { return get_coefficient(get_entry(p)); }
+inline const value_t& get_diameter(const entry_diameter_t& p) { return p.second; }
+inline void set_coefficient(entry_diameter_t& p, const coefficient_t c) { set_coefficient(get_entry(p), c); }
+
+
+struct greater_diameter_or_index {
+    inline bool operator() (const entry_diameter_t& a, const entry_diameter_t& b) {
+        return (get_diameter(a) > get_diameter(b)) ||
+            ((get_diameter(a) == get_diameter(b)) && (get_index(a) > get_index(b)));
+    }
+};
+#else
+typedef entry_t entry_diameter_t;
+#endif
+
+
+
 template <typename DistanceMatrix>
 class rips_filtration_comparator {
 public:
@@ -180,71 +274,6 @@ public:
         return operator()(get_index(a), get_index(b));
     }
 
-};
-
-#ifdef USE_COEFFICIENTS
-struct entry_t {
-    index_t index;
-    coefficient_t value;
-    
-    entry_t(index_t _index, coefficient_t _value) :
-        index(_index), value(_value) {}
-
-    entry_t(index_t _index) :
-        index(_index), value(1) {}
-    
-    entry_t() :
-    index(0), value(1) {}
-};
-
-inline entry_t make_entry(index_t _index, coefficient_t _value) {
-    return entry_t(_index, _value);
-}
-
-inline index_t get_index(entry_t e) {
-    return e.index;
-}
-
-inline index_t get_coefficient(entry_t e) {
-    return e.value;
-}
-
-inline void set_coefficient(entry_t& e, const coefficient_t c) { e.value = c; }
-
-
-bool operator== (const entry_t& e1, const entry_t& e2) {
-    return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
-}
-
-std::ostream& operator<< (std::ostream& stream, const entry_t& e) {
-    stream << get_index(e) << ":" << get_coefficient(e);
-    return stream;
-}
-
-#else
-
-typedef index_t entry_t;
-
-inline index_t get_index(entry_t i) {
-    return i;
-}
-
-inline index_t get_coefficient(entry_t i) {
-    return 1;
-}
-
-inline entry_t make_entry(index_t _index, coefficient_t _value) {
-    return entry_t(_index);
-}
-
-#endif
-
-inline const entry_t& get_entry(const entry_t& e) { return e; }
-
-struct greater_index {
-    bool operator() (const entry_t& a, const entry_t& b) {
-        return get_index(a) > get_index(b);
-    }
 };
 
 
@@ -499,25 +528,6 @@ public:
 
 
 
-#ifdef STORE_DIAMETERS
-typedef std::pair<entry_t, value_t> entry_diameter_t;
-
-inline const entry_t& get_entry(const entry_diameter_t& p) { return p.first; }
-inline const index_t get_index(const entry_diameter_t& p) { return get_index(get_entry(p)); }
-inline const coefficient_t get_coefficient(const entry_diameter_t& p) { return get_coefficient(get_entry(p)); }
-inline const value_t& get_diameter(const entry_diameter_t& p) { return p.second; }
-inline void set_coefficient(entry_diameter_t& p, const coefficient_t c) { set_coefficient(p.first, c); }
-
-
-struct greater_diameter_or_index {
-    inline bool operator() (const entry_diameter_t& a, const entry_diameter_t& b) {
-        return (get_diameter(a) > get_diameter(b)) ||
-            ((get_diameter(a) == get_diameter(b)) && (get_index(a) > get_index(b)));
-    }
-};
-#else
-typedef entry_t entry_diameter_t;
-#endif
 
 
 #ifdef USE_COEFFICIENTS
