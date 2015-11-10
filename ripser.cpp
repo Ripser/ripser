@@ -129,20 +129,20 @@ std::vector<index_t> vertices_of_simplex(const index_t simplex_index, const inde
 #ifdef USE_COEFFICIENTS
 struct entry_t {
     index_t index;
-    coefficient_t value;
+    coefficient_t coefficient;
     
-    entry_t(index_t _index, coefficient_t _value) :
-        index(_index), value(_value) {}
+    entry_t(index_t _index, coefficient_t _coefficient) :
+        index(_index), coefficient(_coefficient) {}
 
     entry_t(index_t _index) :
-        index(_index), value(1) {}
+        index(_index), coefficient(1) {}
     
     entry_t() :
-    index(0), value(1) {}
+    index(0), coefficient(1) {}
 };
 
-inline entry_t make_entry(index_t _index, coefficient_t _value) {
-    return entry_t(_index, _value);
+inline entry_t make_entry(index_t _index, coefficient_t _coefficient) {
+    return entry_t(_index, _coefficient);
 }
 
 inline index_t get_index(entry_t e) {
@@ -150,10 +150,10 @@ inline index_t get_index(entry_t e) {
 }
 
 inline index_t get_coefficient(entry_t e) {
-    return e.value;
+    return e.coefficient;
 }
 
-inline void set_coefficient(entry_t& e, const coefficient_t c) { e.value = c; }
+inline void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
 
 
 bool operator== (const entry_t& e1, const entry_t& e2) {
@@ -204,6 +204,9 @@ inline const index_t get_index(const entry_diameter_t& p) { return get_index(get
 inline const coefficient_t get_coefficient(const entry_diameter_t& p) { return get_coefficient(get_entry(p)); }
 inline const value_t& get_diameter(const entry_diameter_t& p) { return p.second; }
 inline void set_coefficient(entry_diameter_t& p, const coefficient_t c) { set_coefficient(get_entry(p), c); }
+inline entry_diameter_t make_entry_diameter(index_t _index, coefficient_t _coefficient, value_t _diameter) {
+    return std::make_pair(make_entry(_index, _coefficient), _diameter);
+}
 
 
 struct greater_diameter_or_index {
@@ -214,6 +217,9 @@ struct greater_diameter_or_index {
 };
 #else
 typedef entry_t entry_diameter_t;
+inline entry_diameter_t make_entry_diameter(index_t _index, coefficient_t _coefficient, value_t _diameter) {
+    return make_entry(_index, _coefficient);
+}
 #endif
 
 
@@ -532,11 +538,11 @@ public:
 
 #ifdef USE_COEFFICIENTS
 template <typename Heap>
-inline entry_t get_pivot(Heap& column, coefficient_t modulus)
+inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
 {
     
     if( column.empty() )
-        return entry_t(-1);
+        return entry_diameter_t(-1, 0);
     else {
         auto pivot = column.top();
         
@@ -547,7 +553,7 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
             
             if( coefficient == 0 ) {
                 if (column.empty()) {
-                    return entry_t(-1);
+                    return entry_diameter_t(-1, 0);
                 } else {
                     pivot = column.top();
                 }
@@ -557,25 +563,25 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
             set_coefficient(pivot, coefficient);
             column.push(pivot);
         }
-        return get_entry(pivot);
+        return pivot;
     }
 }
 
 #else
 
 template <typename Heap>
-inline entry_t get_pivot(Heap& column, coefficient_t modulus)
+inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
 {
     
     if( column.empty() )
-        return -1;
+        return entry_diameter_t(-1, 0);
     else {
         auto pivot = column.top();
         column.pop();
         while( !column.empty() && get_index(column.top()) == get_index(pivot) ) {
             column.pop();
             if( column.empty() )
-                return -1;
+                return entry_diameter_t(-1, 0);
             else {
                 pivot = column.top();
                 column.pop();
@@ -584,16 +590,16 @@ inline entry_t get_pivot(Heap& column, coefficient_t modulus)
         if( get_index(pivot) != -1 ) {
             column.push(pivot);
         }
-        return get_entry(pivot);
+        return pivot;
     }
 }
 
 #endif
 
 template <typename Heap>
-inline entry_t pop_pivot(Heap& column, coefficient_t modulus)
+inline entry_diameter_t pop_pivot(Heap& column, coefficient_t modulus)
 {
-    entry_t result = get_pivot(column, modulus);
+    entry_diameter_t result = get_pivot(column, modulus);
     if (!column.empty())
         column.pop();
     return result;
@@ -602,7 +608,10 @@ inline entry_t pop_pivot(Heap& column, coefficient_t modulus)
 
 #ifdef STORE_DIAMETERS
 typedef std::pair<value_t, index_t> diameter_index_t;
-inline index_t get_index(diameter_index_t i) {
+inline value_t get_diameter(diameter_index_t i) {
+    return i.first;
+}
+inline value_t get_index(diameter_index_t i) {
     return i.second;
 }
 #else
@@ -775,10 +784,16 @@ void compute_pairs(
         std::priority_queue<entry_t, std::vector<entry_t>, decltype(comp) > working_coboundary(comp);
         #endif
         
+        #ifdef STORE_DIAMETERS
+        value_t diameter = get_diameter(columns_to_reduce[i]);
+        #else
+        value_t diameter = comp_prev.diameter(column_to_reduce);
+        #endif
+
         
         #ifdef INDICATE_PROGRESS
         std::cout << "\033[K" << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
-        << " (diameter " << comp_prev.diameter(column_to_reduce) << ")"
+        << " (diameter " << diameter << ")"
         << std::flush << "\r";
         #endif
         
@@ -790,7 +805,7 @@ void compute_pairs(
         // start with a dummy pivot entry with coefficient -1 in order to initialize working_coboundary
         // with the coboundary of the simplex with index column_to_reduce
         
-        entry_t pivot = make_entry(-1, modulus - 1);
+        entry_diameter_t pivot = make_entry_diameter(-1, modulus - 1, 0);
         
 //        std::cout << "reducing " << column_to_reduce << ":" << std::endl;
         
@@ -909,12 +924,19 @@ void compute_pairs(
                     #endif
                     
                     #ifdef PRINT_PERSISTENCE_PAIRS
-                    value_t birth = comp_prev.diameter(column_to_reduce), death = comp.diameter(get_index(pivot));
-                    if (birth != death) {
+                    #ifdef STORE_DIAMETERS
+                    value_t death = get_diameter(pivot);
+                    #else
+                    value_t death = comp.diameter(get_index(pivot));
+                    #endif
+                    if (diameter != death)
+                    {
                         #ifdef INDICATE_PROGRESS
                         std::cout << "\033[K";
                         #endif
-                        std::cout << " [" << birth << "," << death << ")" << std::endl << std::flush;
+                        std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
+                        
+//                        std::cout << " (" << vertices_of_simplex(column_to_reduce, dim, n, binomial_coeff) << ", " << vertices_of_simplex(get_index(pivot), dim + 1, n, binomial_coeff) << ")" << std::endl;
                     }
                     #endif
 
