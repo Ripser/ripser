@@ -194,9 +194,11 @@ struct greater_index {
 };
 
 
-
 #ifdef STORE_DIAMETERS
-typedef std::pair<entry_t, value_t> entry_diameter_t;
+class entry_diameter_t: public std::pair<entry_t, value_t> {
+    public: entry_diameter_t(std::pair<entry_t, value_t> p) : std::pair<entry_t, value_t>(p) {}
+    public: entry_diameter_t(entry_t e) : std::pair<entry_t, value_t>(e, 0) {}
+};
 
 inline const entry_t& get_entry(const entry_diameter_t& p) { return p.first; }
 inline entry_t& get_entry(entry_diameter_t& p) { return p.first; }
@@ -542,7 +544,7 @@ inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
 {
     
     if( column.empty() )
-        return entry_diameter_t(-1, 0);
+        return -1;
     else {
         auto pivot = column.top();
         
@@ -553,7 +555,7 @@ inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
             
             if( coefficient == 0 ) {
                 if (column.empty()) {
-                    return entry_diameter_t(-1, 0);
+                    return -1;
                 } else {
                     pivot = column.top();
                 }
@@ -574,14 +576,14 @@ inline entry_diameter_t get_pivot(Heap& column, coefficient_t modulus)
 {
     
     if( column.empty() )
-        return entry_diameter_t(-1, 0);
+        return -1;
     else {
         auto pivot = column.top();
         column.pop();
         while( !column.empty() && get_index(column.top()) == get_index(pivot) ) {
             column.pop();
             if( column.empty() )
-                return entry_diameter_t(-1, 0);
+                return -1;
             else {
                 pivot = column.top();
                 column.pop();
@@ -611,7 +613,7 @@ typedef std::pair<value_t, index_t> diameter_index_t;
 inline value_t get_diameter(diameter_index_t i) {
     return i.first;
 }
-inline value_t get_index(diameter_index_t i) {
+inline index_t get_index(diameter_index_t i) {
     return i.second;
 }
 #else
@@ -764,16 +766,14 @@ void compute_pairs(
     #endif
     #endif
     
+//    size_t boundary_additions = 0;
+
     for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
         index_t column_to_reduce = get_index(columns_to_reduce[i]);
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         
-        #ifdef STORE_DIAMETERS
         std::priority_queue<entry_t, std::vector<entry_t>, greater_index> reduction_column;
-        #else
-        std::priority_queue<entry_t, std::vector<entry_t>, Comparator> reduction_column(comp_prev);
-        #endif
         
         #endif
         
@@ -823,6 +823,8 @@ void compute_pairs(
         #endif
         #endif
         
+//        --boundary_additions;
+        
         do {
             
             const coefficient_t factor = modulus - get_coefficient(pivot);
@@ -836,6 +838,9 @@ void compute_pairs(
             for (auto it = reduction_matrix.cbegin(j); it != reduction_matrix.cend(j); ++it)
             #endif
             {
+                
+//                ++boundary_additions;
+
 
                 #ifdef ASSEMBLE_REDUCTION_MATRIX
                 entry_t simplex = *it;
@@ -908,7 +913,7 @@ void compute_pairs(
                     #ifdef ASSEMBLE_REDUCTION_MATRIX
                     reduction_matrix.pop_back();
                     while (true) {
-                        entry_t e = pop_pivot(reduction_column, modulus);
+                        entry_t e = get_entry(pop_pivot(reduction_column, modulus));
                         index_t index = get_index(e);
                         if (index == -1)
                             break;
@@ -953,7 +958,7 @@ void compute_pairs(
         if ( get_index(pivot) == -1 ) {
 //            std::cout << std::endl;
         
-            value_t birth = comp_prev.diameter(column_to_reduce);
+            value_t birth = diameter;
             #ifdef INDICATE_PROGRESS
             std::cout << "\033[K";
             #endif
@@ -971,6 +976,8 @@ void compute_pairs(
     #ifdef INDICATE_PROGRESS
     std::cout << "\033[K";
     #endif
+    
+//    std::cout << boundary_additions << " boundary additions" << std::endl;
 
 }
 
