@@ -196,8 +196,12 @@ struct greater_index {
 
 #ifdef STORE_DIAMETERS
 class entry_diameter_t: public std::pair<entry_t, value_t> {
-    public: entry_diameter_t(std::pair<entry_t, value_t> p) : std::pair<entry_t, value_t>(p) {}
-    public: entry_diameter_t(entry_t e) : std::pair<entry_t, value_t>(e, 0) {}
+public:
+    entry_diameter_t(std::pair<entry_t, value_t> p) : std::pair<entry_t, value_t>(p) {}
+#ifdef USE_COEFFICIENTS
+    entry_diameter_t(entry_t e) : std::pair<entry_t, value_t>(e, 0) {}
+#endif
+    entry_diameter_t(index_t i) : std::pair<entry_t, value_t>(i, 0) {}
 };
 
 inline const entry_t& get_entry(const entry_diameter_t& p) { return p.first; }
