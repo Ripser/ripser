@@ -1223,6 +1223,7 @@ int main( int argc, char** argv ) {
         #endif
 
         std::unordered_map<index_t, index_t> pivot_column_index;
+        pivot_column_index.reserve(columns_to_reduce.size());
     
         compute_pairs(
             columns_to_reduce,
@@ -1258,6 +1259,7 @@ int main( int argc, char** argv ) {
         rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
         
         std::unordered_map<index_t, index_t> pivot_column_index;
+        pivot_column_index.reserve(columns_to_reduce.size());
 
         compute_pairs(
             columns_to_reduce,
