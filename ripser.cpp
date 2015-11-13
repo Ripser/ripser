@@ -6,7 +6,7 @@
 #include <string>
 #include <cassert>
 #include <queue>
-#include <unordered_map>
+#include <sparsehash/sparse_hash_map>
 #include "prettyprint.hpp"
 
 typedef float value_t;
@@ -627,7 +627,7 @@ typedef index_t diameter_index_t;
 template <typename Comparator>
 void assemble_columns_to_reduce (
     std::vector<diameter_index_t>& columns_to_reduce,
-    std::unordered_map<index_t, index_t>& pivot_column_index,
+    google::sparse_hash_map<index_t, index_t>& pivot_column_index,
     const Comparator& comp,
     index_t dim, index_t n,
     value_t threshold,
@@ -750,7 +750,7 @@ inline void push_entry(Heap& column, index_t i, coefficient_t c, value_t diamete
 template <typename ComparatorCofaces, typename Comparator>
 void compute_pairs(
     std::vector<diameter_index_t>& columns_to_reduce,
-    std::unordered_map<index_t, index_t>& pivot_column_index,
+    google::sparse_hash_map<index_t, index_t>& pivot_column_index,
     const ComparatorCofaces& comp, const Comparator& comp_prev,
     index_t dim, index_t n,
     value_t threshold,
@@ -1173,7 +1173,7 @@ int main( int argc, char** argv ) {
         rips_filtration_diameter_comparator comp(diameters[1], dim + 1, binomial_coeff);
         rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
 
-        std::unordered_map<index_t, index_t> pivot_column_index;
+        google::sparse_hash_map<index_t, index_t> pivot_column_index;
 
         compute_pairs(
             columns_to_reduce,
@@ -1222,8 +1222,8 @@ int main( int argc, char** argv ) {
         
         #endif
 
-        std::unordered_map<index_t, index_t> pivot_column_index;
-        pivot_column_index.reserve(columns_to_reduce.size());
+        google::sparse_hash_map<index_t, index_t> pivot_column_index;
+        pivot_column_index.resize(columns_to_reduce.size());
     
         compute_pairs(
             columns_to_reduce,
@@ -1259,7 +1259,7 @@ int main( int argc, char** argv ) {
         rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
         
         std::unordered_map<index_t, index_t> pivot_column_index;
-        pivot_column_index.reserve(columns_to_reduce.size());
+        pivot_column_index.resize(columns_to_reduce.size());
 
         compute_pairs(
             columns_to_reduce,
