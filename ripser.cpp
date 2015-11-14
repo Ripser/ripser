@@ -65,6 +65,12 @@ public:
 //
 // https://comeoncodeon.wordpress.com/2011/10/09/modular-multiplicative-inverse/
 //
+
+// a * (m / a) + m % a = m
+// m % a = -a * (m / a)   (mod m)
+//Dividing by (a * (m % a)):
+// inverse(a) = - (m / a) * inverse(m % a)   (mod m)
+
 std::vector<coefficient_t> multiplicative_inverse_vector (const coefficient_t m) {
     std::vector<coefficient_t> mod_inverse(m);
     mod_inverse[1] = 1;
