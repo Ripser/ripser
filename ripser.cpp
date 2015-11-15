@@ -30,7 +30,7 @@ typedef long coefficient_t;
 //#define PRINT_PERSISTENCE_PAIRS
 
 //#define FILE_FORMAT_DIPHA
-#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
+//#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
 //#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
 
 class binomial_coeff_table {
