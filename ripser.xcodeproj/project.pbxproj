@@ -208,6 +208,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					FILE_FORMAT_LOWER_TRIANGULAR_CSV,
+					STORE_DIAMETERS,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};

@@ -321,7 +321,7 @@ public:
         return k != -1 && n != -1;
     }
     
-    inline entry_t next()
+    inline std::pair<entry_t, index_t> next()
     {
         while ( binomial_coeff( n , k ) <= idx ) {
             idx -= binomial_coeff( n , k );
@@ -331,10 +331,12 @@ public:
             
             --n;
         }
-        return make_entry(
-            modified_idx + binomial_coeff( n-- , k + 1 ),
+        auto result = std::make_pair(make_entry(
+            modified_idx + binomial_coeff( n , k + 1 ),
             k & 1 ? -1 : 1
-        );
+        ), n);
+        --n;
+        return result;
     }
 };
 
@@ -360,7 +362,7 @@ std::vector<value_t> get_diameters (
         
         simplex_coboundary_enumerator coboundaries(simplex, dim - 1, n, binomial_coeff);
         while (coboundaries.has_next()) {
-            index_t coface = get_index(coboundaries.next());
+            index_t coface = get_index(coboundaries.next().first);
             diameters[coface] = std::max( diameters[coface], previous_diameters[simplex]);
         }
     }
@@ -750,10 +752,11 @@ inline void push_entry(Heap& column, index_t i, coefficient_t c, value_t diamete
 }
 
 
-template <typename ComparatorCofaces, typename Comparator>
+template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
 void compute_pairs(
     std::vector<diameter_index_t>& columns_to_reduce,
     std::unordered_map<index_t, index_t>& pivot_column_index,
+    const DistanceMatrix& dist,
     const ComparatorCofaces& comp, const Comparator& comp_prev,
     index_t dim, index_t n,
     value_t threshold,
@@ -863,12 +866,30 @@ void compute_pairs(
                 #endif
                 #endif
                 
+                //TODO: cache instead of compute?
+                value_t simplex_diameter = comp_prev.diameter(get_index(simplex));
+
+                
+                std::vector<index_t> vertices = vertices_of_simplex(get_index(simplex), dim, n, binomial_coeff);
+                
                 simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
                 while (cofaces.has_next()) {
-                    entry_t coface = cofaces.next();
+                    auto coface_descriptor = cofaces.next();
                     
+                    entry_t coface = coface_descriptor.first;
+                    index_t covertex = coface_descriptor.second;
+//
                     index_t coface_index = get_index(coface);
-                    value_t coface_diameter = comp.diameter(coface_index);
+//
+                    value_t coface_diameter = simplex_diameter;
+                    for (index_t v : vertices) {
+                        coface_diameter = std::max(coface_diameter, dist(v, covertex));
+                    }
+                    
+//                    value_t coface_diameter = comp.diameter(coface_index);
+                    
+//                    assert(coface_diameter_variant == coface_diameter);
+                    
                     if (coface_diameter <= threshold) {
                         coefficient_t coface_coefficient = get_coefficient(coface) + modulus;
                         coface_coefficient %= modulus;
@@ -1181,6 +1202,7 @@ int main( int argc, char** argv ) {
         compute_pairs(
             columns_to_reduce,
             pivot_column_index,
+            dist,
             comp, comp_prev,
             dim, n,
             threshold,
@@ -1231,6 +1253,7 @@ int main( int argc, char** argv ) {
         compute_pairs(
             columns_to_reduce,
             pivot_column_index,
+            dist,
             comp, comp_prev,
             dim, n,
             threshold,
