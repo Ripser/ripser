@@ -207,6 +207,13 @@
 		551018501BD63CB300990BFF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					FILE_FORMAT_LOWER_TRIANGULAR_CSV,
+					USE_COEFFICIENTS,
+					STORE_DIAMETERS,
+					PRINT_PERSISTENCE_PAIRS,
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
