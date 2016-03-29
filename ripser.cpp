@@ -317,7 +317,7 @@ public:
 
 class simplex_coboundary_enumerator {
 private:
-    index_t idx, modified_idx, dim, n, k;
+    index_t idx, modified_idx, dim, v, k;
     
     const binomial_coeff_table& binomial_coeff;
     
@@ -325,38 +325,31 @@ public:
     inline simplex_coboundary_enumerator (
         index_t _idx, index_t _dim, index_t _n,
         const binomial_coeff_table& _binomial_coeff):
-        idx(_idx), modified_idx(_idx), dim(_dim), k(dim + 1), n(_n - 1), binomial_coeff(_binomial_coeff) {}
+        idx(_idx), modified_idx(_idx), dim(_dim), k(dim + 1), v(_n - 1), binomial_coeff(_binomial_coeff) {}
     
     inline bool has_next()
     {
-        while ( (k != -1 && n != -1) && (binomial_coeff( n , k ) <= idx) ) {
-            idx -= binomial_coeff( n , k );
+        while ( (v != -1) && (binomial_coeff( v , k ) <= idx) ) {
+            idx -= binomial_coeff( v , k );
             
-            modified_idx -= binomial_coeff( n , k );
-            modified_idx += binomial_coeff( n , k + 1 );
+            modified_idx -= binomial_coeff( v , k );
+            modified_idx += binomial_coeff( v , k + 1 );
             
-            --n;
+            --v;
             --k;
+            assert (k != -1);
         }
-        return k != -1 && n != -1;
+        return v != -1;
     }
     
     inline std::pair<entry_t, index_t> next()
     {
-        while ( binomial_coeff( n , k ) <= idx ) {
-            idx -= binomial_coeff( n , k );
-            
-            modified_idx -= binomial_coeff( n , k );
-            modified_idx += binomial_coeff( n , k + 1 );
-            
-            --n;
-        }
         auto result = std::make_pair(make_entry(
-            modified_idx + binomial_coeff( n , k + 1 ),
+            modified_idx + binomial_coeff( v , k + 1 ),
             k & 1 ? -1 : 1),
-            n);
+            v);
         
-        --n;
+        --v;
         return result;
     }
 };
