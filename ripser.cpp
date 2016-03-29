@@ -196,7 +196,7 @@ inline const entry_t& get_entry(const entry_t& e) { return e; }
 template <typename Entry>
 struct greater_index {
     bool operator() (const Entry& a, const Entry& b) {
-        return get_index(a) > get_index(b);
+        return get_index(a) < get_index(b);
     }
 };
 
@@ -237,10 +237,11 @@ inline diameter_entry_t make_diameter_entry(diameter_index_t _diameter_index, co
 }
 
 
+template <typename Entry>
 struct greater_diameter_or_index {
-    inline bool operator() (const diameter_entry_t& a, const diameter_entry_t& b) {
+    inline bool operator() (const Entry& a, const Entry& b) {
         return (get_diameter(a) > get_diameter(b)) ||
-            ((get_diameter(a) == get_diameter(b)) && (get_index(a) > get_index(b)));
+            ((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
     }
 };
 #else
@@ -429,7 +430,7 @@ public:
         
         dist_t a_diam = diameters[a], b_diam = diameters[b];
 
-        return ((a_diam > b_diam) || ((a_diam == b_diam) && (a > b)));
+        return ((a_diam > b_diam) || ((a_diam == b_diam) && (a < b)));
     }
     
     template <typename Entry>
@@ -665,7 +666,7 @@ void assemble_columns_to_reduce (
     }
 
     #ifdef STORE_DIAMETERS
-    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), std::greater<diameter_index_t>());
+    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), greater_diameter_or_index<diameter_index_t>());
     #else
     std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp);
     #endif
@@ -798,7 +799,7 @@ void compute_pairs(
         
         
         #ifdef STORE_DIAMETERS
-        std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>, greater_diameter_or_index > working_coboundary;
+        std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>, greater_diameter_or_index<diameter_entry_t>> working_coboundary;
         #else
         std::priority_queue<entry_t, std::vector<entry_t>, decltype(comp) > working_coboundary(comp);
         #endif
@@ -844,6 +845,9 @@ void compute_pairs(
         
 //        --boundary_additions;
         
+                        
+        bool might_be_easy = true;
+
         do {
             
             const coefficient_t factor = modulus - get_coefficient(pivot);
@@ -912,6 +916,16 @@ void compute_pairs(
                         
                         push_entry(working_coboundary, coface_index, coface_coefficient, coface_diameter);
 //                        push_entry(eliminating_coboundary, coface_index, coface_coefficient, coface_diameter);
+                    }
+                    
+                    if (might_be_easy && (simplex_diameter == coface_diameter)) {
+                        auto pair = pivot_column_index.find(coface_index);
+                
+                        if (pair == pivot_column_index.end()) {
+                            break;
+                        }
+                        
+                        might_be_easy = false;
                     }
                 }
             }
