@@ -351,50 +351,6 @@ public:
     }
 };
 
-class rips_filtration_diameter_comparator {
-private:
-    const std::vector<value_t>& diameters;
-    
-    const index_t dim;
-
-public:
-    std::vector<index_t> vertices;
-    
-    typedef value_t dist_t;
-    
-    const binomial_coeff_table& binomial_coeff;
-    
-public:
-    rips_filtration_diameter_comparator(
-        const std::vector<value_t>& _diameters,
-        const index_t _dim,
-        const binomial_coeff_table& _binomial_coeff
-        ):
-        diameters(_diameters), dim(_dim),
-        binomial_coeff(_binomial_coeff) {}
-    
-    inline value_t diameter(const index_t a) const {
-        assert(a < diameters.size());
-        return diameters[a];
-    }
-
-    inline bool operator()(const index_t a, const index_t b) const
-    {
-        assert(a < diameters.size());
-        assert(b < diameters.size());
-        
-        dist_t a_diam = diameters[a], b_diam = diameters[b];
-
-        return ((a_diam > b_diam) || ((a_diam == b_diam) && (a < b)));
-    }
-    
-    template <typename Entry>
-    inline bool operator()(const Entry& a, const Entry& b) const
-    {
-        return operator()(get_index(a), get_index(b));
-    }
-};
-
 
 class distance_matrix  {
 public:
@@ -1167,7 +1123,7 @@ int main( int argc, char** argv ) {
     index_t dim = 0;
 
     {
-        rips_filtration_diameter_comparator comp(diameters, dim + 1, binomial_coeff);
+        rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
         rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
 
         std::unordered_map<index_t, index_t> pivot_column_index;
