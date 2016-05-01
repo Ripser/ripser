@@ -165,7 +165,6 @@ struct smaller_index {
     }
 };
 
-
 #ifdef STORE_DIAMETERS
 typedef std::pair<value_t, index_t> diameter_index_t;
 inline value_t get_diameter(diameter_index_t i) { return i.first; }
@@ -216,17 +215,14 @@ inline diameter_entry_t make_diameter_entry(index_t _index, coefficient_t _coeff
 #endif
 
 
-
 template <typename DistanceMatrix>
 class rips_filtration_comparator {
 public:
     const DistanceMatrix& dist;
-    
     const index_t dim;
 
 private:
     mutable std::vector<index_t> vertices;
-    
     const binomial_coeff_table& binomial_coeff;
     
 public:
@@ -252,9 +248,7 @@ public:
         assert(a < binomial_coeff(dist.size(), dim + 1));
         assert(b < binomial_coeff(dist.size(), dim + 1));
         
-        value_t a_diam = 0, b_diam = 0;
-    
-        b_diam = diameter(b);
+        value_t a_diam = 0, b_diam = diameter(b);
         
         get_simplex_vertices(a, dim, dist.size(), binomial_coeff, vertices.begin() );
         for (index_t i = 0; i <= dim; ++i)
@@ -279,7 +273,6 @@ public:
 class simplex_coboundary_enumerator {
 private:
     index_t idx, modified_idx, dim, v, k;
-    
     const binomial_coeff_table& binomial_coeff;
     
 public:
@@ -309,7 +302,6 @@ public:
             modified_idx + binomial_coeff( v , k + 1 ),
             k & 1 ? -1 : 1),
             v);
-        
         --v;
         return result;
     }
@@ -443,9 +435,6 @@ public:
 };
 
 
-
-
-
 #ifdef USE_COEFFICIENTS
 template <typename Heap>
 inline diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus)
@@ -511,7 +500,6 @@ inline diameter_entry_t get_pivot(Heap& column, coefficient_t modulus)
     }
     return result;
 }
-
 
 
 template <typename Comparator>
@@ -602,31 +590,6 @@ public:
 
 
 template <typename Heap>
-inline std::vector<entry_t> get_column_vector(Heap column, coefficient_t modulus)
-{
-    std::vector<entry_t> temp_col;
-    entry_t pivot = pop_pivot( column, modulus );
-    while( get_index(pivot) != -1 ) {
-        temp_col.push_back( pivot );
-        pivot = pop_pivot( column, modulus );
-    }
-    return temp_col;
-}
-
-
-template <typename Heap>
-inline std::vector<entry_t> get_heap_vector(Heap heap)
-{
-    std::vector<entry_t> temp_col;
-    while( !heap.empty() ) {
-        temp_col.push_back( heap.top() );
-        heap.pop();
-    }
-    return temp_col;
-}
-
-
-template <typename Heap>
 inline void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
     entry_t e = make_entry(i, c);
 #ifdef STORE_DIAMETERS
@@ -641,11 +604,9 @@ template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparat
 void compute_pairs(
     std::vector<diameter_index_t>& columns_to_reduce,
     std::unordered_map<index_t, index_t>& pivot_column_index,
-    const DistanceMatrix& dist,
-    const ComparatorCofaces& comp, const Comparator& comp_prev,
-    index_t dim, index_t n,
-    value_t threshold,
-    coefficient_t modulus, const std::vector<coefficient_t>& multiplicative_inverse,
+    const DistanceMatrix& dist, const ComparatorCofaces& comp, const Comparator& comp_prev,
+    index_t dim, index_t n, value_t threshold, coefficient_t modulus,
+    const std::vector<coefficient_t>& multiplicative_inverse,
     const binomial_coeff_table& binomial_coeff
 ) {
     
@@ -661,8 +622,6 @@ void compute_pairs(
     #endif
     #endif
     
-//    size_t boundary_additions = 0;
-
     for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
         auto column_to_reduce = columns_to_reduce[i];
         
@@ -692,10 +651,7 @@ void compute_pairs(
         
         // start with a dummy pivot entry with coefficient -1 in order to initialize working_coboundary
         // with the coboundary of the simplex with index column_to_reduce
-        
         diameter_entry_t pivot = make_diameter_entry(0, -1, modulus - 1);
-        
-//        std::cout << "reducing " << column_to_reduce << ":" << std::endl;
         
         #ifdef ASSEMBLE_REDUCTION_MATRIX
         reduction_matrix.append();
@@ -710,23 +666,15 @@ void compute_pairs(
         #endif
         #endif
         
-//        --boundary_additions;
-        
         bool might_be_easy = true;
 
-        do {
-            
+        do {            
             const coefficient_t factor = modulus - get_coefficient(pivot);
-
-//            std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>, decltype(comp) > eliminating_coboundary(comp);
-//            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl;
 
             #ifdef ASSEMBLE_REDUCTION_MATRIX
             for (auto it = reduction_matrix.cbegin(j); it != reduction_matrix.cend(j); ++it)
             #endif
             {
-//                ++boundary_additions;
-
                 #ifdef ASSEMBLE_REDUCTION_MATRIX
                 auto simplex = *it;
                 coefficient_t simplex_coefficient = get_coefficient(simplex);
@@ -773,7 +721,6 @@ void compute_pairs(
                         assert(coface_coefficient >= 0);
                         
                         push_entry(working_coboundary, coface_index, coface_coefficient, coface_diameter);
-//                        push_entry(eliminating_coboundary, coface_index, coface_coefficient, coface_diameter);
                     }
                     
                     if (might_be_easy && (simplex_diameter == coface_diameter)) {
@@ -784,21 +731,12 @@ void compute_pairs(
                 }
             }
             
-//            std::cout << get_heap_vector(working_coboundary) << std::endl;
-
-//            std::cout << "e:" << get_column_vector(eliminating_coboundary, modulus) << std::endl;
-//            std::cout << "w:" << get_column_vector(working_coboundary, modulus) << std::endl << std::endl;
-            
             pivot = get_pivot(working_coboundary, modulus);
-            
-//            std::cout << "pivot " << get_index(pivot) << std::endl;
-        
+
             if (get_index(pivot) != -1) {
                 auto pair = pivot_column_index.find(get_index(pivot));
                 
                 if (pair == pivot_column_index.end()) {
-//                    std::cout << std::endl;
-                    
                     pivot_column_index.insert(std::make_pair(get_index(pivot), i));
                     
                     #ifdef USE_COEFFICIENTS
@@ -841,24 +779,17 @@ void compute_pairs(
                         std::cout << "\033[K";
                         #endif
                         std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
-                        
-//                        std::cout << " (" << vertices_of_simplex(column_to_reduce, dim, n, binomial_coeff) << ", " << vertices_of_simplex(get_index(pivot), dim + 1, n, binomial_coeff) << ")" << std::endl;
                     }
                     #endif
-
                     break;
                 }
-                
                 j = pair->second;
                 column_to_add = columns_to_reduce[j];
             }
-
         } while ( get_index(pivot) != -1 );
         
         #ifdef PRINT_PERSISTENCE_PAIRS
         if ( get_index(pivot) == -1 ) {
-//            std::cout << std::endl;
-        
             value_t birth = diameter;
             #ifdef INDICATE_PROGRESS
             std::cout << "\033[K";
@@ -866,30 +797,16 @@ void compute_pairs(
             std::cout << " [" << birth << ", )" << std::endl << std::flush;
         }
         #endif
-
-    
-//        #ifdef ASSEMBLE_REDUCTION_MATRIX
-//        std::cout << "reduction matrix fill-in: " << i + 1 << " + " << reduction_matrix.entries.size() - (i + 1) << std::endl;
-//        #endif
-    
     }
 
     #ifdef INDICATE_PROGRESS
     std::cout << "\033[K";
     #endif
-    
-//    std::cout << boundary_additions << " boundary additions" << std::endl;
-
 }
 
 bool is_prime(const long n) {
-    bool is_prime = true;
-    for (int i = 2; i <= n/2; ++i)
-        if (n%i == 0) {
-            is_prime = false;
-            break;
-        }
-    return is_prime;
+    for (int i = 2; i <= n/2; ++i) if (n%i == 0) return false;
+    return true;
 }
 
 void print_usage_and_exit(int exit_code)
@@ -1044,15 +961,12 @@ int main( int argc, char** argv ) {
     std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
     
     std::vector<diameter_index_t> columns_to_reduce;
-    
-    
     for (index_t index = n; index-- > 0; ) {
         #ifdef STORE_DIAMETERS
         columns_to_reduce.push_back(std::make_pair(0, index));
         #else
         columns_to_reduce.push_back(index);
         #endif
-
     }
 
     for (index_t dim = 0; dim <= dim_max; ++dim) {
@@ -1075,5 +989,4 @@ int main( int argc, char** argv ) {
                 comp, dim, n, threshold, binomial_coeff
             );
     }
-
 }
