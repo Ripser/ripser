@@ -303,7 +303,7 @@ public:
                     return true;
             }
        
-        return (a_diam == b_diam) && (a > b);
+        return (a_diam == b_diam) && (a < b);
     }
     
     template <typename Entry>
