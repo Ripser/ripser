@@ -804,8 +804,8 @@ void compute_pairs(
     #endif
 }
 
-bool is_prime(const long n) {
-    for (int i = 2; i <= n/2; ++i) if (n%i == 0) return false;
+bool is_prime(const unsigned long n) {
+    for (unsigned long i = 2; i*i <= n; ++i) if (n%i == 0) return false;
     return true;
 }
 
