@@ -322,118 +322,90 @@ public:
 };
 
 
-class compressed_upper_distance_matrix_adapter  {
+enum compressed_matrix_layout { LOWER_TRIANGULAR, UPPER_TRIANGULAR };
+
+template <compressed_matrix_layout Layout>
+class compressed_distance_matrix_adapter {
 public:
     typedef value_t value_type;
     std::vector<value_t>& distances;
     std::vector<value_t*> rows;
     
-    index_t n;
-    
     void init_distances () {
-        distances.resize(n * (n-1) / 2);
+        distances.resize(size() * (size()-1) / 2);
     }
         
-    void init_rows () {
-        rows.resize(n);
-        value_t* pointer = &distances[0] - 1;
-        for (index_t i = 0; i < n - 1; ++i) {
-            rows[i] = pointer;
-            pointer += n - i - 2;
-        }
-    }
-    
-    compressed_upper_distance_matrix_adapter(std::vector<value_t>& _distances) :
-        distances(_distances)
-    {
-        n = (1 + std::sqrt(1+ 8 * _distances.size())) / 2;
-        
-        assert( distances.size() == n * (n-1) / 2 );
-        
-        init_rows();
-    }
-    
-    inline value_t operator()(const index_t a, const index_t b) const {
-        if (a < b)
-            return rows[a][b];
-        else if (a > b)
-            return rows[b][a];
-        else
-            return 0;
-    }
-    
-    inline size_t size() const {
-        return n;
-    }
-};
+    void init_rows ();
 
-
-class compressed_lower_distance_matrix_adapter  {
-public:
-    typedef value_t value_type;
-    std::vector<value_t>& distances;
-    std::vector<value_t*> rows;
-    
-    index_t n;
-    
-    void init_distances () {
-        distances.resize(n * (n-1) / 2);
-    }
-        
-    void init_rows () {
-        rows.resize(n);
-        value_t* pointer = &distances[0];
-        for (index_t i = 1; i < n; ++i) {
-            rows[i] = pointer;
-            pointer += i;
-        }
-    }
-    
-    compressed_lower_distance_matrix_adapter(
-    std::vector<value_t>& _distances, const index_t _n) :
-        distances(_distances), n(_n)
+    compressed_distance_matrix_adapter(std::vector<value_t>& _distances) :
+        distances(_distances), rows((1 + std::sqrt(1 + 8 * _distances.size())) / 2)
     {
-        init_distances();
-        init_rows();
-    }
-
-    compressed_lower_distance_matrix_adapter(std::vector<value_t>& _distances) :
-        distances(_distances)
-    {
-        n = (1 + std::sqrt(1+ 8 * distances.size())) / 2;
-        assert( distances.size() == n * (n-1) / 2 );
-        
+        assert( distances.size() == size() * (size()-1) / 2 );
         init_rows();
     }
     
     template <typename DistanceMatrix>
-    compressed_lower_distance_matrix_adapter(
+    compressed_distance_matrix_adapter(
     std::vector<value_t>& _distances, const DistanceMatrix& mat) :
-        distances(_distances), n(mat.size()) {
+        distances(_distances), rows(mat.size()) {
         init_distances();
         init_rows();
         
-        for (index_t i = 1; i < n; ++i) {
+        for (index_t i = 1; i < size(); ++i) {
             for (index_t j = 0; j < i; ++j) {
                 rows[i][j] = mat(i, j);
             }
         }
     }
     
-    inline value_t operator()(const index_t i, const index_t j) const {
-        if (i > j)
-            return rows[i][j];
-        else if (i < j)
-            return rows[j][i];
-        else
-            return 0;
-    }
+    inline value_t operator()(const index_t i, const index_t j) const;
     
     inline size_t size() const {
-        return n;
+        return rows.size();
     }
 };
 
+template <> void compressed_distance_matrix_adapter<LOWER_TRIANGULAR>::
+init_rows () {
+    value_t* pointer = &distances[0];
+    for (index_t i = 1; i < size(); ++i) {
+        rows[i] = pointer;
+        pointer += i;
+    }
+}
+
+template <> void compressed_distance_matrix_adapter<UPPER_TRIANGULAR>::
+init_rows () {
+    value_t* pointer = &distances[0] - 1;
+    for (index_t i = 0; i < size() - 1; ++i) {
+        rows[i] = pointer;
+        pointer += size() - i - 2;
+    }
+}
+
+template <> inline value_t compressed_distance_matrix_adapter<UPPER_TRIANGULAR>::
+operator()(const index_t i, const index_t j) const {
+    if (i < j)
+        return rows[i][j];
+    else if (i > j)
+        return rows[j][i];
+    else
+        return 0;
+}
+    
+template <> inline value_t compressed_distance_matrix_adapter<LOWER_TRIANGULAR>::
+operator()(const index_t i, const index_t j) const {
+    if (i > j)
+        return rows[i][j];
+    else if (i < j)
+        return rows[j][i];
+    else
+        return 0;
+}
+
+
+typedef compressed_distance_matrix_adapter<LOWER_TRIANGULAR> compressed_lower_distance_matrix_adapter;
+typedef compressed_distance_matrix_adapter<UPPER_TRIANGULAR> compressed_upper_distance_matrix_adapter;
 
 #ifdef USE_COEFFICIENTS
 template <typename Heap>
