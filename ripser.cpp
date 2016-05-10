@@ -624,8 +624,8 @@ void compute_pairs(
         reduction_matrix.append();
         #endif
         
-        // initialize reduction_matrix as identity matrix
         #ifdef ASSEMBLE_REDUCTION_MATRIX
+        // initialize reduction_matrix as identity matrix
         reduction_matrix.push_back(make_diameter_entry(column_to_reduce, 1));
         #else
         #ifdef USE_COEFFICIENTS
@@ -714,9 +714,9 @@ void compute_pairs(
                     #endif
                     #endif
                     
+                    #ifdef ASSEMBLE_REDUCTION_MATRIX
                     // replace current column of reduction_matrix (with a single diagonal 1 entry)
                     // by reduction_column (possibly with a different entry on the diagonal)
-                    #ifdef ASSEMBLE_REDUCTION_MATRIX
                     reduction_matrix.pop_back();
                     while (true) {
                         diameter_entry_t e = pop_pivot(reduction_column, modulus);
