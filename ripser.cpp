@@ -10,8 +10,6 @@ typedef float value_t;
 typedef long index_t;
 typedef long coefficient_t;
 
-//#define STORE_DIAMETERS
-
 #define USE_BINARY_SEARCH
 //#define USE_EXPONENTIAL_SEARCH
 
@@ -160,15 +158,10 @@ template <typename Entry> struct smaller_index {
 	bool operator()(const Entry& a, const Entry& b) { return get_index(a) < get_index(b); }
 };
 
-#ifdef STORE_DIAMETERS
 typedef std::pair<value_t, index_t> diameter_index_t;
 inline value_t get_diameter(diameter_index_t i) { return i.first; }
 inline index_t get_index(diameter_index_t i) { return i.second; }
-#else
-typedef index_t diameter_index_t;
-#endif
 
-#ifdef STORE_DIAMETERS
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
 	diameter_entry_t(std::pair<value_t, entry_t> p) : std::pair<value_t, entry_t>(p) {}
@@ -201,16 +194,6 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 		       ((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
 	}
 };
-#else
-typedef entry_t diameter_entry_t;
-inline diameter_entry_t make_diameter_entry(value_t _diameter, index_t _index,
-                                            coefficient_t _coefficient) {
-	return make_entry(_index, _coefficient);
-}
-inline diameter_entry_t make_diameter_entry(index_t _index, coefficient_t _coefficient) {
-	return make_entry(_index, _coefficient);
-}
-#endif
 
 template <typename DistanceMatrix> class rips_filtration_comparator {
 public:
@@ -446,20 +429,12 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 		if (pivot_column_index.find(index) == pivot_column_index.end()) {
 			value_t diameter = comp.diameter(index);
 			if (diameter <= threshold)
-#ifdef STORE_DIAMETERS
 				columns_to_reduce.push_back(std::make_pair(diameter, index));
-#else
-				columns_to_reduce.push_back(index);
-#endif
 		}
 	}
 
-#ifdef STORE_DIAMETERS
 	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 	          greater_diameter_or_smaller_index<diameter_index_t>());
-#else
-	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(), comp);
-#endif
 }
 
 template <typename ValueType> class compressed_sparse_matrix {
@@ -506,11 +481,7 @@ public:
 template <typename Heap>
 inline void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
 	entry_t e = make_entry(i, c);
-#ifdef STORE_DIAMETERS
 	column.push(std::make_pair(diameter, e));
-#else
-	column.push(e);
-#endif
 }
 
 template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
@@ -541,18 +512,10 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 		                    smaller_index<diameter_entry_t>> reduction_column;
 #endif
 
-#ifdef STORE_DIAMETERS
 		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 		                    greater_diameter_or_smaller_index<diameter_entry_t>> working_coboundary;
-#else
-		std::priority_queue<entry_t, std::vector<entry_t>, decltype(comp)> working_coboundary(comp);
-#endif
 
-#ifdef STORE_DIAMETERS
 		value_t diameter = get_diameter(columns_to_reduce[i]);
-#else
-		value_t diameter = comp_prev.diameter(get_index(column_to_reduce));
-#endif
 
 #ifdef INDICATE_PROGRESS
 		std::cout << "\033[K"
@@ -602,11 +565,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 #endif
 
-#ifdef STORE_DIAMETERS
 				value_t simplex_diameter = get_diameter(simplex);
-#else
-				value_t simplex_diameter = comp_prev.diameter(get_index(simplex));
-#endif
 				assert(simplex_diameter == comp_prev.diameter(get_index(simplex)));
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
@@ -687,11 +646,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 
 #ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef STORE_DIAMETERS
 					value_t death = get_diameter(pivot);
-#else
-					value_t death = comp.diameter(get_index(pivot));
-#endif
 					if (diameter != death) {
 #ifdef INDICATE_PROGRESS
 						std::cout << "\033[K";
