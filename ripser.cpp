@@ -776,8 +776,9 @@ void compute_pairs(
     #endif
 }
 
-bool is_prime(const unsigned long n) {
-    for (unsigned long i = 2; i*i <= n; ++i) if (n%i == 0) return false;
+bool is_prime(const coefficient_t n) {
+    if (!(n & 1) || n < 2 ) return n == 2;
+    for (coefficient_t p = 3, q = n/p, r = n%p; p <= q; p += 2, q = n/p, r = n%p) if (!r) return false;
     return true;
 }
 
