@@ -1,13 +1,8 @@
-#include <vector>
 #include <iostream>
-#include <iomanip>  
 #include <fstream>
-#include <iterator>
-#include <string>
 #include <cassert>
 #include <queue>
 #include <unordered_map>
-#include "prettyprint.hpp"
 
 typedef float value_t;
 //typedef uint16_t value_t;
