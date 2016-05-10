@@ -172,10 +172,7 @@ typedef index_t diameter_index_t;
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
 	diameter_entry_t(std::pair<value_t, entry_t> p) : std::pair<value_t, entry_t>(p) {}
-#ifdef USE_COEFFICIENTS
 	diameter_entry_t(entry_t e) : std::pair<value_t, entry_t>(0, e) {}
-#endif
-	diameter_entry_t(index_t i) : std::pair<value_t, entry_t>(0, i) {}
 };
 
 inline const entry_t& get_entry(const diameter_entry_t& p) { return p.second; }
@@ -384,7 +381,7 @@ typedef compressed_distance_matrix_adapter<UPPER_TRIANGULAR>
 template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
 
 	if (column.empty())
-		return -1;
+		return diameter_entry_t(-1);
 	else {
 		auto pivot = column.top();
 
@@ -395,7 +392,7 @@ template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coeffic
 
 			if (coefficient == 0) {
 				if (column.empty()) {
-					return -1;
+					return diameter_entry_t(-1);
 				} else {
 					pivot = column.top();
 				}
@@ -662,10 +659,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 
 #ifdef USE_COEFFICIENTS
 					const coefficient_t inverse = multiplicative_inverse[get_coefficient(pivot)];
-#else
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-					const coefficient_t inverse = 1;
-#endif
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
@@ -676,8 +669,12 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 						diameter_entry_t e = pop_pivot(reduction_column, modulus);
 						index_t index = get_index(e);
 						if (index == -1) break;
+#ifdef USE_COEFFICIENTS
 						const coefficient_t coefficient = inverse * get_coefficient(e) % modulus;
 						assert(coefficient > 0);
+#else
+						const coefficient_t coefficient = 1;
+#endif
 						reduction_matrix.push_back(
 						    make_diameter_entry(get_diameter(e), index, coefficient));
 					}
@@ -878,13 +875,7 @@ int main(int argc, char** argv) {
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
 
 	std::vector<diameter_index_t> columns_to_reduce;
-	for (index_t index = n; index-- > 0;) {
-#ifdef STORE_DIAMETERS
-		columns_to_reduce.push_back(std::make_pair(0, index));
-#else
-		columns_to_reduce.push_back(index);
-#endif
-	}
+	for (index_t index = n; index-- > 0;) columns_to_reduce.push_back(diameter_index_t(0, index));
 
 	for (index_t dim = 0; dim <= dim_max; ++dim) {
 
