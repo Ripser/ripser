@@ -1,0 +1,28 @@
+uli:Dionysus uli$ /usr/bin/time -l ~/Source/Dionysus/examples/cohomology/rips-pairwise-cohomology -s3 -p2 ~/Bitbucket/phat-paper/benchmark/point\ cloud/sphere_3_192_points.dat
+Boundary matrix: 
+Cocycles:        *.ccl
+Vertices:        
+Diagram:         
+Simplex vector generated, size: 56050288
+
+0%   10   20   30   40   50   60   70   80   90   100%
+|----|----|----|----|----|----|----|----|----|----|
+***************************************************
+Rips timer : Elapsed time [393.20] seconds
+Persistence timer : Elapsed time [322.41] seconds
+Total timer : Elapsed time [807.98] seconds
+      843.40 real       787.80 user        26.13 sys
+3240779776  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+   4808144  page reclaims
+         0  page faults
+         0  swaps
+        11  block input operations
+         0  block output operations
+         0  messages sent
+         0  messages received
+         0  signals received
+     11585  voluntary context switches
+    691823  involuntary context switches

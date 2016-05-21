@@ -1,0 +1,58 @@
+uli:dipha uli$ /usr/bin/time -l ~/Bitbucket/dipha/dipha --benchmark --upper_dim 3 --dual ~/Bitbucket/phat-paper/benchmark/dipha/sphere_3_64.complex /dev/null
+
+Input filename: 
+/Users/uli/Bitbucket/phat-paper/benchmark/dipha/sphere_3_64.complex
+
+upper_dim: 3
+
+Number of processes used: 
+1
+
+Detailed information for rank 0:
+       time    prior mem     peak mem   bytes recv
+       0.0s         3 MB         3 MB         0 MB   complex.load_binary( input_filename, upper_dim );
+
+Number of cells in input: 
+679120
+       0.2s         3 MB        24 MB         0 MB   get_filtration_to_cell_map( complex, dualize, filtration_to_cell_map );
+       0.1s        24 MB        69 MB        10 MB   get_cell_to_filtration_map( complex.get_num_cells(), filtration_to_cell_map, cell_to_filtration_map );
+       0.0s        84 MB        85 MB         0 MB   generate_unreduced_columns( complex, filtration_to_cell_map, cell_to_filtration_map, cur_dim, dualize, unreduced_columns );
+       0.0s        85 MB        85 MB         0 MB   reduction_kernel( complex.get_num_cells(), unreduced_columns, reduced_columns );
+       0.0s        85 MB        88 MB         1 MB   generate_unreduced_columns( complex, filtration_to_cell_map, cell_to_filtration_map, cur_dim, dualize, unreduced_columns );
+       0.0s        88 MB        89 MB         0 MB   reduction_kernel( complex.get_num_cells(), unreduced_columns, reduced_columns );
+       0.3s        89 MB       122 MB        38 MB   generate_unreduced_columns( complex, filtration_to_cell_map, cell_to_filtration_map, cur_dim, dualize, unreduced_columns );
+       0.1s       102 MB       142 MB         0 MB   reduction_kernel( complex.get_num_cells(), unreduced_columns, reduced_columns );
+       0.1s       141 MB       142 MB         3 MB   dipha::outputs::save_persistence_diagram( output_filename, complex, filtration_to_cell_map, reduced_columns, dualize, upper_dim );
+
+Overall running time in seconds: 
+0.8
+
+Reduction kernel running time in seconds: 
+0.1
+
+Overall peak mem in GB of all ranks: 
+0.1
+
+Individual peak mem in GB of per rank: 
+0.1
+
+Maximal communication traffic (without sorting) in GB between any pair of nodes:
+0.1
+
+Total communication traffic (without sorting) in GB between all pairs of nodes:
+0.1
+        0.81 real         0.65 user         0.13 sys
+ 149577728  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+     51467  page reclaims
+         0  page faults
+         0  swaps
+         0  block input operations
+         1  block output operations
+         0  messages sent
+         0  messages received
+         0  signals received
+         7  voluntary context switches
+      1069  involuntary context switches
