@@ -166,6 +166,7 @@ class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
 	diameter_entry_t(std::pair<value_t, entry_t> p) : std::pair<value_t, entry_t>(p) {}
 	diameter_entry_t(entry_t e) : std::pair<value_t, entry_t>(0, e) {}
+	diameter_entry_t() : diameter_entry_t(0) {}
 };
 
 inline const entry_t& get_entry(const diameter_entry_t& p) { return p.second; }
@@ -255,12 +256,9 @@ public:
 	inline bool has_next() {
 		while ((v != -1) && (binomial_coeff(v, k) <= idx)) {
 			idx -= binomial_coeff(v, k);
-
-			modified_idx -= binomial_coeff(v, k);
-			modified_idx += binomial_coeff(v, k + 1);
-
+			modified_idx += binomial_coeff(v, k + 1) - binomial_coeff(v, k);
 			--v;
-			--k;
+            --k;
 			assert(k != -1);
 		}
 		return v != -1;
@@ -504,6 +502,9 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 #endif
 
+    std::vector<diameter_entry_t> coface_entries;
+    std::vector<index_t> vertices;
+
 	for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
 		auto column_to_reduce = columns_to_reduce[i];
 
@@ -543,8 +544,8 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 #endif
 
-		bool might_be_easy = true;
-
+		bool might_be_apparent_pair = true;
+        
 		do {
 			const coefficient_t factor = modulus - get_coefficient(pivot);
 
@@ -564,7 +565,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 				const auto simplex = column_to_add;
 #endif
 #endif
-
 				value_t simplex_diameter = get_diameter(simplex);
 				assert(simplex_diameter == comp_prev.diameter(get_index(simplex)));
 
@@ -573,9 +573,10 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 				    make_diameter_entry(simplex_diameter, get_index(simplex), simplex_coefficient));
 #endif
 
-				std::vector<index_t> vertices =
-				    vertices_of_simplex(get_index(simplex), dim, n, binomial_coeff);
-
+                vertices.clear();
+				get_simplex_vertices(get_index(simplex), dim, n, binomial_coeff, std::back_inserter(vertices));
+                
+                coface_entries.clear();
 				simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
 				while (cofaces.has_next()) {
 					auto coface_descriptor = cofaces.next();
@@ -586,7 +587,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 					for (index_t v : vertices) {
 						coface_diameter = std::max(coface_diameter, dist(v, covertex));
 					}
-
 					assert(comp.diameter(coface_index) == coface_diameter);
 
 					if (coface_diameter <= threshold) {
@@ -595,21 +595,26 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 						coface_coefficient %= modulus;
 						if (coface_coefficient < 0) coface_coefficient += modulus;
 						assert(coface_coefficient >= 0);
-
-						push_entry(working_coboundary, coface_index, coface_coefficient,
-						           coface_diameter);
-					}
-
-					if (might_be_easy && (simplex_diameter == coface_diameter)) {
-						if (pivot_column_index.find(coface_index) == pivot_column_index.end())
-							break;
-						might_be_easy = false;
+                        
+                        diameter_entry_t coface_entry = make_diameter_entry(coface_diameter, coface_index, coface_coefficient);
+                        coface_entries.push_back(coface_entry);
+                        
+                        if (might_be_apparent_pair && (simplex_diameter == coface_diameter)) {
+                            if (pivot_column_index.find(coface_index) == pivot_column_index.end())
+                            {
+                                pivot = coface_entry;
+                                goto found_pivot;
+                            }
+                            might_be_apparent_pair = false;
+                        }
 					}
 				}
+                for (auto e: coface_entries) working_coboundary.push(e);
 			}
-
+            
 			pivot = get_pivot(working_coboundary, modulus);
 
+        found_pivot:
 			if (get_index(pivot) != -1) {
 				auto pair = pivot_column_index.find(get_index(pivot));
 
