@@ -358,14 +358,14 @@ typedef compressed_distance_matrix_adapter<LOWER_TRIANGULAR>
 typedef compressed_distance_matrix_adapter<UPPER_TRIANGULAR>
     compressed_upper_distance_matrix_adapter;
 
-#ifdef USE_COEFFICIENTS
-template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
 
+template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
 	if (column.empty())
 		return diameter_entry_t(-1);
 	else {
 		auto pivot = column.top();
-
+        
+#ifdef USE_COEFFICIENTS
 		coefficient_t coefficient = 0;
 		do {
 			coefficient = (coefficient + get_coefficient(column.top())) % modulus;
@@ -380,33 +380,22 @@ template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coeffic
 			}
 		} while (!column.empty() && get_index(column.top()) == get_index(pivot));
 		if (get_index(pivot) != -1) { set_coefficient(pivot, coefficient); }
-		return pivot;
-	}
-}
-
 #else
-
-template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
-
-	if (column.empty())
-		return -1;
-	else {
-		auto pivot = column.top();
 		column.pop();
 		while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
 			column.pop();
 			if (column.empty())
-				return -1;
+				return diameter_entry_t(-1);
 			else {
 				pivot = column.top();
 				column.pop();
 			}
 		}
+#endif
 		return pivot;
 	}
 }
 
-#endif
 
 template <typename Heap> inline diameter_entry_t get_pivot(Heap& column, coefficient_t modulus) {
 	diameter_entry_t result = pop_pivot(column, modulus);
