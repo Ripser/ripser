@@ -258,7 +258,7 @@ public:
 			idx -= binomial_coeff(v, k);
 			modified_idx += binomial_coeff(v, k + 1) - binomial_coeff(v, k);
 			--v;
-            --k;
+			--k;
 			assert(k != -1);
 		}
 		return v != -1;
@@ -358,13 +358,12 @@ typedef compressed_distance_matrix_adapter<LOWER_TRIANGULAR>
 typedef compressed_distance_matrix_adapter<UPPER_TRIANGULAR>
     compressed_upper_distance_matrix_adapter;
 
-
 template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
 	if (column.empty())
 		return diameter_entry_t(-1);
 	else {
 		auto pivot = column.top();
-        
+
 #ifdef USE_COEFFICIENTS
 		coefficient_t coefficient = 0;
 		do {
@@ -396,7 +395,6 @@ template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coeffic
 	}
 }
 
-
 template <typename Heap> inline diameter_entry_t get_pivot(Heap& column, coefficient_t modulus) {
 	diameter_entry_t result = pop_pivot(column, modulus);
 	if (get_index(result) != -1) { column.push(result); }
@@ -415,8 +413,7 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 	for (index_t index = 0; index < num_simplices; ++index) {
 		if (pivot_column_index.find(index) == pivot_column_index.end()) {
 			value_t diameter = comp.diameter(index);
-			if (diameter <= threshold)
-				columns_to_reduce.push_back(std::make_pair(diameter, index));
+			if (diameter <= threshold) columns_to_reduce.push_back(std::make_pair(diameter, index));
 		}
 	}
 
@@ -491,8 +488,8 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 #endif
 
-    std::vector<diameter_entry_t> coface_entries;
-    std::vector<index_t> vertices;
+	std::vector<diameter_entry_t> coface_entries;
+	std::vector<index_t> vertices;
 
 	for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
 		auto column_to_reduce = columns_to_reduce[i];
@@ -534,7 +531,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 
 		bool might_be_apparent_pair = true;
-        
+
 		do {
 			const coefficient_t factor = modulus - get_coefficient(pivot);
 
@@ -562,10 +559,11 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 				    make_diameter_entry(simplex_diameter, get_index(simplex), simplex_coefficient));
 #endif
 
-                vertices.clear();
-				get_simplex_vertices(get_index(simplex), dim, n, binomial_coeff, std::back_inserter(vertices));
-                
-                coface_entries.clear();
+				vertices.clear();
+				get_simplex_vertices(get_index(simplex), dim, n, binomial_coeff,
+				                     std::back_inserter(vertices));
+
+				coface_entries.clear();
 				simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
 				while (cofaces.has_next()) {
 					auto coface_descriptor = cofaces.next();
@@ -584,26 +582,26 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 						coface_coefficient %= modulus;
 						if (coface_coefficient < 0) coface_coefficient += modulus;
 						assert(coface_coefficient >= 0);
-                        
-                        diameter_entry_t coface_entry = make_diameter_entry(coface_diameter, coface_index, coface_coefficient);
-                        coface_entries.push_back(coface_entry);
-                        
-                        if (might_be_apparent_pair && (simplex_diameter == coface_diameter)) {
-                            if (pivot_column_index.find(coface_index) == pivot_column_index.end())
-                            {
-                                pivot = coface_entry;
-                                goto found_pivot;
-                            }
-                            might_be_apparent_pair = false;
-                        }
+
+						diameter_entry_t coface_entry =
+						    make_diameter_entry(coface_diameter, coface_index, coface_coefficient);
+						coface_entries.push_back(coface_entry);
+
+						if (might_be_apparent_pair && (simplex_diameter == coface_diameter)) {
+							if (pivot_column_index.find(coface_index) == pivot_column_index.end()) {
+								pivot = coface_entry;
+								goto found_pivot;
+							}
+							might_be_apparent_pair = false;
+						}
 					}
 				}
-                for (auto e: coface_entries) working_coboundary.push(e);
+				for (auto e : coface_entries) working_coboundary.push(e);
 			}
-            
+
 			pivot = get_pivot(working_coboundary, modulus);
 
-        found_pivot:
+		found_pivot:
 			if (get_index(pivot) != -1) {
 				auto pair = pivot_column_index.find(get_index(pivot));
 
