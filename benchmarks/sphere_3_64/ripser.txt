@@ -1,0 +1,103 @@
+uli:ripser uli$ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_DIPHA -D PRINT_PERSISTENCE_PAIRS && /usr/bin/time -l ./ripser --top_dim 2 ~/Bitbucket/phat-paper/benchmark/dipha/sphere_3_64.complex
+distance matrix with 64 points
+distance matrix transformed to lower triangular form
+value range: [0.00391946,1.99927]
+persistence intervals in dim 0:
+ [0,0.147289)
+ [0,0.111798)
+ [0,0.279354)
+ [0,0.379849)
+ [0,0.217485)
+ [0,0.179609)
+ [0,0.297053)
+ [0,0.227524)
+ [0,0.334523)
+ [0,0.205129)
+ [0,0.266643)
+ [0,0.076909)
+ [0,0.424333)
+ [0,0.0802451)
+ [0,0.141103)
+ [0,0.154095)
+ [0,0.280747)
+ [0,0.561426)
+ [0,0.255364)
+ [0,0.218561)
+ [0,0.344005)
+ [0,0.457212)
+ [0,0.339394)
+ [0,0.184757)
+ [0,0.193804)
+ [0,0.276431)
+ [0,0.276383)
+ [0,0.273482)
+ [0,0.162738)
+ [0,0.208851)
+ [0,0.00391946)
+ [0,0.168587)
+ [0,0.231288)
+ [0,0.370337)
+ [0,0.151879)
+ [0,0.336643)
+ [0,0.176636)
+ [0,0.0814685)
+ [0,0.287316)
+ [0,0.0633425)
+ [0,0.46675)
+ [0,0.169115)
+ [0,0.387245)
+ [0,0.354112)
+ [0,0.236525)
+ [0,0.377019)
+ [0,0.396994)
+ [0,0.58991)
+ [0,0.374531)
+ [0,0.374138)
+ [0,0.439977)
+ [0,0.487279)
+ [0,0.231179)
+ [0,0.200333)
+ [0,0.401576)
+ [0,0.574945)
+ [0,0.252863)
+ [0,0.173684)
+ [0,0.284319)
+ [0,0.355419)
+ [0,0.23879)
+ [0,0.381084)
+ [0,0.532104)
+ [0, )
+persistence intervals in dim 1:
+ [0.84172,1.04196)
+ [0.763446,0.863406)
+ [0.727244,0.74155)
+ [0.708398,0.757279)
+ [0.655113,0.849319)
+ [0.62495,0.753672)
+ [0.60904,0.682559)
+ [0.607973,0.672219)
+ [0.606907,0.829538)
+ [0.588045,1.04527)
+ [0.57698,0.769491)
+ [0.559498,0.586113)
+ [0.525224,0.645181)
+ [0.445398,0.448892)
+ [0.412572,0.478334)
+ [0.376457,0.63549)
+persistence intervals in dim 2:
+ [1.10328,1.67029)
+        0.05 real         0.05 user         0.00 sys
+   4300800  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+      1054  page reclaims
+         9  page faults
+         0  swaps
+         0  block input operations
+         0  block output operations
+         0  messages sent
+         0  messages received
+         0  signals received
+         1  voluntary context switches
+        10  involuntary context switches

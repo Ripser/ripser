@@ -1,0 +1,18 @@
+uli:Gudhi_library_1.3.0 uli$ /usr/bin/time -l ~/Source/Gudhi_library_1.3.0/example/Persistent_cohomology/rips_persistence -d3 -p2 ~/Bitbucket/phat-paper/benchmark/point\ cloud/sphere_3_64_points.dat -o/dev/null
+The complex contains 679120 simplices 
+   and has dimension 3 
+        0.45 real         0.75 user         0.02 sys
+  37740544  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+      9124  page reclaims
+       122  page faults
+         0  swaps
+         1  block input operations
+         0  block output operations
+         0  messages sent
+         0  messages received
+         0  signals received
+        14  voluntary context switches
+      2324  involuntary context switches
