@@ -41,7 +41,7 @@ public:
 		}
 	}
 
-	inline index_t operator()(index_t n, index_t k) const {
+	index_t operator()(index_t n, index_t k) const {
 		assert(n <= n_max);
 		assert(k <= k_max);
 		return B[n][k];
@@ -51,19 +51,17 @@ public:
 std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) {
 	std::vector<coefficient_t> inverse(m);
 	inverse[1] = 1;
-	for (coefficient_t a = 2; a < m; ++a) {
-		// m = a * (m / a) + m % a
-		// Multipying with inverse(a) * inverse(m % a):
-		// 0 = (m / a) * inverse(m % a) + inverse(a) = 0   (mod m)
-		inverse[a] = m - ((m / a) * inverse[m % a]) % m;
-	}
+	// m = a * (m / a) + m % a
+	// Multipying with inverse(a) * inverse(m % a):
+	// 0 = (m / a) * inverse(m % a) + inverse(a)  (mod m)
+	for (coefficient_t a = 2; a < m; ++a) inverse[a] = m - ((m / a) * inverse[m % a]) % m;
 	return inverse;
 }
 
 template <typename OutputIterator>
-inline OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t n,
-                                           const binomial_coeff_table& binomial_coeff,
-                                           OutputIterator out) {
+OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t n,
+                                    const binomial_coeff_table& binomial_coeff,
+                                    OutputIterator out) {
 	--n;
 
 	for (index_t k = dim + 1; k > 0; --k) {
@@ -108,12 +106,12 @@ struct entry_t {
 	entry_t() : index(0), coefficient(1) {}
 };
 
-inline entry_t make_entry(index_t _index, coefficient_t _coefficient) {
+entry_t make_entry(index_t _index, coefficient_t _coefficient) {
 	return entry_t(_index, _coefficient);
 }
-inline index_t get_index(entry_t e) { return e.index; }
-inline index_t get_coefficient(entry_t e) { return e.coefficient; }
-inline void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
+index_t get_index(entry_t e) { return e.index; }
+index_t get_coefficient(entry_t e) { return e.coefficient; }
+void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
 
 bool operator==(const entry_t& e1, const entry_t& e2) {
 	return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
@@ -127,22 +125,22 @@ std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
 #else
 
 typedef index_t entry_t;
-inline const index_t get_index(entry_t i) { return i; }
-inline index_t get_coefficient(entry_t i) { return 1; }
-inline entry_t make_entry(index_t _index, coefficient_t _value) { return entry_t(_index); }
-inline void set_coefficient(index_t& e, const coefficient_t c) { e = c; }
+const index_t get_index(entry_t i) { return i; }
+index_t get_coefficient(entry_t i) { return 1; }
+entry_t make_entry(index_t _index, coefficient_t _value) { return entry_t(_index); }
+void set_coefficient(index_t& e, const coefficient_t c) { e = c; }
 
 #endif
 
-inline const entry_t& get_entry(const entry_t& e) { return e; }
+const entry_t& get_entry(const entry_t& e) { return e; }
 
 template <typename Entry> struct smaller_index {
 	bool operator()(const Entry& a, const Entry& b) { return get_index(a) < get_index(b); }
 };
 
 typedef std::pair<value_t, index_t> diameter_index_t;
-inline value_t get_diameter(diameter_index_t i) { return i.first; }
-inline index_t get_index(diameter_index_t i) { return i.second; }
+value_t get_diameter(diameter_index_t i) { return i.first; }
+index_t get_index(diameter_index_t i) { return i.second; }
 
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
@@ -151,28 +149,27 @@ public:
 	diameter_entry_t() : diameter_entry_t(0) {}
 };
 
-inline const entry_t& get_entry(const diameter_entry_t& p) { return p.second; }
-inline entry_t& get_entry(diameter_entry_t& p) { return p.second; }
-inline const index_t get_index(const diameter_entry_t& p) { return get_index(get_entry(p)); }
-inline const coefficient_t get_coefficient(const diameter_entry_t& p) {
+const entry_t& get_entry(const diameter_entry_t& p) { return p.second; }
+entry_t& get_entry(diameter_entry_t& p) { return p.second; }
+const index_t get_index(const diameter_entry_t& p) { return get_index(get_entry(p)); }
+const coefficient_t get_coefficient(const diameter_entry_t& p) {
 	return get_coefficient(get_entry(p));
 }
-inline const value_t& get_diameter(const diameter_entry_t& p) { return p.first; }
-inline void set_coefficient(diameter_entry_t& p, const coefficient_t c) {
+const value_t& get_diameter(const diameter_entry_t& p) { return p.first; }
+void set_coefficient(diameter_entry_t& p, const coefficient_t c) {
 	set_coefficient(get_entry(p), c);
 }
-inline diameter_entry_t make_diameter_entry(value_t _diameter, index_t _index,
-                                            coefficient_t _coefficient) {
+diameter_entry_t make_diameter_entry(value_t _diameter, index_t _index,
+                                     coefficient_t _coefficient) {
 	return std::make_pair(_diameter, make_entry(_index, _coefficient));
 }
-inline diameter_entry_t make_diameter_entry(diameter_index_t _diameter_index,
-                                            coefficient_t _coefficient) {
+diameter_entry_t make_diameter_entry(diameter_index_t _diameter_index, coefficient_t _coefficient) {
 	return std::make_pair(get_diameter(_diameter_index),
 	                      make_entry(get_index(_diameter_index), _coefficient));
 }
 
 template <typename Entry> struct greater_diameter_or_smaller_index {
-	inline bool operator()(const Entry& a, const Entry& b) {
+	bool operator()(const Entry& a, const Entry& b) {
 		return (get_diameter(a) > get_diameter(b)) ||
 		       ((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
 	}
@@ -192,7 +189,7 @@ public:
 	                           const binomial_coeff_table& _binomial_coeff)
 	    : dist(_dist), dim(_dim), vertices(_dim + 1), binomial_coeff(_binomial_coeff){};
 
-	inline value_t diameter(const index_t index) const {
+	value_t diameter(const index_t index) const {
 		value_t diam = 0;
 		get_simplex_vertices(index, dim, dist.size(), binomial_coeff, vertices.begin());
 
@@ -203,7 +200,7 @@ public:
 		return diam;
 	}
 
-	inline bool operator()(const index_t a, const index_t b) const {
+	bool operator()(const index_t a, const index_t b) const {
 		assert(a < binomial_coeff(dist.size(), dim + 1));
 		assert(b < binomial_coeff(dist.size(), dim + 1));
 
@@ -219,7 +216,7 @@ public:
 		return (a_diam == b_diam) && (a < b);
 	}
 
-	template <typename Entry> inline bool operator()(const Entry& a, const Entry& b) const {
+	template <typename Entry> bool operator()(const Entry& a, const Entry& b) const {
 		return operator()(get_index(a), get_index(b));
 	}
 };
@@ -230,12 +227,12 @@ private:
 	const binomial_coeff_table& binomial_coeff;
 
 public:
-	inline simplex_coboundary_enumerator(index_t _idx, index_t _dim, index_t _n,
-	                                     const binomial_coeff_table& _binomial_coeff)
+	simplex_coboundary_enumerator(index_t _idx, index_t _dim, index_t _n,
+	                              const binomial_coeff_table& _binomial_coeff)
 	    : idx(_idx), modified_idx(_idx), dim(_dim), k(dim + 1), v(_n - 1),
 	      binomial_coeff(_binomial_coeff) {}
 
-	inline bool has_next() {
+	bool has_next() {
 		while ((v != -1) && (binomial_coeff(v, k) <= idx)) {
 			idx -= binomial_coeff(v, k);
 			modified_idx += binomial_coeff(v, k + 1) - binomial_coeff(v, k);
@@ -246,7 +243,7 @@ public:
 		return v != -1;
 	}
 
-	inline std::pair<entry_t, index_t> next() {
+	std::pair<entry_t, index_t> next() {
 		auto result =
 		    std::make_pair(make_entry(modified_idx + binomial_coeff(v, k + 1), k & 1 ? -1 : 1), v);
 		--v;
@@ -258,9 +255,9 @@ class distance_matrix {
 public:
 	typedef value_t value_type;
 	std::vector<std::vector<value_t>> distances;
-	inline value_t operator()(const index_t a, const index_t b) const { return distances[a][b]; }
+	value_t operator()(const index_t a, const index_t b) const { return distances[a][b]; }
 
-	inline size_t size() const { return distances.size(); }
+	size_t size() const { return distances.size(); }
 };
 
 enum compressed_matrix_layout { LOWER_TRIANGULAR, UPPER_TRIANGULAR };
@@ -292,9 +289,9 @@ public:
 		}
 	}
 
-	inline value_t operator()(const index_t i, const index_t j) const;
+	value_t operator()(const index_t i, const index_t j) const;
 
-	inline size_t size() const { return rows.size(); }
+	size_t size() const { return rows.size(); }
 };
 
 template <> void compressed_distance_matrix_adapter<LOWER_TRIANGULAR>::init_rows() {
@@ -314,8 +311,8 @@ template <> void compressed_distance_matrix_adapter<UPPER_TRIANGULAR>::init_rows
 }
 
 template <>
-inline value_t compressed_distance_matrix_adapter<UPPER_TRIANGULAR>::
-operator()(const index_t i, const index_t j) const {
+value_t compressed_distance_matrix_adapter<UPPER_TRIANGULAR>::operator()(const index_t i,
+                                                                         const index_t j) const {
 	if (i < j)
 		return rows[i][j];
 	else if (i > j)
@@ -325,8 +322,8 @@ operator()(const index_t i, const index_t j) const {
 }
 
 template <>
-inline value_t compressed_distance_matrix_adapter<LOWER_TRIANGULAR>::
-operator()(const index_t i, const index_t j) const {
+value_t compressed_distance_matrix_adapter<LOWER_TRIANGULAR>::operator()(const index_t i,
+                                                                         const index_t j) const {
 	if (i > j)
 		return rows[i][j];
 	else if (i < j)
@@ -340,7 +337,7 @@ typedef compressed_distance_matrix_adapter<LOWER_TRIANGULAR>
 typedef compressed_distance_matrix_adapter<UPPER_TRIANGULAR>
     compressed_upper_distance_matrix_adapter;
 
-template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
+template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
 	if (column.empty())
 		return diameter_entry_t(-1);
 	else {
@@ -377,9 +374,9 @@ template <typename Heap> inline diameter_entry_t pop_pivot(Heap& column, coeffic
 	}
 }
 
-template <typename Heap> inline diameter_entry_t get_pivot(Heap& column, coefficient_t modulus) {
+template <typename Heap> diameter_entry_t get_pivot(Heap& column, coefficient_t modulus) {
 	diameter_entry_t result = pop_pivot(column, modulus);
-	if (get_index(result) != -1) { column.push(result); }
+	if (get_index(result) != -1) column.push(result);
 	return result;
 }
 
@@ -408,44 +405,44 @@ public:
 	std::vector<size_t> bounds;
 	std::vector<ValueType> entries;
 
-	inline size_t size() const { return bounds.size(); }
+	size_t size() const { return bounds.size(); }
 
-	inline typename std::vector<ValueType>::const_iterator cbegin(size_t index) const {
+	typename std::vector<ValueType>::const_iterator cbegin(size_t index) const {
 		assert(index < size());
 		return index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1];
 	}
 
-	inline typename std::vector<ValueType>::const_iterator cend(size_t index) const {
+	typename std::vector<ValueType>::const_iterator cend(size_t index) const {
 		assert(index < size());
 		return entries.cbegin() + bounds[index];
 	}
 
-	template <typename Iterator> inline void append(Iterator begin, Iterator end) {
+	template <typename Iterator> void append(Iterator begin, Iterator end) {
 		for (Iterator it = begin; it != end; ++it) { entries.push_back(*it); }
 		bounds.push_back(entries.size());
 	}
 
-	inline void append() { bounds.push_back(entries.size()); }
+	void append() { bounds.push_back(entries.size()); }
 
-	inline void push_back(ValueType e) {
+	void push_back(ValueType e) {
 		assert(0 < size());
 		entries.push_back(e);
 		++bounds.back();
 	}
 
-	inline void pop_back() {
+	void pop_back() {
 		assert(0 < size());
 		entries.pop_back();
 		--bounds.back();
 	}
 
-	template <typename Collection> inline void append(const Collection collection) {
+	template <typename Collection> void append(const Collection collection) {
 		append(collection.cbegin(), collection.cend());
 	}
 };
 
 template <typename Heap>
-inline void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
+void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
 	entry_t e = make_entry(i, c);
 	column.push(std::make_pair(diameter, e));
 }
@@ -484,7 +481,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 		                    greater_diameter_or_smaller_index<diameter_entry_t>> working_coboundary;
 
-		value_t diameter = get_diameter(columns_to_reduce[i]);
+		value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
 		std::cout << "\033[K"
@@ -493,11 +490,11 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 
 		index_t j = i;
-		auto column_to_add = column_to_reduce;
+		auto& column_to_add = column_to_reduce;
 
 		// start with a dummy pivot entry with coefficient -1 in order to initialize
 		// working_coboundary with the coboundary of the simplex with index column_to_reduce
-		diameter_entry_t pivot = make_diameter_entry(0, -1, modulus - 1);
+		diameter_entry_t pivot = make_diameter_entry(0, -1, -1 + modulus);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 		reduction_matrix.append();
@@ -522,7 +519,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 			{
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-				auto simplex = *it;
+				const auto& simplex = *it;
 				coefficient_t simplex_coefficient = get_coefficient(simplex);
 				simplex_coefficient *= factor;
 				simplex_coefficient %= modulus;
@@ -530,7 +527,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #ifdef USE_COEFFICIENTS
 				const auto& simplex = reduction_coefficients[j];
 #else
-				const auto simplex = column_to_add;
+				const auto& simplex = column_to_add;
 #endif
 #endif
 				value_t simplex_diameter = get_diameter(simplex);
@@ -572,7 +569,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 						if (might_be_apparent_pair && (simplex_diameter == coface_diameter)) {
 							if (pivot_column_index.find(coface_index) == pivot_column_index.end()) {
 								pivot = coface_entry;
-								goto found_pivot;
+								goto found_persistence_pair;
 							}
 							might_be_apparent_pair = false;
 						}
@@ -583,68 +580,66 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 
 			pivot = get_pivot(working_coboundary, modulus);
 
-		found_pivot:
 			if (get_index(pivot) != -1) {
 				auto pair = pivot_column_index.find(get_index(pivot));
 
-				if (pair == pivot_column_index.end()) {
-					pivot_column_index.insert(std::make_pair(get_index(pivot), i));
+				if (pair != pivot_column_index.end()) {
+					j = pair->second;
+					column_to_add = columns_to_reduce[j];
+					continue;
+				}
+			} else {
+#ifdef PRINT_PERSISTENCE_PAIRS
+#ifdef INDICATE_PROGRESS
+				std::cout << "\033[K";
+#endif
+				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+#endif
+				break;
+			}
+
+		found_persistence_pair:
+#ifdef PRINT_PERSISTENCE_PAIRS
+			value_t death = get_diameter(pivot);
+			if (diameter != death) {
+#ifdef INDICATE_PROGRESS
+				std::cout << "\033[K";
+#endif
+				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
+			}
+#endif
+
+			pivot_column_index.insert(std::make_pair(get_index(pivot), i));
 
 #ifdef USE_COEFFICIENTS
-					const coefficient_t inverse = multiplicative_inverse[get_coefficient(pivot)];
+			const coefficient_t inverse = multiplicative_inverse[get_coefficient(pivot)];
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-					// replace current column of reduction_matrix (with a single diagonal 1 entry)
-					// by reduction_column (possibly with a different entry on the diagonal)
-					reduction_matrix.pop_back();
-					while (true) {
-						diameter_entry_t e = pop_pivot(reduction_column, modulus);
-						index_t index = get_index(e);
-						if (index == -1) break;
+			// replace current column of reduction_matrix (with a single diagonal 1 entry)
+			// by reduction_column (possibly with a different entry on the diagonal)
+			reduction_matrix.pop_back();
+			while (true) {
+				diameter_entry_t e = pop_pivot(reduction_column, modulus);
+				index_t index = get_index(e);
+				if (index == -1) break;
 #ifdef USE_COEFFICIENTS
-						const coefficient_t coefficient = inverse * get_coefficient(e) % modulus;
-						assert(coefficient > 0);
+				const coefficient_t coefficient = inverse * get_coefficient(e) % modulus;
+				assert(coefficient > 0);
 #else
-						const coefficient_t coefficient = 1;
+				const coefficient_t coefficient = 1;
 #endif
-						reduction_matrix.push_back(
-						    make_diameter_entry(get_diameter(e), index, coefficient));
-					}
-#else
-#ifdef USE_COEFFICIENTS
-					reduction_coefficients.pop_back();
-					reduction_coefficients.push_back(
-					    make_diameter_entry(column_to_reduce, inverse));
-#endif
-#endif
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-					value_t death = get_diameter(pivot);
-					if (diameter != death) {
-#ifdef INDICATE_PROGRESS
-						std::cout << "\033[K";
-#endif
-						std::cout << " [" << diameter << "," << death << ")" << std::endl
-						          << std::flush;
-					}
-#endif
-					break;
-				}
-				j = pair->second;
-				column_to_add = columns_to_reduce[j];
+				reduction_matrix.push_back(
+				    make_diameter_entry(get_diameter(e), index, coefficient));
 			}
-		} while (get_index(pivot) != -1);
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-		if (get_index(pivot) == -1) {
-			value_t birth = diameter;
-#ifdef INDICATE_PROGRESS
-			std::cout << "\033[K";
+#else
+#ifdef USE_COEFFICIENTS
+			reduction_coefficients.pop_back();
+			reduction_coefficients.push_back(make_diameter_entry(column_to_reduce, inverse));
 #endif
-			std::cout << " [" << birth << ", )" << std::endl << std::flush;
-		}
 #endif
+			break;
+		} while (true);
 	}
 
 #ifdef INDICATE_PROGRESS
@@ -728,7 +723,6 @@ int main(int argc, char** argv) {
 	std::vector<value_t> diameters;
 
 #ifdef FILE_FORMAT_DIPHA
-
 	int64_t magic_number;
 	input_stream.read(reinterpret_cast<char*>(&magic_number), sizeof(int64_t));
 	if (magic_number != 8067171840) {
@@ -760,11 +754,9 @@ int main(int argc, char** argv) {
 
 	compressed_lower_distance_matrix_adapter dist(diameters, dist_full);
 	std::cout << "distance matrix transformed to lower triangular form" << std::endl;
-
 #endif
 
 #ifdef FILE_FORMAT_UPPER_TRIANGULAR_CSV
-
 	std::vector<value_t> distances;
 	std::string value_string;
 	while (std::getline(input_stream, value_string, ','))
@@ -777,11 +769,9 @@ int main(int argc, char** argv) {
 
 	compressed_lower_distance_matrix_adapter dist(diameters, dist_upper);
 	std::cout << "distance matrix transformed to lower triangular form" << std::endl;
-
 #endif
 
 #ifdef FILE_FORMAT_LOWER_TRIANGULAR_CSV
-
 	std::vector<value_t>& distances = diameters;
 	std::string value_string;
 	while (std::getline(input_stream, value_string, ','))
@@ -792,7 +782,6 @@ int main(int argc, char** argv) {
 	index_t n = dist.size();
 
 	std::cout << "distance matrix with " << n << " points" << std::endl;
-
 #endif
 
 	auto result = std::minmax_element(dist.distances.begin(), dist.distances.end());
