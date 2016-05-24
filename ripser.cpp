@@ -1,15 +1,3 @@
-#include <iostream>
-#include <fstream>
-#include <cassert>
-#include <queue>
-#include <unordered_map>
-
-typedef float value_t;
-// typedef uint16_t value_t;
-
-typedef long index_t;
-typedef long coefficient_t;
-
 #define USE_BINARY_SEARCH
 //#define USE_EXPONENTIAL_SEARCH
 
@@ -22,6 +10,18 @@ typedef long coefficient_t;
 //#define FILE_FORMAT_DIPHA
 //#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
 //#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
+
+#include <iostream>
+#include <fstream>
+#include <cassert>
+#include <queue>
+#include <unordered_map>
+
+typedef float value_t;
+// typedef uint16_t value_t;
+
+typedef long index_t;
+typedef long coefficient_t;
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
