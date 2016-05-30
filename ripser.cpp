@@ -251,6 +251,36 @@ public:
 	}
 };
 
+
+class simplex_boundary_enumerator {
+private:
+	index_t idx, modified_idx, dim, v, k;
+	const binomial_coeff_table& binomial_coeff;
+
+public:
+	simplex_boundary_enumerator(index_t _idx, index_t _dim, index_t _n,
+	                              const binomial_coeff_table& _binomial_coeff)
+	    : idx(_idx), modified_idx(_idx), dim(_dim), k(dim + 1), v(_n - 1),
+	      binomial_coeff(_binomial_coeff) {}
+
+	bool has_next() {
+		while ((v != -1) && (binomial_coeff(v, k) > idx)) --v;
+		return v != -1;
+	}
+
+	std::pair<entry_t, index_t> next() {
+		auto result =
+		    std::make_pair(make_entry(modified_idx - binomial_coeff(v, k), k & 1 ? 1 : -1), v);
+        
+        idx -= binomial_coeff(v, k);
+		modified_idx += binomial_coeff(v, k - 1) - binomial_coeff(v, k);
+
+        --v;
+		--k;
+		return result;
+	}
+};
+
 class distance_matrix {
 public:
 	typedef value_t value_type;
