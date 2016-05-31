@@ -259,23 +259,36 @@ private:
 
 public:
 	simplex_boundary_enumerator(index_t _idx, index_t _dim, index_t _n,
-	                              const binomial_coeff_table& _binomial_coeff)
+	                            const binomial_coeff_table& _binomial_coeff)
 	    : idx(_idx), modified_idx(_idx), dim(_dim), k(dim + 1), v(_n - 1),
 	      binomial_coeff(_binomial_coeff) {}
 
 	bool has_next() {
-		while ((v != -1) && (binomial_coeff(v, k) > idx)) --v;
-		return v != -1;
+		if ((v != -1) && (binomial_coeff(v, k) > idx)) {
+			index_t count = v;
+			while (count > 0) {
+				index_t i = v;
+				index_t step = count >> 1;
+				i -= step;
+				if (binomial_coeff(i, k) > idx) {
+					v = --i;
+					count -= step + 1;
+				} else
+					count = step;
+			}
+		}
+
+		return (v != -1) && (binomial_coeff(v, k) <= idx);
 	}
 
 	std::pair<entry_t, index_t> next() {
 		auto result =
 		    std::make_pair(make_entry(modified_idx - binomial_coeff(v, k), k & 1 ? 1 : -1), v);
-        
-        idx -= binomial_coeff(v, k);
+
+		idx -= binomial_coeff(v, k);
 		modified_idx += binomial_coeff(v, k - 1) - binomial_coeff(v, k);
 
-        --v;
+		--v;
 		--k;
 		return result;
 	}
