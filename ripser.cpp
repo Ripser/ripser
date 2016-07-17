@@ -490,7 +490,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 
 		index_t j = i;
-		auto& column_to_add = column_to_reduce;
+		auto column_to_add = column_to_reduce;
 
 		// start with a dummy pivot entry with coefficient -1 in order to initialize
 		// working_coboundary with the coboundary of the simplex with index column_to_reduce
