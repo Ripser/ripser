@@ -8,11 +8,23 @@
 //#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
 //#define FILE_FORMAT_DIPHA
 
+//#define USE_GOOGLE_HASHMAP
+
 #include <iostream>
 #include <fstream>
 #include <cassert>
 #include <queue>
 #include <unordered_map>
+
+#ifdef USE_GOOGLE_HASHMAP
+#include <sparsehash/sparse_hash_map>
+template <class Key, class T> class hash_map : public google::sparse_hash_map<Key, T> {
+public:
+	inline void reserve(size_t hint) { this->resize(hint); }
+};
+#else
+template <class Key, class T> class hash_map : public std::unordered_map<Key, T> {};
+#endif
 
 typedef float value_t;
 // typedef uint16_t value_t;
@@ -382,7 +394,7 @@ template <typename Heap> diameter_entry_t get_pivot(Heap& column, coefficient_t 
 
 template <typename Comparator>
 void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
-                                std::unordered_map<index_t, index_t>& pivot_column_index,
+                                hash_map<index_t, index_t>& pivot_column_index,
                                 const Comparator& comp, index_t dim, index_t n, value_t threshold,
                                 const binomial_coeff_table& binomial_coeff) {
 	index_t num_simplices = binomial_coeff(n, dim + 2);
@@ -449,10 +461,10 @@ void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
 
 template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
-                   std::unordered_map<index_t, index_t>& pivot_column_index,
-                   const DistanceMatrix& dist, const ComparatorCofaces& comp,
-                   const Comparator& comp_prev, index_t dim, index_t n, value_t threshold,
-                   coefficient_t modulus, const std::vector<coefficient_t>& multiplicative_inverse,
+                   hash_map<index_t, index_t>& pivot_column_index, const DistanceMatrix& dist,
+                   const ComparatorCofaces& comp, const Comparator& comp_prev, index_t dim,
+                   index_t n, value_t threshold, coefficient_t modulus,
+                   const std::vector<coefficient_t>& multiplicative_inverse,
                    const binomial_coeff_table& binomial_coeff) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
@@ -800,7 +812,7 @@ int main(int argc, char** argv) {
 		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
 		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
 
-		std::unordered_map<index_t, index_t> pivot_column_index;
+		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
 		compute_pairs(columns_to_reduce, pivot_column_index, dist, comp, comp_prev, dim, n,
