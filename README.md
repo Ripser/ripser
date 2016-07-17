@@ -2,6 +2,7 @@
 
 Copyright © 2015–2016 [Ulrich Bauer].
 
+
 ### Description
 
 Ripser is a lean C++ code for the computation of Vietoris–Rips persistence barcodes. It can do just this one thing, but does it extremely well.
@@ -33,27 +34,28 @@ Ripser's efficiency is based on a few important concepts and principles:
 ### Version
 [Latest release][latest-release]: 1.0 (July 2016)
 
+
 ### Building
 
-Ripser requires a C++11 compiler.
+Ripser requires a C++11 compiler. Here is how to obtain, build, and run Ripser:
 
 ```sh
-$ git clone https://github.com/Ripser/ripser.git
-$ cd ripser
-$ make
-$ ./ripser examples/sphere_3_192.lower_distance_matrix
+git clone https://github.com/Ripser/ripser.git
+cd ripser
+make
+./ripser examples/sphere_3_192.lower_distance_matrix
 ```
+
 
 ### Options
 
-Ripser supports several compile-time options. They are switched on by defining the C preprocessor macros listed below, either using `#define` in the code or by passing an argument to the compiler. The follwoing options are supported:
+Ripser supports several compile-time options. They are switched on by defining the C preprocessor macros listed below, either using `#define` in the code or by passing an argument to the compiler. The following options are supported:
 
   - `ASSEMBLE_REDUCTION_MATRIX`: store the reduction matrix; may speed up computation but will also increase memory usage
   - `USE_COEFFICIENTS`: enable support for coeffitients in a prime field
   - `INDICATE_PROGRESS`: indicate the current progress in the console
   - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default)
   - `USE_GOOGLE_HASHMAP`: enable support for Google's [sparsehash] data structure; may further reducue memory footprint
-
 
 Furthermore, one of the following options needs to be chosen to specify the format for the input files:
 
@@ -67,6 +69,12 @@ For example, to build with support for coefficients:
 $ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_LOWER_TRIANGULAR_CSV -D USE_COEFFICIENTS
 ```
 
+The following options are supported at the command line:
+
+  - `--top_dim k`: compute persistent homology up to dimension *k*
+  - `--threshold t`: compute Rips complexes up to diameter *t*
+  - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when build with the option `USE_COEFFICIENTS`)
+
 
 ### Planned features
 
@@ -76,8 +84,8 @@ The following features are currently planned for future versions:
  - computation of representative cycles for persistent homology (currenly only *co*cycles are computed)
  - support for sparse distance matrices
 
-### License
 
+### License
 
 [LGPL] 3.0
 
