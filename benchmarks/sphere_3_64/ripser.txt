@@ -1,4 +1,4 @@
-uli:ripser uli$ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_DIPHA -D PRINT_PERSISTENCE_PAIRS && /usr/bin/time -l ./ripser --top_dim 2 ~/Bitbucket/phat-paper/benchmark/dipha/sphere_3_64.complex
+uli:ripser uli$ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_DIPHA -D PRINT_PERSISTENCE_PAIRS && /usr/bin/time -l ./ripser --dim 2 ~/Bitbucket/phat-paper/benchmark/dipha/sphere_3_64.complex
 distance matrix with 64 points
 distance matrix transformed to lower triangular form
 value range: [0.00391946,1.99927]

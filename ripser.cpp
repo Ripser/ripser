@@ -510,7 +510,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 		value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-        if ((i+1) % 1000 == 0)
+        if ((i+1) % 1000000 == 0)
             std::cout << "\033[K"
 			          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
 			          << " (diameter " << diameter << ")" << std::flush << "\r";
@@ -689,7 +689,7 @@ void print_usage_and_exit(int exit_code) {
 	std::cerr << "Options:" << std::endl;
 	std::cerr << std::endl;
 	std::cerr << "  --help           print this screen" << std::endl;
-	std::cerr << "  --top_dim <k>    compute persistent homology up to dimension <k>" << std::endl;
+	std::cerr << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl;
 	std::cerr << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl;
 #ifdef USE_COEFFICIENTS
 	std::cerr << "  --modulus <p>    compute homology with coefficients in the prime field Z/<p>Z"
@@ -718,7 +718,7 @@ int main(int argc, char** argv) {
 		const std::string arg(argv[i]);
 		if (arg == "--help") {
 			print_usage_and_exit(0);
-		} else if (arg == "--top_dim") {
+		} else if (arg == "--dim") {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			dim_max = std::stol(parameter, &next_pos);

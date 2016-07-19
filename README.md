@@ -71,7 +71,7 @@ $ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_LOWER_TRIA
 
 The following options are supported at the command line:
 
-  - `--top_dim k`: compute persistent homology up to dimension *k*
+  - `--dim k`: compute persistent homology up to dimension *k*
   - `--threshold t`: compute Rips complexes up to diameter *t*
   - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when build with the option `USE_COEFFICIENTS`)
 

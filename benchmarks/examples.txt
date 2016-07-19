@@ -1,4 +1,4 @@
-c++ -std=c++14 ripser.cpp -o ripser -Ofast -D NDEBUG -D STORE_DIAMETERS -D FILE_FORMAT_UPPER_TRIANGULAR_CSV -D PRINT_PERSISTENCE_PAIRS && /usr/bin/time -l ./ripser --top_dim 1 ~/Downloads/avian_all_nt_concat_jukes_cantor.csv
+c++ -std=c++14 ripser.cpp -o ripser -Ofast -D NDEBUG -D STORE_DIAMETERS -D FILE_FORMAT_UPPER_TRIANGULAR_CSV -D PRINT_PERSISTENCE_PAIRS && /usr/bin/time -l ./ripser --dim 1 ~/Downloads/avian_all_nt_concat_jukes_cantor.csv
 
-c++ -std=c++14 ripser.cpp -o ripser -Ofast -D NDEBUG -D STORE_DIAMETERS -D FILE_FORMAT_DIPHA -D PRINT_PERSISTENCE_PAIRS && /usr/bin/time -l ./ripser --top_dim 2 ~/Bitbucket/phat-paper/benchmark/dipha/sphere_3_192.complex
+c++ -std=c++14 ripser.cpp -o ripser -Ofast -D NDEBUG -D STORE_DIAMETERS -D FILE_FORMAT_DIPHA -D PRINT_PERSISTENCE_PAIRS && /usr/bin/time -l ./ripser --dim 2 ~/Bitbucket/phat-paper/benchmark/dipha/sphere_3_192.complex
 
