@@ -401,6 +401,11 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 
 	columns_to_reduce.clear();
 
+#ifdef INDICATE_PROGRESS
+    std::cout << "\033[K"
+              << "assembling " << num_simplices << " columns" << std::flush << "\r";
+#endif
+
 	for (index_t index = 0; index < num_simplices; ++index) {
 		if (pivot_column_index.find(index) == pivot_column_index.end()) {
 			value_t diameter = comp.diameter(index);
@@ -408,8 +413,16 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 		}
 	}
 
+#ifdef INDICATE_PROGRESS
+    std::cout << "\033[K"
+              << "sorting " << num_simplices << " columns" << std::flush << "\r";
+#endif
+
 	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 	          greater_diameter_or_smaller_index<diameter_index_t>());
+#ifdef INDICATE_PROGRESS
+    std::cout << "\033[K";
+#endif
 }
 
 template <typename ValueType> class compressed_sparse_matrix {
@@ -496,9 +509,10 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 		value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
-		          << "reducing column " << i + 1 << "/" << columns_to_reduce.size() << " (diameter "
-		          << diameter << ")" << std::flush << "\r";
+        if ((i+1) % 1000 == 0)
+            std::cout << "\033[K"
+			          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
+			          << " (diameter " << diameter << ")" << std::flush << "\r";
 #endif
 
 		index_t j = i;
