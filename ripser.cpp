@@ -10,6 +10,7 @@
 
 //#define USE_GOOGLE_HASHMAP
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <cassert>
