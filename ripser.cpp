@@ -363,12 +363,11 @@ template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t 
 			column.pop();
 
 			if (coefficient == 0) {
-				if (column.empty()) {
+				if (column.empty())
 					return diameter_entry_t(-1);
-				} else {
+				else
 					pivot = column.top();
-				}
-			}
+            }
 		} while (!column.empty() && get_index(column.top()) == get_index(pivot));
 		if (get_index(pivot) != -1) { set_coefficient(pivot, coefficient); }
 #else
@@ -403,8 +402,8 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 	columns_to_reduce.clear();
 
 #ifdef INDICATE_PROGRESS
-    std::cout << "\033[K"
-              << "assembling " << num_simplices << " columns" << std::flush << "\r";
+	std::cout << "\033[K"
+	          << "assembling " << num_simplices << " columns" << std::flush << "\r";
 #endif
 
 	for (index_t index = 0; index < num_simplices; ++index) {
@@ -415,14 +414,14 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 	}
 
 #ifdef INDICATE_PROGRESS
-    std::cout << "\033[K"
-              << "sorting " << num_simplices << " columns" << std::flush << "\r";
+	std::cout << "\033[K"
+	          << "sorting " << num_simplices << " columns" << std::flush << "\r";
 #endif
 
 	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 	          greater_diameter_or_smaller_index<diameter_index_t>());
 #ifdef INDICATE_PROGRESS
-    std::cout << "\033[K";
+	std::cout << "\033[K";
 #endif
 }
 
@@ -510,8 +509,8 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 		value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-        if ((i+1) % 1000000 == 0)
-            std::cout << "\033[K"
+		if ((i + 1) % 1000000 == 0)
+			std::cout << "\033[K"
 			          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
 			          << " (diameter " << diameter << ")" << std::flush << "\r";
 #endif
@@ -681,6 +680,12 @@ bool is_prime(const coefficient_t n) {
 	return true;
 }
 
+template <typename T> T read(std::ifstream& s) {
+	T result;
+	s.read(reinterpret_cast<char*>(&result), sizeof(T));
+	return result; // on little endian: boost::endian::little_to_native(result);
+}
+
 void print_usage_and_exit(int exit_code) {
 	std::cerr << "Usage: "
 	          << "ripser "
@@ -717,8 +722,8 @@ int main(int argc, char** argv) {
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
 		if (arg == "--help") {
-			print_usage_and_exit(0);
-		} else if (arg == "--dim") {
+            print_usage_and_exit(0);
+        } else if (arg == "--dim") {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			dim_max = std::stol(parameter, &next_pos);
@@ -750,33 +755,25 @@ int main(int argc, char** argv) {
 	std::vector<value_t> diameters;
 
 #ifdef FILE_FORMAT_DIPHA
-	int64_t magic_number;
-	input_stream.read(reinterpret_cast<char*>(&magic_number), sizeof(int64_t));
-	if (magic_number != 8067171840) {
+
+	if (read<int64_t>(input_stream) != 8067171840) {
 		std::cerr << filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
 		exit(-1);
 	}
 
-	int64_t file_type;
-	input_stream.read(reinterpret_cast<char*>(&file_type), sizeof(int64_t));
-	if (file_type != 7) {
+	if (read<int64_t>(input_stream) != 7) {
 		std::cerr << filename << " is not a Dipha distance matrix (file type: 7)" << std::endl;
 		exit(-1);
 	}
 
-	int64_t n;
-	input_stream.read(reinterpret_cast<char*>(&n), sizeof(int64_t));
+	index_t n = read<int64_t>(input_stream);
 
 	distance_matrix dist_full;
 	dist_full.distances = std::vector<std::vector<value_t>>(n, std::vector<value_t>(n));
 
-	for (int i = 0; i < n; ++i) {
-		for (int j = 0; j < n; ++j) {
-			double val;
-			input_stream.read(reinterpret_cast<char*>(&val), sizeof(double));
-			dist_full.distances[i][j] = val;
-		}
-	}
+	for (int i = 0; i < n; ++i)
+		for (int j = 0; j < n; ++j)
+            dist_full.distances[i][j] = read<double>(input_stream);
 	std::cout << "distance matrix with " << n << " points" << std::endl;
 
 	compressed_lower_distance_matrix_adapter dist(diameters, dist_full);
@@ -814,7 +811,7 @@ int main(int argc, char** argv) {
 	auto result = std::minmax_element(dist.distances.begin(), dist.distances.end());
 	std::cout << "value range: [" << *result.first << "," << *result.second << "]" << std::endl;
 
-	assert(dim_max <= n - 2);
+	dim_max = std::min(dim_max, n - 2);
 
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
