@@ -509,7 +509,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 		value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-		if ((i + 1) % 1000000 == 0)
+		if ((i + 1) % 1000 == 0)
 			std::cout << "\033[K"
 			          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
 			          << " (diameter " << diameter << ")" << std::flush << "\r";

@@ -14,7 +14,7 @@ The main features of Ripser:
   - less than 1000 lines of code in a single C++ file
   - no external dependencies (optional support for Google's [sparsehash])
 
-Currently, Ripser outperforms other codes ([Dionysus], [DIPHA], [GUDHI], [Perseus], [PHAT]) by a factor of at least 40 in computation time and a factor of at least 15 in memory efficiency. (Note that [PHAT] does not contain code for generating Vietoris–Rips filtrations).
+Currently, Ripser outperforms other codes ([Dionysus], [DIPHA], [GUDHI], [Perseus], [PHAT]) by a factor of more than 40 in computation time and a factor of more than 15 in memory efficiency. (Note that [PHAT] does not contain code for generating Vietoris–Rips filtrations).
 
 Input formats currently supported by Ripser:
 
@@ -52,7 +52,7 @@ make
 Ripser supports several compile-time options. They are switched on by defining the C preprocessor macros listed below, either using `#define` in the code or by passing an argument to the compiler. The following options are supported:
 
   - `ASSEMBLE_REDUCTION_MATRIX`: store the reduction matrix; may speed up computation but will also increase memory usage
-  - `USE_COEFFICIENTS`: enable support for coeffitients in a prime field
+  - `USE_COEFFICIENTS`: enable support for coefficients in a prime field
   - `INDICATE_PROGRESS`: indicate the current progress in the console
   - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default)
   - `USE_GOOGLE_HASHMAP`: enable support for Google's [sparsehash] data structure; may further reducue memory footprint
