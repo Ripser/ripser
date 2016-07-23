@@ -367,7 +367,7 @@ template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t 
 					return diameter_entry_t(-1);
 				else
 					pivot = column.top();
-            }
+			}
 		} while (!column.empty() && get_index(column.top()) == get_index(pivot));
 		if (get_index(pivot) != -1) { set_coefficient(pivot, coefficient); }
 #else
@@ -722,8 +722,8 @@ int main(int argc, char** argv) {
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
 		if (arg == "--help") {
-            print_usage_and_exit(0);
-        } else if (arg == "--dim") {
+			print_usage_and_exit(0);
+		} else if (arg == "--dim") {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			dim_max = std::stol(parameter, &next_pos);
@@ -772,8 +772,7 @@ int main(int argc, char** argv) {
 	dist_full.distances = std::vector<std::vector<value_t>>(n, std::vector<value_t>(n));
 
 	for (int i = 0; i < n; ++i)
-		for (int j = 0; j < n; ++j)
-            dist_full.distances[i][j] = read<double>(input_stream);
+		for (int j = 0; j < n; ++j) dist_full.distances[i][j] = read<double>(input_stream);
 	std::cout << "distance matrix with " << n << " points" << std::endl;
 
 	compressed_lower_distance_matrix_adapter dist(diameters, dist_full);
@@ -782,9 +781,8 @@ int main(int argc, char** argv) {
 
 #ifdef FILE_FORMAT_UPPER_TRIANGULAR_CSV
 	std::vector<value_t> distances;
-	std::string value_string;
-	while (std::getline(input_stream, value_string, ','))
-		distances.push_back(std::stod(value_string));
+	value_t value;
+	while ((input_stream >> value).ignore()) distances.push_back(value);
 
 	compressed_upper_distance_matrix_adapter dist_upper(distances);
 
@@ -797,9 +795,8 @@ int main(int argc, char** argv) {
 
 #ifdef FILE_FORMAT_LOWER_TRIANGULAR_CSV
 	std::vector<value_t>& distances = diameters;
-	std::string value_string;
-	while (std::getline(input_stream, value_string, ','))
-		distances.push_back(std::stod(value_string));
+	value_t value;
+	while ((input_stream >> value).ignore()) distances.push_back(value);
 
 	compressed_lower_distance_matrix_adapter dist(distances);
 
