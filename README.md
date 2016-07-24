@@ -10,16 +10,16 @@ Ripser is a lean C++ code for the computation of Vietoris–Rips persistence bar
 The main features of Ripser:
 
   - time- and memory-efficient
-  - support for coefficients in prime finite fields
   - less than 1000 lines of code in a single C++ file
+  - support for coefficients in prime finite fields
   - no external dependencies (optional support for Google's [sparsehash])
 
 Currently, Ripser outperforms other codes ([Dionysus], [DIPHA], [GUDHI], [Perseus], [PHAT]) by a factor of more than 40 in computation time and a factor of more than 15 in memory efficiency. (Note that [PHAT] does not contain code for generating Vietoris–Rips filtrations).
 
 Input formats currently supported by Ripser:
 
-  - comma-separated lower triangular distance matrix (preferred)
-  - comma-separated lower triangular distance matrix (MATLAB output from the function `pdist`)
+  - comma-separated values lower triangular distance matrix (preferred)
+  - comma-separated values upper triangular distance matrix (MATLAB output from the function `pdist`)
   - [DIPHA] distance matrix data
 
 Ripser's efficiency is based on a few important concepts and principles:
@@ -59,7 +59,7 @@ Ripser supports several compile-time options. They are switched on by defining t
 
 Furthermore, one of the following options needs to be chosen to specify the format for the input files:
 
-  - `FILE_FORMAT_LOWER_TRIANGULAR_CSV`: lower triangular distance matrix; a comma separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index and column index
+  - `FILE_FORMAT_LOWER_TRIANGULAR_CSV`: lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
   - `FILE_FORMAT_UPPER_TRIANGULAR_CSV`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB function `pdist`, saved in a CSV file
   - `FILE_FORMAT_DIPHA`: DIPHA distance matrix as described on the [DIPHA] website
 
