@@ -10,16 +10,16 @@ Ripser is a lean C++ code for the computation of Vietoris–Rips persistence bar
 The main features of Ripser:
 
   - time- and memory-efficient
-  - support for coefficients in prime finite fields
   - less than 1000 lines of code in a single C++ file
+  - support for coefficients in prime finite fields
   - no external dependencies (optional support for Google's [sparsehash])
 
-Currently, Ripser outperforms other codes ([Dionysus], [DIPHA], [GUDHI], [Perseus], [PHAT]) by a factor of at least 40 in computation time and a factor of at least 15 in memory efficiency. (Note that [PHAT] does not contain code for generating Vietoris–Rips filtrations).
+Currently, Ripser outperforms other codes ([Dionysus], [DIPHA], [GUDHI], [Perseus], [PHAT]) by a factor of more than 40 in computation time and a factor of more than 15 in memory efficiency. (Note that [PHAT] does not contain code for generating Vietoris–Rips filtrations).
 
 Input formats currently supported by Ripser:
 
-  - comma-separated lower triangular distance matrix (preferred)
-  - comma-separated lower triangular distance matrix (MATLAB output from the function `pdist`)
+  - comma-separated values lower triangular distance matrix (preferred)
+  - comma-separated values upper triangular distance matrix (MATLAB output from the function `pdist`)
   - [DIPHA] distance matrix data
 
 Ripser's efficiency is based on a few important concepts and principles:
@@ -52,14 +52,14 @@ make
 Ripser supports several compile-time options. They are switched on by defining the C preprocessor macros listed below, either using `#define` in the code or by passing an argument to the compiler. The following options are supported:
 
   - `ASSEMBLE_REDUCTION_MATRIX`: store the reduction matrix; may speed up computation but will also increase memory usage
-  - `USE_COEFFICIENTS`: enable support for coeffitients in a prime field
+  - `USE_COEFFICIENTS`: enable support for coefficients in a prime field
   - `INDICATE_PROGRESS`: indicate the current progress in the console
   - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default)
   - `USE_GOOGLE_HASHMAP`: enable support for Google's [sparsehash] data structure; may further reducue memory footprint
 
 Furthermore, one of the following options needs to be chosen to specify the format for the input files:
 
-  - `FILE_FORMAT_LOWER_TRIANGULAR_CSV`: lower triangular distance matrix; a comma separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index and column index
+  - `FILE_FORMAT_LOWER_TRIANGULAR_CSV`: lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
   - `FILE_FORMAT_UPPER_TRIANGULAR_CSV`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB function `pdist`, saved in a CSV file
   - `FILE_FORMAT_DIPHA`: DIPHA distance matrix as described on the [DIPHA] website
 
@@ -71,7 +71,7 @@ $ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_LOWER_TRIA
 
 The following options are supported at the command line:
 
-  - `--top_dim k`: compute persistent homology up to dimension *k*
+  - `--dim k`: compute persistent homology up to dimension *k*
   - `--threshold t`: compute Rips complexes up to diameter *t*
   - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when build with the option `USE_COEFFICIENTS`)
 
