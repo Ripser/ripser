@@ -33,6 +33,7 @@
 #include <fstream>
 #include <cassert>
 #include <queue>
+#include <cmath>
 #include <unordered_map>
 
 #ifdef USE_GOOGLE_HASHMAP
