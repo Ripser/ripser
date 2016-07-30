@@ -209,7 +209,8 @@
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
-					FILE_FORMAT_LOWER_TRIANGULAR_CSV,
+					_FILE_FORMAT_LOWER_TRIANGULAR_CSV,
+					FILE_FORMAT_POINT_CLOUD,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
