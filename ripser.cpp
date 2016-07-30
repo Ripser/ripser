@@ -815,7 +815,10 @@ int main(int argc, char** argv) {
 #ifdef FILE_FORMAT_LOWER_TRIANGULAR_CSV
 	std::vector<value_t>& distances = diameters;
 	value_t value;
-	while ((input_stream >> value).ignore()) distances.push_back(value);
+    while (input_stream >> value) {
+        distances.push_back(value);
+        input_stream.ignore();
+    }
 
 	compressed_lower_distance_matrix_adapter dist(distances);
 
