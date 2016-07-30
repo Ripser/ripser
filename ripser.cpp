@@ -24,6 +24,7 @@
 
 //#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
 //#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
+//#define FILE_FORMAT_POINT_CLOUD
 //#define FILE_FORMAT_DIPHA
 
 //#define USE_GOOGLE_HASHMAP
@@ -31,9 +32,11 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <cassert>
 #include <queue>
 #include <cmath>
+#include <numeric>
 #include <unordered_map>
 
 #ifdef USE_GOOGLE_HASHMAP
@@ -287,7 +290,6 @@ enum compressed_matrix_layout { LOWER_TRIANGULAR, UPPER_TRIANGULAR };
 
 template <compressed_matrix_layout Layout> class compressed_distance_matrix {
 public:
-	typedef value_t value_type;
 	std::vector<value_t> distances;
 	std::vector<value_t*> rows;
 
@@ -302,6 +304,23 @@ public:
     value_t operator()(const index_t i, const index_t j) const;
 
 	size_t size() const { return rows.size(); }
+};
+
+class euclidean_distance_matrix {
+public:
+    std::vector<std::vector<value_t>> points;
+    
+    euclidean_distance_matrix(std::vector<std::vector<value_t>> _points)
+    : points(std::move(_points)) { }
+    
+    value_t operator()(const index_t i, const index_t j) const {
+        value_t result;
+        result = std::inner_product((points[i]).begin(), (points[i]).end(), (points[j]).begin(), result,
+                                    std::plus<value_t>(), [] (value_t u, value_t v) { return (u-v)*(u-v); });
+        return std::sqrt(result);
+    }
+    
+    size_t size() const { return points.size(); }
 };
 
 template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
@@ -389,39 +408,6 @@ template <typename Heap> diameter_entry_t get_pivot(Heap& column, coefficient_t 
 	return result;
 }
 
-template <typename Comparator>
-void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
-                                hash_map<index_t, index_t>& pivot_column_index,
-                                const Comparator& comp, index_t dim, index_t n, value_t threshold,
-                                const binomial_coeff_table& binomial_coeff) {
-	index_t num_simplices = binomial_coeff(n, dim + 2);
-
-	columns_to_reduce.clear();
-
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K"
-	          << "assembling " << num_simplices << " columns" << std::flush << "\r";
-#endif
-
-	for (index_t index = 0; index < num_simplices; ++index) {
-		if (pivot_column_index.find(index) == pivot_column_index.end()) {
-			value_t diameter = comp.diameter(index);
-			if (diameter <= threshold) columns_to_reduce.push_back(std::make_pair(diameter, index));
-		}
-	}
-
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K"
-	          << "sorting " << num_simplices << " columns" << std::flush << "\r";
-#endif
-
-	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
-	          greater_diameter_or_smaller_index<diameter_index_t>());
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K";
-#endif
-}
-
 template <typename ValueType> class compressed_sparse_matrix {
 public:
 	std::vector<size_t> bounds;
@@ -467,6 +453,39 @@ template <typename Heap>
 void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
 	entry_t e = make_entry(i, c);
 	column.push(std::make_pair(diameter, e));
+}
+
+template <typename Comparator>
+void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
+                                hash_map<index_t, index_t>& pivot_column_index,
+                                const Comparator& comp, index_t dim, index_t n, value_t threshold,
+                                const binomial_coeff_table& binomial_coeff) {
+    index_t num_simplices = binomial_coeff(n, dim + 2);
+    
+    columns_to_reduce.clear();
+    
+#ifdef INDICATE_PROGRESS
+    std::cout << "\033[K"
+    << "assembling " << num_simplices << " columns" << std::flush << "\r";
+#endif
+    
+    for (index_t index = 0; index < num_simplices; ++index) {
+        if (pivot_column_index.find(index) == pivot_column_index.end()) {
+            value_t diameter = comp.diameter(index);
+            if (diameter <= threshold) columns_to_reduce.push_back(std::make_pair(diameter, index));
+        }
+    }
+    
+#ifdef INDICATE_PROGRESS
+    std::cout << "\033[K"
+    << "sorting " << num_simplices << " columns" << std::flush << "\r";
+#endif
+    
+    std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
+              greater_diameter_or_smaller_index<diameter_index_t>());
+#ifdef INDICATE_PROGRESS
+    std::cout << "\033[K";
+#endif
 }
 
 template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
@@ -748,47 +767,54 @@ int main(int argc, char** argv) {
 		std::cerr << "couldn't open file " << filename << std::endl;
 		exit(-1);
 	}
-
-#ifdef FILE_FORMAT_DIPHA
     
-	if (read<int64_t>(input_stream) != 8067171840) {
-		std::cerr << filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
-		exit(-1);
-	}
+#ifdef FILE_FORMAT_POINT_CLOUD
+    
+    std::vector<std::vector<value_t>> points;
 
-	if (read<int64_t>(input_stream) != 7) {
-		std::cerr << filename << " is not a Dipha distance matrix (file type: 7)" << std::endl;
-		exit(-1);
-	}
+    std::string line;
+    value_t value;
+    while (std::getline(input_stream, line)) {
+        std::vector<value_t> point;
+        std::istringstream s(line);
+        while (s >> value) point.push_back(value);
+        points.push_back(point);
+    }
+    
+//    euclidean_distance_matrix dist(points);
+//    index_t n = dist.size();
 
-	index_t n = read<int64_t>(input_stream);
+    euclidean_distance_matrix eucl_dist(points);
+    
+    index_t n = eucl_dist.size();
 
     std::vector<value_t> distances;
-
-	for (int i = 0; i < n; ++i)
-        for (int j = 0; j < n; ++j)
-            if (i > j) distances.push_back(read<double>(input_stream)); else read<double>(input_stream);
-
+    
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < i; ++j)
+            if (i > j) distances.push_back(eucl_dist(i,j));
+    
     compressed_lower_distance_matrix dist(distances);
     
-    std::cout << "distance matrix with " << n << " points" << std::endl;
-
+    std::cout << "point cloud with " << n << " points" << std::endl;
+    
 #endif
-
+    
+    
 #ifdef FILE_FORMAT_LOWER_TRIANGULAR_CSV
     
-	std::vector<value_t> distances;
-	value_t value;
+    std::vector<value_t> distances;
+    value_t value;
     while (input_stream >> value) {
         distances.push_back(value);
         input_stream.ignore();
     }
-
-	compressed_lower_distance_matrix dist(distances);
-
-	index_t n = dist.size();
-
-	std::cout << "distance matrix with " << n << " points" << std::endl;
+    
+    compressed_lower_distance_matrix dist(distances);
+    
+    index_t n = dist.size();
+    
+    std::cout << "distance matrix with " << n << " points" << std::endl;
     
 #endif
     
@@ -809,9 +835,38 @@ int main(int argc, char** argv) {
     
 #endif
 
+    
+#ifdef FILE_FORMAT_DIPHA
+    
+    if (read<int64_t>(input_stream) != 8067171840) {
+        std::cerr << filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
+        exit(-1);
+    }
+    
+    if (read<int64_t>(input_stream) != 7) {
+        std::cerr << filename << " is not a Dipha distance matrix (file type: 7)" << std::endl;
+        exit(-1);
+    }
+    
+    index_t n = read<int64_t>(input_stream);
+    
+    std::vector<value_t> distances;
+    
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            if (i > j) distances.push_back(read<double>(input_stream)); else read<double>(input_stream);
+    
+    compressed_lower_distance_matrix dist(distances);
+    
+    std::cout << "distance matrix with " << n << " points" << std::endl;
+    
+#endif
+    
+#ifndef FILE_FORMAT_POINT_CLOUD
 	auto result = std::minmax_element(dist.distances.begin(), dist.distances.end());
-	std::cout << "value range: [" << *result.first << "," << *result.second << "]" << std::endl;
-
+    std::cout << "value range: [" << *result.first << "," << *result.second << "]" << std::endl;
+#endif
+    
 	dim_max = std::min(dim_max, n - 2);
 
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
