@@ -283,50 +283,28 @@ public:
 	}
 };
 
-class distance_matrix {
-public:
-	typedef value_t value_type;
-	std::vector<std::vector<value_t>> distances;
-	value_t operator()(const index_t a, const index_t b) const { return distances[a][b]; }
-
-	size_t size() const { return distances.size(); }
-};
-
 enum compressed_matrix_layout { LOWER_TRIANGULAR, UPPER_TRIANGULAR };
 
-template <compressed_matrix_layout Layout> class compressed_distance_matrix_adapter {
+template <compressed_matrix_layout Layout> class compressed_distance_matrix {
 public:
 	typedef value_t value_type;
-	std::vector<value_t>& distances;
+	std::vector<value_t> distances;
 	std::vector<value_t*> rows;
-
-	void init_distances() { distances.resize(size() * (size() - 1) / 2); }
 
 	void init_rows();
 
-	compressed_distance_matrix_adapter(std::vector<value_t>& _distances)
-	    : distances(_distances), rows((1 + std::sqrt(1 + 8 * _distances.size())) / 2) {
+	compressed_distance_matrix(std::vector<value_t> _distances)
+	    : distances(std::move(_distances)), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
 		assert(distances.size() == size() * (size() - 1) / 2);
 		init_rows();
 	}
 
-	template <typename DistanceMatrix>
-	compressed_distance_matrix_adapter(std::vector<value_t>& _distances, const DistanceMatrix& mat)
-	    : distances(_distances), rows(mat.size()) {
-		init_distances();
-		init_rows();
-
-		for (index_t i = 1; i < size(); ++i) {
-			for (index_t j = 0; j < i; ++j) { rows[i][j] = mat(i, j); }
-		}
-	}
-
-	value_t operator()(const index_t i, const index_t j) const;
+    value_t operator()(const index_t i, const index_t j) const;
 
 	size_t size() const { return rows.size(); }
 };
 
-template <> void compressed_distance_matrix_adapter<LOWER_TRIANGULAR>::init_rows() {
+template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
 	value_t* pointer = &distances[0];
 	for (index_t i = 1; i < size(); ++i) {
 		rows[i] = pointer;
@@ -334,7 +312,7 @@ template <> void compressed_distance_matrix_adapter<LOWER_TRIANGULAR>::init_rows
 	}
 }
 
-template <> void compressed_distance_matrix_adapter<UPPER_TRIANGULAR>::init_rows() {
+template <> void compressed_distance_matrix<UPPER_TRIANGULAR>::init_rows() {
 	value_t* pointer = &distances[0] - 1;
 	for (index_t i = 0; i < size() - 1; ++i) {
 		rows[i] = pointer;
@@ -343,7 +321,7 @@ template <> void compressed_distance_matrix_adapter<UPPER_TRIANGULAR>::init_rows
 }
 
 template <>
-value_t compressed_distance_matrix_adapter<UPPER_TRIANGULAR>::operator()(const index_t i,
+value_t compressed_distance_matrix<UPPER_TRIANGULAR>::operator()(const index_t i,
                                                                          const index_t j) const {
 	if (i < j)
 		return rows[i][j];
@@ -354,7 +332,7 @@ value_t compressed_distance_matrix_adapter<UPPER_TRIANGULAR>::operator()(const i
 }
 
 template <>
-value_t compressed_distance_matrix_adapter<LOWER_TRIANGULAR>::operator()(const index_t i,
+value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(const index_t i,
                                                                          const index_t j) const {
 	if (i > j)
 		return rows[i][j];
@@ -364,10 +342,10 @@ value_t compressed_distance_matrix_adapter<LOWER_TRIANGULAR>::operator()(const i
 		return 0;
 }
 
-typedef compressed_distance_matrix_adapter<LOWER_TRIANGULAR>
-    compressed_lower_distance_matrix_adapter;
-typedef compressed_distance_matrix_adapter<UPPER_TRIANGULAR>
-    compressed_upper_distance_matrix_adapter;
+typedef compressed_distance_matrix<LOWER_TRIANGULAR>
+    compressed_lower_distance_matrix;
+typedef compressed_distance_matrix<UPPER_TRIANGULAR>
+    compressed_upper_distance_matrix;
 
 template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
 	if (column.empty())
@@ -771,10 +749,8 @@ int main(int argc, char** argv) {
 		exit(-1);
 	}
 
-	std::vector<value_t> diameters;
-
 #ifdef FILE_FORMAT_DIPHA
-
+    
 	if (read<int64_t>(input_stream) != 8067171840) {
 		std::cerr << filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
 		exit(-1);
@@ -787,44 +763,50 @@ int main(int argc, char** argv) {
 
 	index_t n = read<int64_t>(input_stream);
 
-	distance_matrix dist_full;
-	dist_full.distances = std::vector<std::vector<value_t>>(n, std::vector<value_t>(n));
+    std::vector<value_t> distances;
 
 	for (int i = 0; i < n; ++i)
-		for (int j = 0; j < n; ++j) dist_full.distances[i][j] = read<double>(input_stream);
-	std::cout << "distance matrix with " << n << " points" << std::endl;
+        for (int j = 0; j < n; ++j)
+            if (i > j) distances.push_back(read<double>(input_stream)); else read<double>(input_stream);
 
-	compressed_lower_distance_matrix_adapter dist(diameters, dist_full);
-	std::cout << "distance matrix transformed to lower triangular form" << std::endl;
-#endif
+    compressed_lower_distance_matrix dist(distances);
+    
+    std::cout << "distance matrix with " << n << " points" << std::endl;
 
-#ifdef FILE_FORMAT_UPPER_TRIANGULAR_CSV
-	std::vector<value_t> distances;
-	value_t value;
-	while ((input_stream >> value).ignore()) distances.push_back(value);
-
-	compressed_upper_distance_matrix_adapter dist_upper(distances);
-
-	index_t n = dist_upper.size();
-	std::cout << "distance matrix with " << n << " points" << std::endl;
-
-	compressed_lower_distance_matrix_adapter dist(diameters, dist_upper);
-	std::cout << "distance matrix transformed to lower triangular form" << std::endl;
 #endif
 
 #ifdef FILE_FORMAT_LOWER_TRIANGULAR_CSV
-	std::vector<value_t>& distances = diameters;
+    
+	std::vector<value_t> distances;
 	value_t value;
     while (input_stream >> value) {
         distances.push_back(value);
         input_stream.ignore();
     }
 
-	compressed_lower_distance_matrix_adapter dist(distances);
+	compressed_lower_distance_matrix dist(distances);
 
 	index_t n = dist.size();
 
 	std::cout << "distance matrix with " << n << " points" << std::endl;
+    
+#endif
+    
+#ifdef FILE_FORMAT_UPPER_TRIANGULAR_CSV
+    
+    std::vector<value_t> distances;
+    value_t value;
+    while (input_stream >> value) {
+        distances.push_back(value);
+        input_stream.ignore();
+    }
+    
+    compressed_upper_distance_matrix dist(distances);
+    
+    index_t n = dist.size();
+    
+    std::cout << "distance matrix with " << n << " points" << std::endl;
+    
 #endif
 
 	auto result = std::minmax_element(dist.distances.begin(), dist.distances.end());

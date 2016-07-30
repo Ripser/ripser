@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		55E113311BD63CF3002B6F51 /* ripser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 55E113301BD63CF3002B6F51 /* ripser.cpp */; settings = {ASSET_TAGS = (); }; };
+		55E113311BD63CF3002B6F51 /* ripser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 55E113301BD63CF3002B6F51 /* ripser.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -209,7 +209,7 @@
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
-					FILE_FORMAT_UPPER_TRIANGULAR_CSV,
+					FILE_FORMAT_LOWER_TRIANGULAR_CSV,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
