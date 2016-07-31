@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		55E113311BD63CF3002B6F51 /* ripser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 55E113301BD63CF3002B6F51 /* ripser.cpp */; settings = {ASSET_TAGS = (); }; };
+		55E113311BD63CF3002B6F51 /* ripser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 55E113301BD63CF3002B6F51 /* ripser.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -160,6 +160,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = /opt/local/include;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -196,6 +197,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = /opt/local/include;
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
@@ -207,10 +209,8 @@
 			buildSettings = {
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
-					FILE_FORMAT_UPPER_TRIANGULAR_CSV,
-					USE_COEFFICIENTS,
-					STORE_DIAMETERS,
-					PRINT_PERSISTENCE_PAIRS,
+					_FILE_FORMAT_LOWER_TRIANGULAR_CSV,
+					FILE_FORMAT_POINT_CLOUD,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
