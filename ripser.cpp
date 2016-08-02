@@ -294,8 +294,8 @@ public:
 
 	void init_rows();
 
-	compressed_distance_matrix(std::vector<value_t> _distances)
-	    : distances(std::move(_distances)), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
+	compressed_distance_matrix(std::vector<value_t>&& _distances)
+	    : distances(_distances), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
 		assert(distances.size() == size() * (size() - 1) / 2);
 		init_rows();
 	}
@@ -309,8 +309,7 @@ class euclidean_distance_matrix {
 public:
 	std::vector<std::vector<value_t>> points;
 
-	euclidean_distance_matrix(std::vector<std::vector<value_t>> _points)
-	    : points(std::move(_points)) {}
+	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(_points) {}
 
 	value_t operator()(const index_t i, const index_t j) const {
 		return std::sqrt(std::inner_product(
@@ -779,7 +778,7 @@ int main(int argc, char** argv) {
 		if (!point.empty()) points.push_back(point);
 	}
 
-	euclidean_distance_matrix dist(points);
+	euclidean_distance_matrix dist(std::move(points));
 	index_t n = dist.size();
 
 	std::cout << "point cloud with " << n << " points" << std::endl;
@@ -795,7 +794,7 @@ int main(int argc, char** argv) {
 		input_stream.ignore();
 	}
 
-	compressed_lower_distance_matrix dist(distances);
+	compressed_lower_distance_matrix dist(std::move(distances));
 
 	index_t n = dist.size();
 
@@ -812,7 +811,7 @@ int main(int argc, char** argv) {
 		input_stream.ignore();
 	}
 
-	compressed_upper_distance_matrix dist(distances);
+	compressed_upper_distance_matrix dist(std::move(distances));
 
 	index_t n = dist.size();
 
@@ -843,7 +842,7 @@ int main(int argc, char** argv) {
 			else
 				read<double>(input_stream);
 
-	compressed_lower_distance_matrix dist(distances);
+	compressed_lower_distance_matrix dist(std::move(distances));
 
 	std::cout << "distance matrix with " << n << " points" << std::endl;
 
