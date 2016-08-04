@@ -305,21 +305,6 @@ public:
 	size_t size() const { return rows.size(); }
 };
 
-class euclidean_distance_matrix {
-public:
-	std::vector<std::vector<value_t>> points;
-
-	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(_points) {}
-
-	value_t operator()(const index_t i, const index_t j) const {
-		return std::sqrt(std::inner_product(
-		    points[i].begin(), points[i].end(), points[j].begin(), value_t(), std::plus<value_t>(),
-		    [](value_t u, value_t v) { return (u - v) * (u - v); }));
-	}
-
-	size_t size() const { return points.size(); }
-};
-
 template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
 	value_t* pointer = &distances[0];
 	for (index_t i = 1; i < size(); ++i) {
@@ -360,6 +345,21 @@ value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(const index_t i
 
 typedef compressed_distance_matrix<LOWER_TRIANGULAR> compressed_lower_distance_matrix;
 typedef compressed_distance_matrix<UPPER_TRIANGULAR> compressed_upper_distance_matrix;
+
+class euclidean_distance_matrix {
+public:
+	std::vector<std::vector<value_t>> points;
+
+	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(_points) {}
+
+	value_t operator()(const index_t i, const index_t j) const {
+		return std::sqrt(std::inner_product(
+		    points[i].begin(), points[i].end(), points[j].begin(), value_t(), std::plus<value_t>(),
+		    [](value_t u, value_t v) { return (u - v) * (u - v); }));
+	}
+
+	size_t size() const { return points.size(); }
+};
 
 template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
 	if (column.empty())
