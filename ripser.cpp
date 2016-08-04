@@ -21,8 +21,9 @@
 //#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
-//#define FILE_FORMAT_LOWER_TRIANGULAR_CSV
-//#define FILE_FORMAT_UPPER_TRIANGULAR_CSV
+//#define FILE_FORMAT_LOWER_DISTANCE_MATRIX
+//#define FILE_FORMAT_UPPER_DISTANCE_MATRIX
+//#define FILE_FORMAT_DISTANCE_MATRIX
 //#define FILE_FORMAT_POINT_CLOUD
 //#define FILE_FORMAT_DIPHA
 
@@ -81,6 +82,13 @@ public:
 		return B[n][k];
 	}
 };
+
+bool is_prime(const coefficient_t n) {
+	if (!(n & 1) || n < 2) return n == 2;
+	for (coefficient_t p = 3, q = n / p, r = n % p; p <= q; p += 2, q = n / p, r = n % p)
+		if (!r) return false;
+	return true;
+}
 
 std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) {
 	std::vector<coefficient_t> inverse(m);
@@ -686,13 +694,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 }
 
-bool is_prime(const coefficient_t n) {
-	if (!(n & 1) || n < 2) return n == 2;
-	for (coefficient_t p = 3, q = n / p, r = n % p; p <= q; p += 2, q = n / p, r = n % p)
-		if (!r) return false;
-	return true;
-}
-
 template <typename T> T read(std::ifstream& s) {
 	T result;
 	s.read(reinterpret_cast<char*>(&result), sizeof(T));
@@ -796,7 +797,26 @@ int main(int argc, char** argv) {
 
 #endif
 
-#ifdef FILE_FORMAT_LOWER_TRIANGULAR_CSV
+#ifdef FILE_FORMAT_DISTANCE_MATRIX
+
+    std::vector<value_t> distances;
+
+	std::string line;
+	value_t value;
+	for (int i = 0; std::getline(input_stream, line); ++i) {
+		std::istringstream s(line);
+        for (int j = 0; j < i && s >> value; ++j) distances.push_back(value);
+	}
+
+	compressed_lower_distance_matrix dist(std::move(distances));
+
+	index_t n = dist.size();
+
+	std::cout << "distance matrix with " << n << " points" << std::endl;
+
+#endif
+
+#ifdef FILE_FORMAT_LOWER_DISTANCE_MATRIX
 
 	std::vector<value_t> distances;
 	value_t value;
@@ -813,7 +833,7 @@ int main(int argc, char** argv) {
 
 #endif
 
-#ifdef FILE_FORMAT_UPPER_TRIANGULAR_CSV
+#ifdef FILE_FORMAT_UPPER_DISTANCE_MATRIX
 
 	std::vector<value_t> distances;
 	value_t value;
@@ -859,10 +879,8 @@ int main(int argc, char** argv) {
 
 #endif
 
-#ifndef FILE_FORMAT_POINT_CLOUD
 	auto result = std::minmax_element(dist.distances.begin(), dist.distances.end());
 	std::cout << "value range: [" << *result.first << "," << *result.second << "]" << std::endl;
-#endif
 
 	dim_max = std::min(dim_max, n - 2);
 

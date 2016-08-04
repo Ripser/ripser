@@ -59,18 +59,19 @@ Ripser supports several compile-time options. They are switched on by defining t
 
 Furthermore, one of the following options needs to be chosen to specify the format for the input files:
 
-  - `FILE_FORMAT_LOWER_TRIANGULAR_CSV`: lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
-  - `FILE_FORMAT_UPPER_TRIANGULAR_CSV`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB function `pdist`, saved in a CSV file
+  - `FILE_FORMAT_LOWER_DISTANCE_MATRIX`: lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
+  - `FILE_FORMAT_UPPER_DISTANCE_MATRIX`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB function `pdist`, saved in a CSV file
+  - `FILE_FORMAT_DISTANCE_MATRIX`: full distance matrix; similar to the above, but for all entries of the distance matrix
   - `FILE_FORMAT_DIPHA`: DIPHA distance matrix as described on the [DIPHA] website
   - `FILE_FORMAT_POINT_CLOUD`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line
 
 For example, to build with support for coefficients:
 
 ```sh
-$ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_LOWER_TRIANGULAR_CSV -D USE_COEFFICIENTS
+$ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_LOWER_DISTANCE_MATRIX -D USE_COEFFICIENTS
 ```
 
-A Makefile is provided with some variants of the above options. Use `make all` to build them. The default `make` only builds a binary with the option `FILE_FORMAT_LOWER_TRIANGULAR_CSV`.
+A Makefile is provided with some variants of the above options. Use `make all` to build them. The default `make` only builds a binary with the option `FILE_FORMAT_LOWER_DISTANCE_MATRIX`.
 
 The following options are supported at the command line:
 
