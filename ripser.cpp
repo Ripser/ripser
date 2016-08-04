@@ -778,10 +778,21 @@ int main(int argc, char** argv) {
 		if (!point.empty()) points.push_back(point);
 	}
 
-	euclidean_distance_matrix dist(std::move(points));
-	index_t n = dist.size();
+    euclidean_distance_matrix eucl_dist(std::move(points));
+    
+    index_t n = eucl_dist.size();
 
 	std::cout << "point cloud with " << n << " points" << std::endl;
+
+    std::vector<value_t> distances;
+    
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < i; ++j)
+            if (i > j) distances.push_back(eucl_dist(i,j));
+    
+    compressed_lower_distance_matrix dist(std::move(distances));
+
+	std::cout << "distance matrix with " << n << " points" << std::endl;
 
 #endif
 
