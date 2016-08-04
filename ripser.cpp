@@ -299,6 +299,17 @@ public:
 		assert(distances.size() == size() * (size() - 1) / 2);
 		init_rows();
 	}
+    
+    template <typename DistanceMatrix>
+	compressed_distance_matrix(const DistanceMatrix& mat)
+	    : rows(mat.size()) {
+		distances.resize(size() * (size() - 1) / 2);
+		init_rows();
+
+		for (index_t i = 1; i < size(); ++i)
+			for (index_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
+	}
+
 
 	value_t operator()(const index_t i, const index_t j) const;
 
@@ -324,23 +335,13 @@ template <> void compressed_distance_matrix<UPPER_TRIANGULAR>::init_rows() {
 template <>
 value_t compressed_distance_matrix<UPPER_TRIANGULAR>::operator()(const index_t i,
                                                                  const index_t j) const {
-	if (i < j)
-		return rows[i][j];
-	else if (i > j)
-		return rows[j][i];
-	else
-		return 0;
+	return i == j ? 0 : rows[std::min(i, j)][std::max(i, j)];
 }
 
 template <>
 value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(const index_t i,
                                                                  const index_t j) const {
-	if (i > j)
-		return rows[i][j];
-	else if (i < j)
-		return rows[j][i];
-	else
-		return 0;
+	return i == j ? 0 : rows[std::max(i, j)][std::min(i, j)];
 }
 
 typedef compressed_distance_matrix<LOWER_TRIANGULAR> compressed_lower_distance_matrix;
@@ -785,8 +786,6 @@ int main(int argc, char** argv) {
 
 	compressed_lower_distance_matrix dist(std::move(distances));
 
-	std::cout << "distance matrix with " << n << " points" << std::endl;
-
 #endif
 
 #ifdef FILE_FORMAT_DISTANCE_MATRIX
@@ -804,8 +803,6 @@ int main(int argc, char** argv) {
 
 	index_t n = dist.size();
 
-	std::cout << "distance matrix with " << n << " points" << std::endl;
-
 #endif
 
 #ifdef FILE_FORMAT_LOWER_DISTANCE_MATRIX
@@ -821,8 +818,6 @@ int main(int argc, char** argv) {
 
 	index_t n = dist.size();
 
-	std::cout << "distance matrix with " << n << " points" << std::endl;
-
 #endif
 
 #ifdef FILE_FORMAT_UPPER_DISTANCE_MATRIX
@@ -834,11 +829,10 @@ int main(int argc, char** argv) {
 		input_stream.ignore();
 	}
 
-	compressed_upper_distance_matrix dist(std::move(distances));
+	compressed_upper_distance_matrix dist_upper(std::move(distances));
+	compressed_lower_distance_matrix dist(dist_upper);
 
 	index_t n = dist.size();
-
-	std::cout << "distance matrix with " << n << " points" << std::endl;
 
 #endif
 
@@ -867,9 +861,9 @@ int main(int argc, char** argv) {
 
 	compressed_lower_distance_matrix dist(std::move(distances));
 
-	std::cout << "distance matrix with " << n << " points" << std::endl;
-
 #endif
+
+	std::cout << "distance matrix with " << n << " points" << std::endl;
 
 	auto result = std::minmax_element(dist.distances.begin(), dist.distances.end());
 	std::cout << "value range: [" << *result.first << "," << *result.second << "]" << std::endl;
