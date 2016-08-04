@@ -246,16 +246,8 @@ public:
 		assert(a < binomial_coeff(dist.size(), dim + 1));
 		assert(b < binomial_coeff(dist.size(), dim + 1));
 
-		value_t a_diam = 0, b_diam = diameter(b);
-
-		get_simplex_vertices(a, dim, dist.size(), binomial_coeff, vertices.begin());
-		for (index_t i = 0; i <= dim; ++i)
-			for (index_t j = i + 1; j <= dim; ++j) {
-				a_diam = std::max(a_diam, dist(vertices[i], vertices[j]));
-				if (a_diam > b_diam) return true;
-			}
-
-		return (a_diam == b_diam) && (a < b);
+		return greater_diameter_or_smaller_index<diameter_index_t>()(
+		    diameter_index_t(diameter(a), a), diameter_index_t(diameter(b), b));
 	}
 
 	template <typename Entry> bool operator()(const Entry& a, const Entry& b) const {
@@ -779,19 +771,19 @@ int main(int argc, char** argv) {
 		if (!point.empty()) points.push_back(point);
 	}
 
-    euclidean_distance_matrix eucl_dist(std::move(points));
-    
-    index_t n = eucl_dist.size();
+	euclidean_distance_matrix eucl_dist(std::move(points));
+
+	index_t n = eucl_dist.size();
 
 	std::cout << "point cloud with " << n << " points" << std::endl;
 
-    std::vector<value_t> distances;
-    
-    for (int i = 0; i < n; ++i)
-        for (int j = 0; j < i; ++j)
-            if (i > j) distances.push_back(eucl_dist(i,j));
-    
-    compressed_lower_distance_matrix dist(std::move(distances));
+	std::vector<value_t> distances;
+
+	for (int i = 0; i < n; ++i)
+		for (int j = 0; j < i; ++j)
+			if (i > j) distances.push_back(eucl_dist(i, j));
+
+	compressed_lower_distance_matrix dist(std::move(distances));
 
 	std::cout << "distance matrix with " << n << " points" << std::endl;
 
@@ -799,13 +791,13 @@ int main(int argc, char** argv) {
 
 #ifdef FILE_FORMAT_DISTANCE_MATRIX
 
-    std::vector<value_t> distances;
+	std::vector<value_t> distances;
 
 	std::string line;
 	value_t value;
 	for (int i = 0; std::getline(input_stream, line); ++i) {
 		std::istringstream s(line);
-        for (int j = 0; j < i && s >> value; ++j) distances.push_back(value);
+		for (int j = 0; j < i && s >> value; ++j) distances.push_back(value);
 	}
 
 	compressed_lower_distance_matrix dist(std::move(distances));
