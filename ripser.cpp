@@ -87,8 +87,8 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 	inverse[1] = 1;
 	// m = a * (m / a) + m % a
 	// Multipying with inverse(a) * inverse(m % a):
-	// 0 = (m / a) * inverse(m % a) + inverse(a)  (mod m)
-	for (coefficient_t a = 2; a < m; ++a) inverse[a] = m - ((m / a) * inverse[m % a]) % m;
+	// 0 = inverse(m % a) * (m / a)  + inverse(a)  (mod m)
+	for (coefficient_t a = 2; a < m; ++a) inverse[a] = m - (inverse[m % a] * (m / a)) % m;
 	return inverse;
 }
 

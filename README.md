@@ -54,7 +54,7 @@ Ripser supports several compile-time options. They are switched on by defining t
   - `ASSEMBLE_REDUCTION_MATRIX`: store the reduction matrix; may speed up computation but will also increase memory usage
   - `USE_COEFFICIENTS`: enable support for coefficients in a prime field
   - `INDICATE_PROGRESS`: indicate the current progress in the console
-  - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default)
+  - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default in the code; comment out to disable)
   - `USE_GOOGLE_HASHMAP`: enable support for Google's [sparsehash] data structure; may further reducue memory footprint
 
 Furthermore, one of the following options needs to be chosen to specify the format for the input files:
@@ -62,12 +62,15 @@ Furthermore, one of the following options needs to be chosen to specify the form
   - `FILE_FORMAT_LOWER_TRIANGULAR_CSV`: lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
   - `FILE_FORMAT_UPPER_TRIANGULAR_CSV`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB function `pdist`, saved in a CSV file
   - `FILE_FORMAT_DIPHA`: DIPHA distance matrix as described on the [DIPHA] website
+  - `FILE_FORMAT_POINT_CLOUD`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line
 
 For example, to build with support for coefficients:
 
 ```sh
 $ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_LOWER_TRIANGULAR_CSV -D USE_COEFFICIENTS
 ```
+
+A Makefile is provided with some variants of the above options. Use `make all` to build them. The default `make` only builds a binary with the option `FILE_FORMAT_LOWER_TRIANGULAR_CSV`.
 
 The following options are supported at the command line:
 
@@ -87,7 +90,7 @@ The following features are currently planned for future versions:
 
 ### License
 
-[LGPL] 3.0
+Ripser is licensed under the [LGPL] 3.0. Please contact the author if you want to use Ripser in your software under a different license. 
 
 
 [Ulrich Bauer]: <http://ulrich-bauer.org>
