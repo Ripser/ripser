@@ -21,12 +21,6 @@
 //#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
-//#define FILE_FORMAT_LOWER_DISTANCE_MATRIX
-//#define FILE_FORMAT_UPPER_DISTANCE_MATRIX
-//#define FILE_FORMAT_DISTANCE_MATRIX
-//#define FILE_FORMAT_POINT_CLOUD
-//#define FILE_FORMAT_DIPHA
-
 //#define USE_GOOGLE_HASHMAP
 
 #include <algorithm>
@@ -299,17 +293,15 @@ public:
 		assert(distances.size() == size() * (size() - 1) / 2);
 		init_rows();
 	}
-    
-    template <typename DistanceMatrix>
+
+	template <typename DistanceMatrix>
 	compressed_distance_matrix(const DistanceMatrix& mat)
-	    : rows(mat.size()) {
-		distances.resize(size() * (size() - 1) / 2);
+	    : distances(mat.size() * (mat.size() - 1) / 2), rows(mat.size()) {
 		init_rows();
 
 		for (index_t i = 1; i < size(); ++i)
 			for (index_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
 	}
-
 
 	value_t operator()(const index_t i, const index_t j) const;
 
@@ -687,26 +679,148 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 }
 
+enum file_format {
+	LOWER_DISTANCE_MATRIX,
+	UPPER_DISTANCE_MATRIX,
+	DISTANCE_MATRIX,
+	POINT_CLOUD,
+	DIPHA
+};
+
 template <typename T> T read(std::istream& s) {
 	T result;
 	s.read(reinterpret_cast<char*>(&result), sizeof(T));
 	return result; // on little endian: boost::endian::little_to_native(result);
 }
 
+compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
+	std::vector<std::vector<value_t>> points;
+
+	std::string line;
+	value_t value;
+	while (std::getline(input_stream, line)) {
+		std::vector<value_t> point;
+		std::istringstream s(line);
+		while (s >> value) point.push_back(value);
+		if (!point.empty()) points.push_back(point);
+		assert(point.size() == points.front().size());
+	}
+
+	euclidean_distance_matrix eucl_dist(std::move(points));
+
+	index_t n = eucl_dist.size();
+
+	std::cout << "point cloud with " << n << " points in dimension "
+	          << eucl_dist.points.front().size() << std::endl;
+
+	std::vector<value_t> distances;
+
+	for (int i = 0; i < n; ++i)
+		for (int j = 0; j < i; ++j)
+			if (i > j) distances.push_back(eucl_dist(i, j));
+
+	return compressed_lower_distance_matrix(std::move(distances));
+}
+
+compressed_lower_distance_matrix read_lower_distance_matrix(std::istream& input_stream) {
+	std::vector<value_t> distances;
+	value_t value;
+	while (input_stream >> value) {
+		distances.push_back(value);
+		input_stream.ignore();
+	}
+
+	return compressed_lower_distance_matrix(std::move(distances));
+}
+
+compressed_lower_distance_matrix read_upper_distance_matrix(std::istream& input_stream) {
+	std::vector<value_t> distances;
+	value_t value;
+	while (input_stream >> value) {
+		distances.push_back(value);
+		input_stream.ignore();
+	}
+
+	return compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
+}
+
+compressed_lower_distance_matrix read_distance_matrix(std::istream& input_stream) {
+	std::vector<value_t> distances;
+
+	std::string line;
+	value_t value;
+	for (int i = 0; std::getline(input_stream, line); ++i) {
+		std::istringstream s(line);
+		for (int j = 0; j < i && s >> value; ++j) distances.push_back(value);
+	}
+
+	return compressed_lower_distance_matrix(std::move(distances));
+}
+
+compressed_lower_distance_matrix read_dipha(std::istream& input_stream) {
+	if (read<int64_t>(input_stream) != 8067171840) {
+		std::cerr << "input is not a Dipha file (magic number: 8067171840)" << std::endl;
+		exit(-1);
+	}
+
+	if (read<int64_t>(input_stream) != 7) {
+		std::cerr << "input is not a Dipha distance matrix (file type: 7)" << std::endl;
+		exit(-1);
+	}
+
+	index_t n = read<int64_t>(input_stream);
+
+	std::vector<value_t> distances;
+
+	for (int i = 0; i < n; ++i)
+		for (int j = 0; j < n; ++j)
+			if (i > j)
+				distances.push_back(read<double>(input_stream));
+			else
+				read<double>(input_stream);
+
+	return compressed_lower_distance_matrix(std::move(distances));
+}
+
+compressed_lower_distance_matrix read_file(std::istream& input_stream, file_format format) {
+	switch (format) {
+	case LOWER_DISTANCE_MATRIX:
+		return read_lower_distance_matrix(input_stream);
+	case UPPER_DISTANCE_MATRIX:
+		return read_upper_distance_matrix(input_stream);
+	case DISTANCE_MATRIX:
+		return read_distance_matrix(input_stream);
+	case POINT_CLOUD:
+		return read_point_cloud(input_stream);
+	case DIPHA:
+		return read_dipha(input_stream);
+	}
+}
+
 void print_usage_and_exit(int exit_code) {
 	std::cerr << "Usage: "
 	          << "ripser "
-	          << "[options] filename" << std::endl;
-	std::cerr << std::endl;
-	std::cerr << "Options:" << std::endl;
-	std::cerr << std::endl;
-	std::cerr << "  --help           print this screen" << std::endl;
-	std::cerr << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl;
-	std::cerr << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl;
+	          << "[options] [filename]" << std::endl
+	          << std::endl
+	          << "Options:" << std::endl
+	          << std::endl
+	          << "  --help           print this screen" << std::endl
+	          << "  --format         use the specified file format for the input. Options are:"
+	          << std::endl
+	          << "                     lower-distance (lower triangular distance matrix; default)"
+	          << std::endl
+	          << "                     upper-distance (upper triangular distance matrix)"
+	          << std::endl
+	          << "                     distance       (full distance matrix)" << std::endl
+	          << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
+	          << "                     dipha          (distance matrix in DIPHA file format)"
+	          << std::endl
+	          << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
+	          << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
 #ifdef USE_COEFFICIENTS
-	std::cerr << "  --modulus <p>    compute homology with coefficients in the prime field Z/<p>Z"
-	          << std::endl;
+	          << "  --modulus <p>    compute homology with coefficients in the prime field Z/<p>Z"
 #endif
+	          << std::endl;
 
 	exit(exit_code);
 }
@@ -714,6 +828,8 @@ void print_usage_and_exit(int exit_code) {
 int main(int argc, char** argv) {
 
 	const char* filename = nullptr;
+
+	file_format format = LOWER_DISTANCE_MATRIX;
 
 	index_t dim_max = 1;
 	value_t threshold = std::numeric_limits<value_t>::max();
@@ -738,6 +854,20 @@ int main(int argc, char** argv) {
 			size_t next_pos;
 			threshold = std::stof(parameter, &next_pos);
 			if (next_pos != parameter.size()) print_usage_and_exit(-1);
+		} else if (arg == "--format") {
+			std::string parameter = std::string(argv[++i]);
+			if (parameter == "lower-distance")
+				format = LOWER_DISTANCE_MATRIX;
+			else if (parameter == "upper-distance")
+				format = UPPER_DISTANCE_MATRIX;
+			else if (parameter == "distance")
+				format = UPPER_DISTANCE_MATRIX;
+			else if (parameter == "point-cloud")
+				format = POINT_CLOUD;
+			else if (parameter == "dipha")
+				format = DIPHA;
+			else
+				print_usage_and_exit(-1);
 #ifdef USE_COEFFICIENTS
 		} else if (arg == "--modulus") {
 			std::string parameter = std::string(argv[++i]);
@@ -750,123 +880,16 @@ int main(int argc, char** argv) {
 			filename = argv[i];
 		}
 	}
-    
-    std::istream* input_stream_ptr = &std::cin;
-	std::ifstream input_file(filename);
-    if (filename) {
-        if (input_file.fail()) {
-            std::cerr << "couldn't open file " << filename << std::endl;
-            exit(-1);
-        }
-        input_stream_ptr = &input_file;
-    }
-    std::istream& input_stream = *input_stream_ptr;
 
-
-#ifdef FILE_FORMAT_POINT_CLOUD
-
-	std::vector<std::vector<value_t>> points;
-
-	std::string line;
-	value_t value;
-	while (std::getline(input_stream, line)) {
-		std::vector<value_t> point;
-		std::istringstream s(line);
-		while (s >> value) point.push_back(value);
-		if (!point.empty()) points.push_back(point);
-        assert(point.size() == points.front().size());
-	}
-
-	euclidean_distance_matrix eucl_dist(std::move(points));
-
-	index_t n = eucl_dist.size();
-
-	std::cout << "point cloud with " << n << " points in dimension " << eucl_dist.points.front().size() << std::endl;
-
-	std::vector<value_t> distances;
-
-	for (int i = 0; i < n; ++i)
-		for (int j = 0; j < i; ++j)
-			if (i > j) distances.push_back(eucl_dist(i, j));
-
-	compressed_lower_distance_matrix dist(std::move(distances));
-
-#endif
-
-#ifdef FILE_FORMAT_DISTANCE_MATRIX
-
-	std::vector<value_t> distances;
-
-	std::string line;
-	value_t value;
-	for (int i = 0; std::getline(input_stream, line); ++i) {
-		std::istringstream s(line);
-		for (int j = 0; j < i && s >> value; ++j) distances.push_back(value);
-	}
-
-	compressed_lower_distance_matrix dist(std::move(distances));
-
-	index_t n = dist.size();
-
-#endif
-
-#ifdef FILE_FORMAT_LOWER_DISTANCE_MATRIX
-
-	std::vector<value_t> distances;
-	value_t value;
-	while (input_stream >> value) {
-		distances.push_back(value);
-		input_stream.ignore();
-	}
-
-	compressed_lower_distance_matrix dist(std::move(distances));
-
-	index_t n = dist.size();
-
-#endif
-
-#ifdef FILE_FORMAT_UPPER_DISTANCE_MATRIX
-
-	std::vector<value_t> distances;
-	value_t value;
-	while (input_stream >> value) {
-		distances.push_back(value);
-		input_stream.ignore();
-	}
-
-	compressed_upper_distance_matrix dist_upper(std::move(distances));
-	compressed_lower_distance_matrix dist(dist_upper);
-
-	index_t n = dist.size();
-
-#endif
-
-#ifdef FILE_FORMAT_DIPHA
-
-	if (read<int64_t>(input_stream) != 8067171840) {
-		std::cerr << filename << " is not a Dipha file (magic number: 8067171840)" << std::endl;
+	std::ifstream file_stream(filename);
+	if (filename && file_stream.fail()) {
+		std::cerr << "couldn't open file " << filename << std::endl;
 		exit(-1);
 	}
 
-	if (read<int64_t>(input_stream) != 7) {
-		std::cerr << filename << " is not a Dipha distance matrix (file type: 7)" << std::endl;
-		exit(-1);
-	}
+	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
 
-	index_t n = read<int64_t>(input_stream);
-
-	std::vector<value_t> distances;
-
-	for (int i = 0; i < n; ++i)
-		for (int j = 0; j < n; ++j)
-			if (i > j)
-				distances.push_back(read<double>(input_stream));
-			else
-				read<double>(input_stream);
-
-	compressed_lower_distance_matrix dist(std::move(distances));
-
-#endif
+	index_t n = dist.size();
 
 	std::cout << "distance matrix with " << n << " points" << std::endl;
 

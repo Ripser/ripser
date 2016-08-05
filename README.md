@@ -21,8 +21,8 @@ Input formats currently supported by Ripser:
   - comma-separated values lower triangular distance matrix (preferred)
   - comma-separated values upper triangular distance matrix (MATLAB output from the function `pdist`)
   - comma-separated values full distance matrix
-  - point cloud data
   - [DIPHA] distance matrix data
+  - point cloud data
 
 Ripser's efficiency is based on a few important concepts and principles:
   
@@ -59,27 +59,27 @@ Ripser supports several compile-time options. They are switched on by defining t
   - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default in the code; comment out to disable)
   - `USE_GOOGLE_HASHMAP`: enable support for Google's [sparsehash] data structure; may further reducue memory footprint
 
-Furthermore, one of the following options needs to be chosen to specify the format for the input files:
-
-  - `FILE_FORMAT_LOWER_DISTANCE_MATRIX`: lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
-  - `FILE_FORMAT_UPPER_DISTANCE_MATRIX`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB function `pdist`, saved in a CSV file
-  - `FILE_FORMAT_DISTANCE_MATRIX`: full distance matrix; similar to the above, but for all entries of the distance matrix
-  - `FILE_FORMAT_DIPHA`: DIPHA distance matrix as described on the [DIPHA] website
-  - `FILE_FORMAT_POINT_CLOUD`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line
-
-For example, to build with support for coefficients:
+For example, to build Ripser with support for coefficients:
 
 ```sh
-$ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_LOWER_DISTANCE_MATRIX -D USE_COEFFICIENTS
+$ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D USE_COEFFICIENTS
 ```
 
-A Makefile is provided with some variants of the above options. Use `make all` to build them. The default `make` only builds a binary with the option `FILE_FORMAT_LOWER_DISTANCE_MATRIX`.
+A Makefile is provided with some variants of the above options. Use `make all` to build them. The default `make` builds a binary without any of the above option.
 
-The following options are supported at the command line:
+The input is given either in a file whose name is passed as an argument, or through stdin. The following options are supported at the command line:
 
+  - `--format`: use the specified file format for the input.  The following formats are supported:
+    - `lower-distance` (default if no format is specified): lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
+    - `upper-distance`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB functions `pdist` or  `seqpdist`, exported to a CSV file
+    - `distances`: full distance matrix; similar to the above, but for all entries of the distance matrix
+    - `dipha`: DIPHA distance matrix as described on the [DIPHA] website
+    - `point-cloud`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line
   - `--dim k`: compute persistent homology up to dimension *k*
   - `--threshold t`: compute Rips complexes up to diameter *t*
   - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when built with the option `USE_COEFFICIENTS`)
+
+
 
 
 ### Planned features
