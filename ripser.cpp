@@ -770,13 +770,14 @@ int main(int argc, char** argv) {
 		std::istringstream s(line);
 		while (s >> value) point.push_back(value);
 		if (!point.empty()) points.push_back(point);
+        assert(point.size() == points.front().size());
 	}
 
 	euclidean_distance_matrix eucl_dist(std::move(points));
 
 	index_t n = eucl_dist.size();
 
-	std::cout << "point cloud with " << n << " points" << std::endl;
+	std::cout << "point cloud with " << n << " points in dimension " << eucl_dist.points.front().size() << std::endl;
 
 	std::vector<value_t> distances;
 
