@@ -687,7 +687,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 #endif
 }
 
-template <typename T> T read(std::ifstream& s) {
+template <typename T> T read(std::istream& s) {
 	T result;
 	s.read(reinterpret_cast<char*>(&result), sizeof(T));
 	return result; // on little endian: boost::endian::little_to_native(result);
@@ -712,8 +712,6 @@ void print_usage_and_exit(int exit_code) {
 }
 
 int main(int argc, char** argv) {
-
-	if (argc < 2) print_usage_and_exit(-1);
 
 	const char* filename = nullptr;
 
@@ -752,12 +750,18 @@ int main(int argc, char** argv) {
 			filename = argv[i];
 		}
 	}
+    
+    std::istream* input_stream_ptr = &std::cin;
+	std::ifstream input_file(filename);
+    if (filename) {
+        if (input_file.fail()) {
+            std::cerr << "couldn't open file " << filename << std::endl;
+            exit(-1);
+        }
+        input_stream_ptr = &input_file;
+    }
+    std::istream& input_stream = *input_stream_ptr;
 
-	std::ifstream input_stream(filename);
-	if (input_stream.fail()) {
-		std::cerr << "couldn't open file " << filename << std::endl;
-		exit(-1);
-	}
 
 #ifdef FILE_FORMAT_POINT_CLOUD
 
