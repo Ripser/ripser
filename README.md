@@ -20,6 +20,8 @@ Input formats currently supported by Ripser:
 
   - comma-separated values lower triangular distance matrix (preferred)
   - comma-separated values upper triangular distance matrix (MATLAB output from the function `pdist`)
+  - comma-separated values full distance matrix
+  - point cloud data
   - [DIPHA] distance matrix data
 
 Ripser's efficiency is based on a few important concepts and principles:
@@ -84,7 +86,6 @@ The following options are supported at the command line:
 
 The following features are currently planned for future versions:
 
- - support for point clouds
  - computation of representative cycles for persistent homology (currenly only *co*cycles are computed)
  - support for sparse distance matrices
 
