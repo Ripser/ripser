@@ -861,7 +861,7 @@ int main(int argc, char** argv) {
 			else if (parameter == "upper-distance")
 				format = UPPER_DISTANCE_MATRIX;
 			else if (parameter == "distance")
-				format = UPPER_DISTANCE_MATRIX;
+				format = DISTANCE_MATRIX;
 			else if (parameter == "point-cloud")
 				format = POINT_CLOUD;
 			else if (parameter == "dipha")
