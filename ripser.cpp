@@ -701,8 +701,11 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	while (std::getline(input_stream, line)) {
 		std::vector<value_t> point;
 		std::istringstream s(line);
-		while (s >> value) point.push_back(value);
-		if (!point.empty()) points.push_back(point);
+		while (s >> value) {
+            point.push_back(value);
+            s.ignore();
+        }
+		if (!point.empty()) points.push_back(point); 
 		assert(point.size() == points.front().size());
 	}
 
@@ -751,7 +754,10 @@ compressed_lower_distance_matrix read_distance_matrix(std::istream& input_stream
 	value_t value;
 	for (int i = 0; std::getline(input_stream, line); ++i) {
 		std::istringstream s(line);
-		for (int j = 0; j < i && s >> value; ++j) distances.push_back(value);
+		for (int j = 0; j < i && s >> value; ++j) {
+            distances.push_back(value);
+            s.ignore();
+        }
 	}
 
 	return compressed_lower_distance_matrix(std::move(distances));
