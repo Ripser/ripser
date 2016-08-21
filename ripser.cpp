@@ -251,14 +251,13 @@ public:
 
 class simplex_coboundary_enumerator {
 private:
-	index_t idx, modified_idx, dim, v, k;
+	index_t idx, modified_idx, v, k;
 	const binomial_coeff_table& binomial_coeff;
 
 public:
 	simplex_coboundary_enumerator(index_t _idx, index_t _dim, index_t _n,
 	                              const binomial_coeff_table& _binomial_coeff)
-	    : idx(_idx), modified_idx(_idx), dim(_dim), k(dim + 1), v(_n - 1),
-	      binomial_coeff(_binomial_coeff) {}
+	    : idx(_idx), modified_idx(_idx), v(_n - 1), k(_dim + 1), binomial_coeff(_binomial_coeff) {}
 
 	bool has_next() {
 		while ((v != -1) && (binomial_coeff(v, k) <= idx)) {
@@ -702,10 +701,10 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 		std::vector<value_t> point;
 		std::istringstream s(line);
 		while (s >> value) {
-            point.push_back(value);
-            s.ignore();
-        }
-		if (!point.empty()) points.push_back(point); 
+			point.push_back(value);
+			s.ignore();
+		}
+		if (!point.empty()) points.push_back(point);
 		assert(point.size() == points.front().size());
 	}
 
@@ -755,9 +754,9 @@ compressed_lower_distance_matrix read_distance_matrix(std::istream& input_stream
 	for (int i = 0; std::getline(input_stream, line); ++i) {
 		std::istringstream s(line);
 		for (int j = 0; j < i && s >> value; ++j) {
-            distances.push_back(value);
-            s.ignore();
-        }
+			distances.push_back(value);
+			s.ignore();
+		}
 	}
 
 	return compressed_lower_distance_matrix(std::move(distances));
