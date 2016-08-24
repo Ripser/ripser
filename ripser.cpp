@@ -33,8 +33,7 @@
 #include <sstream>
 #include <unordered_map>
 
-#include <boost/pending/disjoint_sets.hpp>
-#include <boost/property_map/vector_property_map.hpp>
+
 
 #include "prettyprint.hpp"
 
@@ -61,6 +60,7 @@ typedef float value_t;
 
 typedef long index_t;
 typedef long coefficient_t;
+
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
@@ -347,6 +347,47 @@ public:
 	}
 
 	size_t size() const { return points.size(); }
+};
+
+class union_find
+{
+	std::vector<index_t> parent;
+	std::vector<uint8_t> rank;
+public:
+	
+	union_find(index_t n): rank(n, 0), parent(n)
+	{
+		for (index_t i = 0; i < n; ++i)
+			parent[i] = i;
+	}
+	
+	index_t find(index_t x) {
+		index_t y = x, z = parent[y];
+		while (z != y) {
+			y = z;
+			z = parent[y];
+		}
+		y = parent[x];
+		while (z != y) {
+			parent[x] = z;
+			x = y;
+			y = parent[x];
+		}
+		return z;
+	}
+	void link(index_t x, index_t y)
+	{
+		x = find(x);
+		y = find(y);
+		if (x == y) return;
+		if (rank[x] > rank[y])
+			parent[y] = x;
+		else {
+			parent[x] = y;
+			if (rank[x] == rank[y])
+				++rank[y];
+		}
+	}
 };
 
 template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
@@ -883,14 +924,7 @@ int main(int argc, char** argv) {
 
 	std::vector<diameter_index_t> columns_to_reduce;
 	
-	boost::vector_property_map<size_t> rank(n);
- 	boost::vector_property_map<index_t> parent(n);
- 
-	boost::disjoint_sets<boost::vector_property_map<size_t>, boost::vector_property_map<index_t>>  dset(rank, parent);
-
-	for (index_t index = n; index-- > 0;) {
-		dset.make_set(index);
-	}
+	union_find dset(n);
 	
 	std::vector<diameter_index_t> edges(binomial_coeff(n, 2));
 	
@@ -914,7 +948,7 @@ int main(int argc, char** argv) {
 		
 		vertices_of_edge.clear();
 		get_simplex_vertices(get_index(e), 1, n, binomial_coeff, std::back_inserter(vertices_of_edge));
-		index_t u = dset.find_set(vertices_of_edge[0]), v = dset.find_set(vertices_of_edge[1]);
+		index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 		
 		if ( u != v ) {
 //			std::cout << "tree edge " << vertices_of_edge[0] << "-" << vertices_of_edge[1] << " " << e << std::endl;
