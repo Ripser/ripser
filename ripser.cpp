@@ -336,18 +336,15 @@ public:
 	size_t size() const { return points.size(); }
 };
 
-class union_find
-{
+class union_find {
 	std::vector<index_t> parent;
 	std::vector<uint8_t> rank;
+
 public:
-	
-	union_find(index_t n): rank(n, 0), parent(n)
-	{
-		for (index_t i = 0; i < n; ++i)
-			parent[i] = i;
+	union_find(index_t n) : parent(n), rank(n, 0) {
+		for (index_t i = 0; i < n; ++i) parent[i] = i;
 	}
-	
+
 	index_t find(index_t x) {
 		index_t y = x, z = parent[y];
 		while (z != y) {
@@ -362,8 +359,7 @@ public:
 		}
 		return z;
 	}
-	void link(index_t x, index_t y)
-	{
+	void link(index_t x, index_t y) {
 		x = find(x);
 		y = find(y);
 		if (x == y) return;
@@ -371,8 +367,7 @@ public:
 			parent[y] = x;
 		else {
 			parent[x] = y;
-			if (rank[x] == rank[y])
-				++rank[y];
+			if (rank[x] == rank[y]) ++rank[y];
 		}
 	}
 };
@@ -420,10 +415,10 @@ template <typename Heap> diameter_entry_t get_pivot(Heap& column, coefficient_t 
 }
 
 template <typename ValueType> class compressed_sparse_matrix {
-public:
 	std::vector<size_t> bounds;
 	std::vector<ValueType> entries;
 
+public:
 	size_t size() const { return bounds.size(); }
 
 	typename std::vector<ValueType>::const_iterator cbegin(size_t index) const {
@@ -528,8 +523,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-		                    greater_diameter_or_smaller_index<diameter_entry_t>>
-		    working_coboundary;
+		                    greater_diameter_or_smaller_index<diameter_entry_t>> working_coboundary;
 
 		value_t diameter = get_diameter(column_to_reduce);
 
@@ -850,9 +844,7 @@ int main(int argc, char** argv) {
 
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
-		if (arg == "--help") {
-			print_usage_and_exit(0);
-		} else if (arg == "--dim") {
+		if (arg == "--help") { print_usage_and_exit(0); } else if (arg == "--dim") {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			dim_max = std::stol(parameter, &next_pos);
@@ -910,7 +902,7 @@ int main(int argc, char** argv) {
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
 
 	std::vector<diameter_index_t> columns_to_reduce;
-	
+
 	{
 		union_find dset(n);
 		std::vector<diameter_index_t> edges;
@@ -920,18 +912,18 @@ int main(int argc, char** argv) {
 			if (diameter <= threshold) edges.push_back(diameter_index_t(diameter, index));
 		}
 		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
-		
+
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim 0:" << std::endl;
 #endif
-		
+
 		std::vector<index_t> vertices_of_edge(2);
-		for (auto e: edges) {
+		for (auto e : edges) {
 			vertices_of_edge.clear();
 			get_simplex_vertices(get_index(e), 1, n, binomial_coeff, std::back_inserter(vertices_of_edge));
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
-			
-			if ( u != v ) {
+
+			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 				std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
@@ -940,24 +932,23 @@ int main(int argc, char** argv) {
 				columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
-		
+
 #ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i)
-				std::cout << " [0, )" << std::endl << std::flush;
+			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
 #endif
 	}
-	
+
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
 		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
 		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
-		
+
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
-		
+
 		compute_pairs(columns_to_reduce, pivot_column_index, dist, comp, comp_prev, dim, n, threshold, modulus,
-					  multiplicative_inverse, binomial_coeff);
-		
+		              multiplicative_inverse, binomial_coeff);
+
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
 			//			std::cout << columns_to_reduce << std::endl;
