@@ -33,6 +33,19 @@
 #include <sstream>
 #include <unordered_map>
 
+#include <boost/pending/disjoint_sets.hpp>
+#include <boost/property_map/vector_property_map.hpp>
+
+#include "prettyprint.hpp"
+
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/bind.h>
+
+using namespace emscripten;
+#endif
+
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/sparse_hash_map>
 template <class Key, class T> class hash_map : public google::sparse_hash_map<Key, T> {
@@ -559,7 +572,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 					index_t coface_index = get_index(coface);
 					value_t coface_diameter = simplex_diameter;
 					for (index_t v : vertices) { coface_diameter = std::max(coface_diameter, dist(v, covertex)); }
-					assert(comp.diameter(coface_index) == coface_diameter);
+					assert(dim == 0 || comp.diameter(coface_index) == coface_diameter);
 
 					if (coface_diameter <= threshold) {
 						coefficient_t coface_coefficient = get_coefficient(coface) * get_coefficient(simplex) * factor;
@@ -869,10 +882,66 @@ int main(int argc, char** argv) {
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
 
 	std::vector<diameter_index_t> columns_to_reduce;
-	for (index_t index = n; index-- > 0;) columns_to_reduce.push_back(diameter_index_t(0, index));
+	
+	boost::vector_property_map<size_t> rank(n);
+ 	boost::vector_property_map<index_t> parent(n);
+ 
+	boost::disjoint_sets<boost::vector_property_map<size_t>, boost::vector_property_map<index_t>>  dset(rank, parent);
 
-	for (index_t dim = 0; dim <= dim_max; ++dim) {
+	for (index_t index = n; index-- > 0;) {
+		dset.make_set(index);
+	}
+	
+	std::vector<diameter_index_t> edges(binomial_coeff(n, 2));
+	
+	rips_filtration_comparator<decltype(dist)> comp(dist, 1, binomial_coeff);
+	
+	assert(dist.distances.size() == binomial_coeff(n, 2));
+	
+	for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
+		edges[index] = diameter_index_t(comp.diameter(index), index);
+	}
+	
+	std::sort(edges.rbegin(), edges.rend(), comp);
+	
+	std::vector<index_t> vertices_of_edge(2);
+	
+#ifdef PRINT_PERSISTENCE_PAIRS
+	std::cout << "persistence intervals in dim 0:" << std::endl;
+#endif
 
+	for (auto e: edges) {
+		
+		vertices_of_edge.clear();
+		get_simplex_vertices(get_index(e), 1, n, binomial_coeff, std::back_inserter(vertices_of_edge));
+		index_t u = dset.find_set(vertices_of_edge[0]), v = dset.find_set(vertices_of_edge[1]);
+		
+		if ( u != v ) {
+//			std::cout << "tree edge " << vertices_of_edge[0] << "-" << vertices_of_edge[1] << " " << e << std::endl;
+#ifdef PRINT_PERSISTENCE_PAIRS
+#ifdef INDICATE_PROGRESS
+			std::cout << "\033[K";
+#endif
+			std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+#endif
+			dset.link(u, v);
+		} else {
+//			std::cout << "cycle edge " << vertices_of_edge[0] << "-" << vertices_of_edge[1] << " " << e << std::endl;
+			columns_to_reduce.push_back(e);
+		}
+	}
+	
+	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
+			  greater_diameter_or_smaller_index<diameter_index_t>());
+	
+//	std::cout << columns_to_reduce << std::endl;
+	
+
+
+//	columns_to_reduce.clear();
+//	for (index_t index = n; index-- > 0;) columns_to_reduce.push_back(diameter_index_t(0, index));
+
+	for (index_t dim = 1; dim <= dim_max; ++dim) {
 		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
 		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
 
@@ -882,7 +951,9 @@ int main(int argc, char** argv) {
 		compute_pairs(columns_to_reduce, pivot_column_index, dist, comp, comp_prev, dim, n, threshold, modulus,
 		              multiplicative_inverse, binomial_coeff);
 
-		if (dim < dim_max)
+		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
+//			std::cout << columns_to_reduce << std::endl;
+		}
 	}
 }
