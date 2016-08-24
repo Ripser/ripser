@@ -309,12 +309,12 @@ template <> void compressed_distance_matrix<UPPER_TRIANGULAR>::init_rows() {
 }
 
 template <> value_t compressed_distance_matrix<UPPER_TRIANGULAR>::operator()(index_t i, index_t j) const {
-	std::tie(i, j) = std::minmax(i, j);
+	if (i > j) std::swap(i, j);
 	return i == j ? 0 : rows[i][j];
 }
 
 template <> value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(index_t i, index_t j) const {
-	std::tie(i, j) = std::minmax(i, j);
+	if (i > j) std::swap(i, j);
 	return i == j ? 0 : rows[j][i];
 }
 
