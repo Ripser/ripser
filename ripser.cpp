@@ -47,7 +47,7 @@ typedef float value_t;
 // typedef uint16_t value_t;
 
 typedef long index_t;
-typedef long coefficient_t;
+typedef short coefficient_t;
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
@@ -132,17 +132,21 @@ std::vector<index_t> vertices_of_simplex(const index_t simplex_index, const inde
 
 #ifdef USE_COEFFICIENTS
 struct entry_t {
-	index_t index;
+	index_t index : 8 * (sizeof(index_t) - sizeof(coefficient_t));
 	coefficient_t coefficient;
 	entry_t(index_t _index, coefficient_t _coefficient) : index(_index), coefficient(_coefficient) {}
 	entry_t(index_t _index) : index(_index), coefficient(1) {}
 	entry_t() : index(0), coefficient(1) {}
-};
+} __attribute__((packed));
+
+static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
+
 
 entry_t make_entry(index_t _index, coefficient_t _coefficient) { return entry_t(_index, _coefficient); }
 index_t get_index(entry_t e) { return e.index; }
 index_t get_coefficient(entry_t e) { return e.coefficient; }
 void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
+
 
 bool operator==(const entry_t& e1, const entry_t& e2) {
 	return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
