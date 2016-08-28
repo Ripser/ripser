@@ -19,9 +19,16 @@
 //#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
-#define PRINT_PERSISTENCE_PAIRS
+//#define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
+
+#ifdef __native_client__
+#include "ppapi/cpp/instance.h"
+#include "ppapi/cpp/module.h"
+#include "ppapi/cpp/var.h"
+#include "ppapi/cpp/var_dictionary.h"
+#endif
 
 #include <algorithm>
 #include <cassert>
@@ -32,6 +39,13 @@
 #include <queue>
 #include <sstream>
 #include <unordered_map>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/bind.h>
+
+using namespace emscripten;
+#endif
 
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/sparse_hash_map>
@@ -48,6 +62,53 @@ typedef float value_t;
 
 typedef long index_t;
 typedef short coefficient_t;
+
+#ifdef __native_client__
+
+class HelloTutorialInstance;
+static HelloTutorialInstance* instance;
+
+void ripser(std::string f, index_t dim_max, value_t threshold, index_t format_index);
+
+class HelloTutorialInstance : public pp::Instance {
+public:
+	explicit HelloTutorialInstance(PP_Instance pp_instance) : pp::Instance(pp_instance) { instance = this; }
+	virtual ~HelloTutorialInstance() {}
+
+	virtual void HandleMessage(const pp::Var& var_message) {
+		// Ignore the message if it is not a string.
+		if (!var_message.is_dictionary()) return;
+
+		pp::VarDictionary var_dict(var_message);
+
+		// Get the string message and compare it to "hello".
+		std::string file = var_dict.Get("file").AsString();
+
+		index_t dim = var_dict.Get("dim").AsInt();
+
+		value_t threshold = var_dict.Get("threshold").AsDouble();
+
+		index_t format = var_dict.Get("format").AsInt();
+
+		ripser(file, dim, threshold, format);
+	}
+};
+
+class HelloTutorialModule : public pp::Module {
+public:
+	HelloTutorialModule() : pp::Module() {}
+	virtual ~HelloTutorialModule() {}
+
+	virtual pp::Instance* CreateInstance(PP_Instance instance) { return new HelloTutorialInstance(instance); }
+};
+
+namespace pp {
+
+Module* CreateModule() { return new HelloTutorialModule(); }
+
+} // namespace pp
+
+#endif
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
@@ -504,6 +565,17 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #ifdef PRINT_PERSISTENCE_PAIRS
 	std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
+#ifdef __native_client__
+	pp::VarDictionary var_dict;
+	var_dict.Set("type", pp::Var("dim"));
+	var_dict.Set("dim", pp::Var(int32_t(dim)));
+	instance->PostMessage(var_dict);
+	
+	//instance->PostMessage(pp::Var((reinterpret_cast<std::ostringstream&>(std::ostringstream() << "persistence intervals in dim " << dim << ":" << std::endl)).str()));
+#endif
+#ifdef __EMSCRIPTEN__
+	EM_ASM_({ postMessage( {"type": "dim", "dim": $0 } ) }, dim);
+#endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 	compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
@@ -630,19 +702,46 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
 #endif
+#ifdef __native_client__
+				pp::VarDictionary var_dict;
+				var_dict.Set("type", "interval");
+				var_dict.Set("birth", diameter);
+				var_dict.Set("dim", int32_t(dim));
+				instance->PostMessage(var_dict);
+
+				//instance->PostMessage(pp::Var(" [" + std::to_string(diameter) + ", )\n"));
+#endif
+#ifdef __EMSCRIPTEN__
+				EM_ASM_({ postMessage({ "type": "interval", "birth": $0, "dim": $1 }) },
+						diameter, dim);
+#endif
 				break;
 			}
 
 		found_persistence_pair:
-#ifdef PRINT_PERSISTENCE_PAIRS
 			value_t death = get_diameter(pivot);
 			if (diameter != death) {
+#ifdef PRINT_PERSISTENCE_PAIRS
 #ifdef INDICATE_PROGRESS
 				std::cout << "\033[K";
 #endif
-				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
-			}
+				std::cout << " [" << diameter << "," << death << ")" << std::endl;
 #endif
+#ifdef __native_client__
+				pp::VarDictionary var_dict;
+				var_dict.Set("type", "interval");
+				var_dict.Set("birth", diameter);
+				var_dict.Set("death", death);
+				var_dict.Set("dim", int32_t(dim));
+				instance->PostMessage(var_dict);
+				
+				//instance->PostMessage(pp::Var(" [" + std::to_string(diameter) + "," + std::to_string(death) + ")\n"));
+#endif
+#ifdef __EMSCRIPTEN__
+				EM_ASM_({ postMessage({ "type": "interval", "birth": $0, "death": $1, "dim": $2 }) },
+						diameter, death, dim);
+#endif
+			}
 
 			pivot_column_index.insert(std::make_pair(get_index(pivot), i));
 
@@ -681,7 +780,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 }
 
-enum file_format { LOWER_DISTANCE_MATRIX, UPPER_DISTANCE_MATRIX, DISTANCE_MATRIX, POINT_CLOUD, DIPHA };
+enum file_format { LOWER_DISTANCE_MATRIX = 0, UPPER_DISTANCE_MATRIX, DISTANCE_MATRIX, POINT_CLOUD, DIPHA };
 
 template <typename T> T read(std::istream& s) {
 	T result;
@@ -709,7 +808,23 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 
 	index_t n = eucl_dist.size();
 
+#ifdef INDICATE_PROGRESS
 	std::cout << "point cloud with " << n << " points in dimension " << eucl_dist.points.front().size() << std::endl;
+#endif
+#ifdef __native_client__
+	pp::VarDictionary var_dict;
+	var_dict.Set("type", "point-cloud");
+	var_dict.Set("number", int32_t(n));
+	var_dict.Set("dim", int32_t(eucl_dist.points.front().size()));
+	instance->PostMessage(var_dict);
+
+	//instance->PostMessage(pp::Var("point cloud with " + std::to_string(n) + " points in dimension " +
+	//                              std::to_string(eucl_dist.points.front().size()) + "\n"));
+#endif
+#ifdef __EMSCRIPTEN__
+	EM_ASM_({ postMessage({ "type": "point-cloud", "number": $0, "dim": $1}) },
+			n, eucl_dist.points.front().size());
+#endif
 
 	std::vector<value_t> distances;
 
@@ -822,6 +937,11 @@ void print_usage_and_exit(int exit_code) {
 	exit(exit_code);
 }
 
+void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t threshold, file_format format,
+                      coefficient_t modulus);
+
+#ifndef __EMSCRIPTEN__
+#ifndef __native_client__
 int main(int argc, char** argv) {
 
 	const char* filename = nullptr;
@@ -884,14 +1004,38 @@ int main(int argc, char** argv) {
 		exit(-1);
 	}
 
-	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
+	compute_barcodes(filename ? file_stream : std::cin, dim_max, threshold, format, modulus);
+}
+#endif
+#endif
+
+void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t threshold, file_format format,
+                      coefficient_t modulus) {
+
+	compressed_lower_distance_matrix dist = read_file(file_stream, format);
 
 	index_t n = dist.size();
 
-	std::cout << "distance matrix with " << n << " points" << std::endl;
-
 	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
+
+#ifdef INDICATE_PROGRESS
+	std::cout << "distance matrix with " << n << " points" << std::endl;
 	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]" << std::endl;
+#endif
+#ifdef __native_client__
+	pp::VarDictionary var_dict;
+	var_dict.Set("type", "distance-matrix");
+	var_dict.Set("size", int32_t(n));
+	var_dict.Set("min", *value_range.first);
+	var_dict.Set("max", *value_range.second);
+	instance->PostMessage(var_dict);
+	
+	//instance->PostMessage(pp::Var("distance matrix with " + std::to_string(n) + " points\n"));
+#endif
+#ifdef __EMSCRIPTEN__
+	EM_ASM_({ postMessage({ "type": "distance-matrix", "size": $0, "min": $1, "max": $2 }) },
+						  n, *value_range.first, *value_range.second);
+#endif
 
 	dim_max = std::min(dim_max, n - 2);
 
@@ -913,6 +1057,17 @@ int main(int argc, char** argv) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim 0:" << std::endl;
 #endif
+#ifdef __native_client__
+		pp::VarDictionary var_dict;
+		var_dict.Set("type", pp::Var("dim"));
+		var_dict.Set("dim", 0);
+		instance->PostMessage(var_dict);
+		
+		//instance->PostMessage(pp::Var((reinterpret_cast<std::ostringstream&>(std::ostringstream() << "persistence intervals in dim " << dim << ":" << std::endl)).str()));
+#endif
+#ifdef __EMSCRIPTEN__
+		EM_ASM({ postMessage( {"type": "dim", "dim": 0 } ) });
+#endif
 
 		std::vector<index_t> vertices_of_edge(2);
 		for (auto e : edges) {
@@ -924,6 +1079,19 @@ int main(int argc, char** argv) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 				std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
+#ifdef __native_client__
+				pp::VarDictionary var_dict;
+				var_dict.Set("type", "interval");
+				var_dict.Set("birth", 0.);
+				var_dict.Set("death", get_diameter(e));
+				var_dict.Set("dim", 0);
+				instance->PostMessage(var_dict);
+				
+				//instance->PostMessage(pp::Var(" [" + std::to_string(diameter) + ", )\n"));
+#endif
+#ifdef __EMSCRIPTEN__
+				EM_ASM_({ postMessage({ "type": "interval", "birth": 0., "death": $0, "dim": 0 }) }, get_diameter(e));
+#endif
 				dset.link(u, v);
 			} else
 				columns_to_reduce.push_back(e);
@@ -932,7 +1100,21 @@ int main(int argc, char** argv) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+			if (dset.find(i) == i) {
+				std::cout << " [0, )" << std::endl << std::flush;
+#ifdef __native_client__
+				pp::VarDictionary var_dict;
+				var_dict.Set("type", "interval");
+				var_dict.Set("birth", 0);
+				var_dict.Set("dim", 0);
+				instance->PostMessage(var_dict);
+				
+				//instance->PostMessage(pp::Var(" [" + std::to_string(diameter) + ", )\n"));
+#endif
+#ifdef __EMSCRIPTEN__
+				EM_ASM({ postMessage({ "type": "interval", "birth": 0, "dim": 0 }) });
+#endif
+			}
 #endif
 	}
 
@@ -951,4 +1133,29 @@ int main(int argc, char** argv) {
 			//			std::cout << columns_to_reduce << std::endl;
 		}
 	}
+
+#ifdef __native_client__
+	instance->PostMessage(pp::Var());
+#endif
 }
+
+void ripser(std::string f, index_t dim_max, value_t threshold, index_t format_index) {
+
+	file_format format = static_cast<file_format>(format_index);
+
+	//threshold = threshold == 0 ? std::numeric_limits<value_t>::max() : threshold;
+
+#ifdef USE_COEFFICIENTS
+	coefficient_t modulus = 2;
+#else
+	const coefficient_t modulus = 2;
+#endif
+
+	std::stringstream file_stream(f);
+
+	compute_barcodes(file_stream, dim_max, threshold, format, modulus);
+}
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_BINDINGS(my_module) { function("ripser_emscripten", &ripser); }
+#endif

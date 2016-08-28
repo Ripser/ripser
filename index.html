@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title>Ripser</title>
+		<script type="text/javascript" src="common.js"></script>
+		<script type="text/javascript" src="ripser-web.js"></script>
+		<script src="https://d3js.org/d3.v4.min.js"></script>
+		<style>
+			body {
+				box-sizing: border-box;
+				min-width: 200px;
+				max-width: 980px;
+				margin: 0 auto;
+				padding-left: 45px;
+				padding-right: 45px;
+				padding-top: 15px;
+				font-family: "Helvetica Neue", Helvetica, sans-serif;
+			}
+		
+		.bar text {
+			fill: white;
+		}
+		
+		.axis path, .axis line {
+			fill: none;
+			stroke: black;
+			shape-rendering: crispEdges;
+		}
+		</style>
+	</head>
+	<body data-name="ripser" data-tools="pnacl glibc clang-newlib mac" data-configs="Debug Release" data-path="{tc}/{config}">
+		<h1>Ripser</h1>
+<!--		<h2>Status: <code id="statusField">NO-STATUS</code></h2>-->
+		<p>Load a <select id="format" size="1" style="width: automatic">
+			<option value = 2>distance matrix</option>
+			<option value = 0>lower dist matrix</option>
+			<option value = 1>upper dist matrix</option>
+			<option value = 3>point cloud</option>
+			<!--      <option value = 4>DIPHA distance matrix</option> -->
+		</select> to compute Vietoris&ndash;Rips persistence barcodes in dimensions <input id="dim_min" value="1" size="2"/> to <input id="dim" value="1" size="2"/> and up to distance
+		<input id="threshold" value="" size="4"/>:</p>
+		<input type="file" id="fileInput"/>
+		
+		
+		<div id="barcodes"></div>
+		
+
+		<pre id="log" style="font-weight:bold; display:none;"></pre>
+		
+		<p id = "time"></p>
+		
+		
+		<!-- The NaCl plugin will be embedded inside the element with id "listener".
+		 See common.js.-->
+		<div id="listener"></div>
+		
+		<script>
+			document.addEventListener("DOMContentLoaded", init, false);
+		</script>
+
+		
+	</body>
+</html>

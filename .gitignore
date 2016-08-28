@@ -2,3 +2,6 @@ DerivedData
 ripser.dSYM
 ripser
 ripser-coeff
+user-data-dir
+pnacl
+ripser.js
