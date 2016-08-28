@@ -43,8 +43,6 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/bind.h>
-
-using namespace emscripten;
 #endif
 
 #ifdef USE_GOOGLE_HASHMAP
@@ -64,50 +62,44 @@ typedef long index_t;
 typedef short coefficient_t;
 
 #ifdef __native_client__
-
-class HelloTutorialInstance;
-static HelloTutorialInstance* instance;
+class RipserInstance;
+static RipserInstance* instance;
 
 void ripser(std::string f, index_t dim_max, value_t threshold, index_t format_index);
 
-class HelloTutorialInstance : public pp::Instance {
+class RipserInstance : public pp::Instance {
 public:
-	explicit HelloTutorialInstance(PP_Instance pp_instance) : pp::Instance(pp_instance) { instance = this; }
-	virtual ~HelloTutorialInstance() {}
+	explicit RipserInstance(PP_Instance pp_instance) : pp::Instance(pp_instance) { instance = this; }
+	virtual ~RipserInstance() {}
 
 	virtual void HandleMessage(const pp::Var& var_message) {
-		// Ignore the message if it is not a string.
+
 		if (!var_message.is_dictionary()) return;
 
 		pp::VarDictionary var_dict(var_message);
 
-		// Get the string message and compare it to "hello".
 		std::string file = var_dict.Get("file").AsString();
-
 		index_t dim = var_dict.Get("dim").AsInt();
-
 		value_t threshold = var_dict.Get("threshold").AsDouble();
-
 		index_t format = var_dict.Get("format").AsInt();
 
 		ripser(file, dim, threshold, format);
 	}
 };
 
-class HelloTutorialModule : public pp::Module {
+class RipserModule : public pp::Module {
 public:
-	HelloTutorialModule() : pp::Module() {}
-	virtual ~HelloTutorialModule() {}
+	RipserModule() : pp::Module() {}
+	virtual ~RipserModule() {}
 
-	virtual pp::Instance* CreateInstance(PP_Instance instance) { return new HelloTutorialInstance(instance); }
+	virtual pp::Instance* CreateInstance(PP_Instance instance) { return new RipserInstance(instance); }
 };
 
 namespace pp {
 
-Module* CreateModule() { return new HelloTutorialModule(); }
+Module* CreateModule() { return new RipserModule(); }
 
 } // namespace pp
-
 #endif
 
 class binomial_coeff_table {
@@ -570,8 +562,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 	var_dict.Set("type", pp::Var("dim"));
 	var_dict.Set("dim", pp::Var(int32_t(dim)));
 	instance->PostMessage(var_dict);
-	
-	//instance->PostMessage(pp::Var((reinterpret_cast<std::ostringstream&>(std::ostringstream() << "persistence intervals in dim " << dim << ":" << std::endl)).str()));
 #endif
 #ifdef __EMSCRIPTEN__
 	EM_ASM_({ postMessage( {"type": "dim", "dim": $0 } ) }, dim);
@@ -708,8 +698,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				var_dict.Set("birth", diameter);
 				var_dict.Set("dim", int32_t(dim));
 				instance->PostMessage(var_dict);
-
-				//instance->PostMessage(pp::Var(" [" + std::to_string(diameter) + ", )\n"));
 #endif
 #ifdef __EMSCRIPTEN__
 				EM_ASM_({ postMessage({ "type": "interval", "birth": $0, "dim": $1 }) },
@@ -734,8 +722,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				var_dict.Set("death", death);
 				var_dict.Set("dim", int32_t(dim));
 				instance->PostMessage(var_dict);
-				
-				//instance->PostMessage(pp::Var(" [" + std::to_string(diameter) + "," + std::to_string(death) + ")\n"));
 #endif
 #ifdef __EMSCRIPTEN__
 				EM_ASM_({ postMessage({ "type": "interval", "birth": $0, "death": $1, "dim": $2 }) },
@@ -817,9 +803,6 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	var_dict.Set("number", int32_t(n));
 	var_dict.Set("dim", int32_t(eucl_dist.points.front().size()));
 	instance->PostMessage(var_dict);
-
-	//instance->PostMessage(pp::Var("point cloud with " + std::to_string(n) + " points in dimension " +
-	//                              std::to_string(eucl_dist.points.front().size()) + "\n"));
 #endif
 #ifdef __EMSCRIPTEN__
 	EM_ASM_({ postMessage({ "type": "point-cloud", "number": $0, "dim": $1}) },
@@ -1029,8 +1012,6 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 	var_dict.Set("min", *value_range.first);
 	var_dict.Set("max", *value_range.second);
 	instance->PostMessage(var_dict);
-	
-	//instance->PostMessage(pp::Var("distance matrix with " + std::to_string(n) + " points\n"));
 #endif
 #ifdef __EMSCRIPTEN__
 	EM_ASM_({ postMessage({ "type": "distance-matrix", "size": $0, "min": $1, "max": $2 }) },
@@ -1062,8 +1043,6 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 		var_dict.Set("type", pp::Var("dim"));
 		var_dict.Set("dim", 0);
 		instance->PostMessage(var_dict);
-		
-		//instance->PostMessage(pp::Var((reinterpret_cast<std::ostringstream&>(std::ostringstream() << "persistence intervals in dim " << dim << ":" << std::endl)).str()));
 #endif
 #ifdef __EMSCRIPTEN__
 		EM_ASM({ postMessage( {"type": "dim", "dim": 0 } ) });
@@ -1086,8 +1065,6 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 				var_dict.Set("death", get_diameter(e));
 				var_dict.Set("dim", 0);
 				instance->PostMessage(var_dict);
-				
-				//instance->PostMessage(pp::Var(" [" + std::to_string(diameter) + ", )\n"));
 #endif
 #ifdef __EMSCRIPTEN__
 				EM_ASM_({ postMessage({ "type": "interval", "birth": 0., "death": $0, "dim": 0 }) }, get_diameter(e));
@@ -1108,8 +1085,6 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 				var_dict.Set("birth", 0);
 				var_dict.Set("dim", 0);
 				instance->PostMessage(var_dict);
-				
-				//instance->PostMessage(pp::Var(" [" + std::to_string(diameter) + ", )\n"));
 #endif
 #ifdef __EMSCRIPTEN__
 				EM_ASM({ postMessage({ "type": "interval", "birth": 0, "dim": 0 }) });
@@ -1130,7 +1105,6 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
-			//			std::cout << columns_to_reduce << std::endl;
 		}
 	}
 
@@ -1142,8 +1116,6 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 void ripser(std::string f, index_t dim_max, value_t threshold, index_t format_index) {
 
 	file_format format = static_cast<file_format>(format_index);
-
-	//threshold = threshold == 0 ? std::numeric_limits<value_t>::max() : threshold;
 
 #ifdef USE_COEFFICIENTS
 	coefficient_t modulus = 2;
@@ -1157,5 +1129,5 @@ void ripser(std::string f, index_t dim_max, value_t threshold, index_t format_in
 }
 
 #ifdef __EMSCRIPTEN__
-EMSCRIPTEN_BINDINGS(my_module) { function("ripser_emscripten", &ripser); }
+EMSCRIPTEN_BINDINGS(my_module) { emscripten::function("ripser_emscripten", &ripser); }
 #endif
