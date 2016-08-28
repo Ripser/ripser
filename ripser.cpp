@@ -141,12 +141,10 @@ struct entry_t {
 
 static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
 
-
 entry_t make_entry(index_t _index, coefficient_t _coefficient) { return entry_t(_index, _coefficient); }
 index_t get_index(entry_t e) { return e.index; }
 index_t get_coefficient(entry_t e) { return e.coefficient; }
 void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
-
 
 bool operator==(const entry_t& e1, const entry_t& e2) {
 	return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
@@ -435,12 +433,12 @@ public:
 		return entries.cbegin() + bounds[index];
 	}
 
-	template <typename Iterator> void append(Iterator begin, Iterator end) {
+	template <typename Iterator> void append_column(Iterator begin, Iterator end) {
 		for (Iterator it = begin; it != end; ++it) { entries.push_back(*it); }
 		bounds.push_back(entries.size());
 	}
 
-	void append() { bounds.push_back(entries.size()); }
+	void append_column() { bounds.push_back(entries.size()); }
 
 	void push_back(ValueType e) {
 		assert(0 < size());
@@ -454,8 +452,8 @@ public:
 		--bounds.back();
 	}
 
-	template <typename Collection> void append(const Collection collection) {
-		append(collection.cbegin(), collection.cend());
+	template <typename Collection> void append_column(const Collection collection) {
+		append_column(collection.cbegin(), collection.cend());
 	}
 };
 
@@ -527,7 +525,8 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-		                    greater_diameter_or_smaller_index<diameter_entry_t>> working_coboundary;
+		                    greater_diameter_or_smaller_index<diameter_entry_t>>
+		    working_coboundary;
 
 		value_t diameter = get_diameter(column_to_reduce);
 
@@ -539,18 +538,14 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 		index_t j = i;
-		auto column_to_add = column_to_reduce;
 
 		// start with a dummy pivot entry with coefficient -1 in order to initialize
 		// working_coboundary with the coboundary of the simplex with index column_to_reduce
 		diameter_entry_t pivot = make_diameter_entry(0, -1, -1 + modulus);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-		reduction_matrix.append();
-#endif
-
-#ifdef ASSEMBLE_REDUCTION_MATRIX
 		// initialize reduction_matrix as identity matrix
+		reduction_matrix.append_column();
 		reduction_matrix.push_back(make_diameter_entry(column_to_reduce, 1));
 #else
 #ifdef USE_COEFFICIENTS
@@ -558,7 +553,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 #endif
 
-		bool might_be_apparent_pair = true;
+		bool might_be_apparent_pair = (i == j);
 
 		do {
 			const coefficient_t factor = modulus - get_coefficient(pivot);
@@ -569,21 +564,19 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 			{
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 				const auto& simplex = *it;
-				coefficient_t simplex_coefficient = get_coefficient(simplex);
-				simplex_coefficient *= factor;
-				simplex_coefficient %= modulus;
 #else
 #ifdef USE_COEFFICIENTS
 				const auto& simplex = reduction_coefficients[j];
 #else
-				const auto& simplex = column_to_add;
+				const auto& simplex = columns_to_reduce[j];
 #endif
 #endif
-				value_t simplex_diameter = get_diameter(simplex);
-				assert(simplex_diameter == comp_prev.diameter(get_index(simplex)));
+
+				coefficient_t simplex_coefficient = get_coefficient(simplex) * factor % modulus;
+				
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-				reduction_column.push(make_diameter_entry(simplex_diameter, get_index(simplex), simplex_coefficient));
+				reduction_column.push(make_diameter_entry(get_diameter(simplex), get_index(simplex), simplex_coefficient));
 #endif
 
 				vertices.clear();
@@ -596,21 +589,20 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 					entry_t coface = coface_descriptor.first;
 					index_t covertex = coface_descriptor.second;
 					index_t coface_index = get_index(coface);
-					value_t coface_diameter = simplex_diameter;
+					value_t coface_diameter = get_diameter(simplex);
 					for (index_t v : vertices) { coface_diameter = std::max(coface_diameter, dist(v, covertex)); }
 					assert(comp.diameter(coface_index) == coface_diameter);
 
 					if (coface_diameter <= threshold) {
-						coefficient_t coface_coefficient = get_coefficient(coface) * get_coefficient(simplex) * factor;
-						coface_coefficient %= modulus;
-						if (coface_coefficient < 0) coface_coefficient += modulus;
+						coefficient_t coface_coefficient =
+						    (get_coefficient(coface) + modulus) * simplex_coefficient % modulus;
 						assert(coface_coefficient >= 0);
 
 						diameter_entry_t coface_entry =
 						    make_diameter_entry(coface_diameter, coface_index, coface_coefficient);
 						coface_entries.push_back(coface_entry);
 
-						if (might_be_apparent_pair && (simplex_diameter == coface_diameter)) {
+						if (might_be_apparent_pair && (get_diameter(simplex) == coface_diameter)) {
 							if (pivot_column_index.find(coface_index) == pivot_column_index.end()) {
 								pivot = coface_entry;
 								goto found_persistence_pair;
@@ -629,7 +621,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 
 				if (pair != pivot_column_index.end()) {
 					j = pair->second;
-					column_to_add = columns_to_reduce[j];
 					continue;
 				}
 			} else {
@@ -848,7 +839,9 @@ int main(int argc, char** argv) {
 
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
-		if (arg == "--help") { print_usage_and_exit(0); } else if (arg == "--dim") {
+		if (arg == "--help") {
+			print_usage_and_exit(0);
+		} else if (arg == "--dim") {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			dim_max = std::stol(parameter, &next_pos);
