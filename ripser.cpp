@@ -826,7 +826,7 @@ int main(int argc, char** argv) {
 
 	const char* filename = nullptr;
 
-	file_format format = LOWER_DISTANCE_MATRIX;
+	file_format format = DISTANCE_MATRIX;
 
 	index_t dim_max = 1;
 	value_t threshold = std::numeric_limits<value_t>::max();
