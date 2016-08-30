@@ -948,7 +948,6 @@ int main(int argc, char** argv) {
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
-			//			std::cout << columns_to_reduce << std::endl;
 		}
 	}
 }
