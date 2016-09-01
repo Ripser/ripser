@@ -564,7 +564,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 	instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-	EM_ASM_({ postMessage( {"type": "dim", "dim": $0 } ) }, dim);
+	EM_ASM_({postMessage({"type" : "dim", "dim" : $0})}, dim);
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
@@ -635,10 +635,10 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 				coefficient_t simplex_coefficient = get_coefficient(simplex) * factor % modulus;
-				
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-				reduction_column.push(make_diameter_entry(get_diameter(simplex), get_index(simplex), simplex_coefficient));
+				reduction_column.push(
+				    make_diameter_entry(get_diameter(simplex), get_index(simplex), simplex_coefficient));
 #endif
 
 				vertices.clear();
@@ -700,8 +700,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-				EM_ASM_({ postMessage({ "type": "interval", "birth": $0, "dim": $1 }) },
-						diameter, dim);
+				EM_ASM_({postMessage({"type" : "interval", "birth" : $0, "dim" : $1})}, diameter, dim);
 #endif
 				break;
 			}
@@ -724,8 +723,8 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-				EM_ASM_({ postMessage({ "type": "interval", "birth": $0, "death": $1, "dim": $2 }) },
-						diameter, death, dim);
+				EM_ASM_({postMessage({"type" : "interval", "birth" : $0, "death" : $1, "dim" : $2})}, diameter, death,
+				        dim);
 #endif
 			}
 
@@ -805,8 +804,7 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-	EM_ASM_({ postMessage({ "type": "point-cloud", "number": $0, "dim": $1}) },
-			n, eucl_dist.points.front().size());
+	EM_ASM_({postMessage({"type" : "point-cloud", "number" : $0, "dim" : $1})}, n, eucl_dist.points.front().size());
 #endif
 
 	std::vector<value_t> distances;
@@ -1014,8 +1012,8 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 	instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-	EM_ASM_({ postMessage({ "type": "distance-matrix", "size": $0, "min": $1, "max": $2 }) },
-						  n, *value_range.first, *value_range.second);
+	EM_ASM_({postMessage({"type" : "distance-matrix", "size" : $0, "min" : $1, "max" : $2})}, n, *value_range.first,
+	        *value_range.second);
 #endif
 
 	dim_max = std::min(dim_max, n - 2);
@@ -1045,7 +1043,7 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 		instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-		EM_ASM({ postMessage( {"type": "dim", "dim": 0 } ) });
+		EM_ASM({postMessage({"type" : "dim", "dim" : 0})});
 #endif
 
 		std::vector<index_t> vertices_of_edge(2);
@@ -1067,7 +1065,7 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 				instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-				EM_ASM_({ postMessage({ "type": "interval", "birth": 0., "death": $0, "dim": 0 }) }, get_diameter(e));
+				EM_ASM_({postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})}, get_diameter(e));
 #endif
 				dset.link(u, v);
 			} else
@@ -1088,7 +1086,7 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 				instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-				EM_ASM({ postMessage({ "type": "interval", "birth": 0, "dim": 0 }) });
+				EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
 #endif
 			}
 	}
