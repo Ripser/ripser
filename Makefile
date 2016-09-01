@@ -19,3 +19,7 @@ ripser-debug: ripser.cpp
 
 clean:
 	rm -f ripser ripser-coeff ripser-reduction ripser-debug
+
+
+live: index.html common.js ripser-web.js ripser-worker.js 
+	source build_emscripten.sh && NACL_SDK_ROOT=~/Source/nacl_sdk/pepper_49/ make -f Makefile_pnacl && cp -r index.html common.js ripser-web.js ripser-worker.js pnacl emscripten ../
