@@ -6,6 +6,8 @@ var range;
 
 var worker;
 
+var dimMin;
+
 function init() {
     (worker = new Worker("ripser-worker.js")).addEventListener("message", handleMessage, false);
 
@@ -79,7 +81,7 @@ function compute() {
 	
     running_since = (new Date()).getTime();
 	
-	dim_min = parseInt(document.getElementById("dim_min").value);
+	dimMin = parseInt(document.getElementById("dim_min").value) || 0;
     
     worker.postMessage({ "file": f, "dim": parseInt(dim.value), "threshold": parseFloatWithDefault(threshold.value, Infinity), "format": parseInt(format.value) });
     
@@ -96,13 +98,13 @@ function handleMessage(message) {
 	} else if (message.data.type == "dim") {
 		log.innerHTML += "persistence intervals in dim " + message.data.dim + ":\n";
 		//document.getElementById("barcodes").innerHTML += "<p>persistence intervals in dim " + message.data.dim + ":</p>";
-		if (message.data.dim >= (dim_min || 0))
+		if (message.data.dim >= dimMin)
 		{
 			d3.select("#barcodes").append("p").text("Persistence intervals in dimension " + message.data.dim + ":\n");
 			initBarcode(range, message.data.dim);
 		}
 	} else if (message.data.type == "interval") {
-		if (message.data.dim >= (dim_min || 0))
+		if (message.data.dim >= dimMin)
 		{
 			insertBar(message.data.birth, (message.data.death ? message.data.death : range[1]));
 		}

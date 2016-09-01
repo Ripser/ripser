@@ -1075,10 +1075,11 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-#ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) {
+#ifdef PRINT_PERSISTENCE_PAIRS
 				std::cout << " [0, )" << std::endl << std::flush;
+#endif
 #ifdef __native_client__
 				pp::VarDictionary var_dict;
 				var_dict.Set("type", "interval");
@@ -1090,7 +1091,6 @@ void compute_barcodes(std::istream& file_stream, index_t dim_max, value_t thresh
 				EM_ASM({ postMessage({ "type": "interval", "birth": 0, "dim": 0 }) });
 #endif
 			}
-#endif
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
