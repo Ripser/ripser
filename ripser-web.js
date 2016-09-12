@@ -88,7 +88,7 @@ function compute() {
 }
 
 function chop(x) {
-	return typeof x == "number" ? x.toPrecision(3) / 1 : x;
+	return typeof x == "number" ? x.toPrecision(6) / 1 : x;
 }
 
 function handleMessage(message) {
@@ -187,7 +187,8 @@ function insertBar(birth, death) {
 	.append("rect")
 	.attr("height", y.bandwidth())
 	.attr("width", function(d) { return x(d.death) - x(d.birth); })
-	.attr("x", function(d) { return x(d.birth); });
+	.attr("x", function(d) { return x(d.birth); })
+    .append("title").text(function(d) { return "[" + chop(d.birth).toString() + ", " + chop(d.death).toString() + ")"; } );
 
 	g.selectAll(".bar")//.data(data)
 	.transition().delay(50)
