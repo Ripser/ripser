@@ -37,6 +37,7 @@ function moduleDidLoad() {
 
 function handleCrash(event) {
     fileInput.value = null;
+    running_since = undefined;
     common.removeModule();
     document.dispatchEvent(new Event("DOMContentLoaded"));
 }
