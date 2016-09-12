@@ -189,7 +189,7 @@ function insertBar(birth, death) {
 	.attr("height", y.bandwidth())
 	.attr("width", function(d) { return x(d.death) - x(d.birth); })
 	.attr("x", function(d) { return x(d.birth); })
-    .append("title").text(function(d) { return "[" + chop(d.birth).toString() + ", " + chop(d.death).toString() + ")"; } );
+    .append("title").html(function(d) { return "[" + chop(d.birth).toString() + ",&thinsp;" + chop(d.death).toString() + ")"; } );
 
 	g.selectAll(".bar")//.data(data)
 	.transition().delay(50)
