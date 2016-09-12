@@ -59,7 +59,7 @@ function read_and_compute() {
 		
 		if (f != "") compute();
     }
-    reader.readAsText(file);
+    reader.readAsBinaryString(file);
 }
 
 function parseFloatWithDefault(s, d) {

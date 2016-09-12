@@ -31,15 +31,15 @@
 	</head>
 	<body data-name="ripser" data-tools="pnacl glibc clang-newlib mac" data-configs="Debug Release" data-path="{tc}/{config}">
 		<h1>Ripser</h1>
-<!--		<h2>Status: <code id="statusField">NO-STATUS</code></h2>-->
+<!--        <h2>Status: <code id="statusField">NO-STATUS</code></h2>-->
 		<p>Load a <select id="format" size="1" style="width: automatic">
 			<option value = 2>distance matrix</option>
 			<option value = 0>lower dist matrix</option>
 			<option value = 1>upper dist matrix</option>
 			<option value = 3>point cloud</option>
-			<!--      <option value = 4>DIPHA distance matrix</option> -->
+			<option value = 4>DIPHA file</option>
 		</select> to compute Vietoris&ndash;Rips persistence barcodes in dimensions <input id="dim_min" value="1" size="2"/> to <input id="dim" value="1" size="2"/> and up to distance
-		<input id="threshold" value="" size="4"/>:</p>
+		<input id="threshold" value="" size="3"/>:</p>
 		<input type="file" id="fileInput"/>
 		
 		
