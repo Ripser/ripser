@@ -573,10 +573,10 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 				coefficient_t simplex_coefficient = get_coefficient(simplex) * factor % modulus;
-				
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-				reduction_column.push(make_diameter_entry(get_diameter(simplex), get_index(simplex), simplex_coefficient));
+				reduction_column.push(
+				    make_diameter_entry(get_diameter(simplex), get_index(simplex), simplex_coefficient));
 #endif
 
 				vertices.clear();
@@ -714,8 +714,7 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	std::vector<value_t> distances;
 
 	for (int i = 0; i < n; ++i)
-		for (int j = 0; j < i; ++j)
-			distances.push_back(eucl_dist(i, j));
+		for (int j = 0; j < i; ++j) distances.push_back(eucl_dist(i, j));
 
 	return compressed_lower_distance_matrix(std::move(distances));
 }
