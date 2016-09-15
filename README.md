@@ -34,7 +34,7 @@ Ripser's efficiency is based on a few important concepts and principles:
 
 
 ### Version
-[Latest release][latest-release]: 1.0 (July 2016)
+[Latest release][latest-release]: 1.0.1 (September 2016)
 
 
 ### Building
@@ -53,7 +53,7 @@ make
 
 Ripser supports several compile-time options. They are switched on by defining the C preprocessor macros listed below, either using `#define` in the code or by passing an argument to the compiler. The following options are supported:
 
-  - `ASSEMBLE_REDUCTION_MATRIX`: store the reduction matrix; may speed up computation but will also increase memory usage
+  - `ASSEMBLE_REDUCTION_MATRIX`: store the reduction matrix; may affect computation time but also memory usage; recommended for large and difficult problem instances
   - `USE_COEFFICIENTS`: enable support for coefficients in a prime field
   - `INDICATE_PROGRESS`: indicate the current progress in the console
   - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default in the code; comment out to disable)
@@ -65,7 +65,7 @@ For example, to build Ripser with support for coefficients:
 $ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D USE_COEFFICIENTS
 ```
 
-A Makefile is provided with some variants of the above options. Use `make all` to build them. The default `make` builds a binary without any of the above option.
+A Makefile is provided with some variants of the above options. Use `make all` to build them. The default `make` builds a binary with the default options.
 
 The input is given either in a file whose name is passed as an argument, or through stdin. The following options are supported at the command line:
 
