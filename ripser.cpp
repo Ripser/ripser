@@ -715,7 +715,7 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 
 	for (int i = 0; i < n; ++i)
 		for (int j = 0; j < i; ++j)
-			if (i > j) distances.push_back(eucl_dist(i, j));
+			distances.push_back(eucl_dist(i, j));
 
 	return compressed_lower_distance_matrix(std::move(distances));
 }
