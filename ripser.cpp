@@ -294,6 +294,27 @@ public:
 	size_t size() const { return rows.size(); }
 };
 
+class sparse_distance_matrix {
+public:
+	std::vector<std::vector<diameter_index_t>> neighbors;
+
+	template <typename DistanceMatrix>
+	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold)
+	    : neighbors(mat.size())
+    {
+
+		for (index_t i = 1; i < size(); ++i)
+			for (index_t j = 0; j < size(); ++j)
+                if (mat(i, j) <= threshold)
+                    neighbors[i].push_back(diameter_index_t(mat(i, j), j));
+	}
+
+	value_t operator()(const index_t i, const index_t j) const;
+
+	size_t size() const { return neighbors.size(); }
+};
+
+
 template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
 	value_t* pointer = &distances[0];
 	for (index_t i = 1; i < size(); ++i) {
@@ -468,6 +489,11 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
                                 index_t n, value_t threshold, const binomial_coeff_table& binomial_coeff) {
 	index_t num_simplices = binomial_coeff(n, dim + 2);
 
+    // iterate over all (previous) columns_to_reduce
+    // find cofaces, additional vertices
+    // if additional vertex is larger than all current ones: append to columns_to_reduce
+
+
 	columns_to_reduce.clear();
 
 #ifdef INDICATE_PROGRESS
@@ -584,6 +610,9 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 
 				coface_entries.clear();
 				simplex_coboundary_enumerator cofaces(get_index(simplex), dim, n, binomial_coeff);
+                
+                // iterate over cofaces using set intersection of neighbors
+                
 				while (cofaces.has_next()) {
 					auto coface_descriptor = cofaces.next();
 					entry_t coface = coface_descriptor.first;
