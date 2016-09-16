@@ -94,30 +94,36 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 	return inverse;
 }
 
+void get_next_vertex(index_t& v, const index_t idx, const index_t k, const binomial_coeff_table& binomial_coeff) {
+
+	if (binomial_coeff(v, k) > idx) {
+		index_t count = v;
+		while (count > 0) {
+			index_t i = v;
+			index_t step = count >> 1;
+			i -= step;
+			if (binomial_coeff(i, k) > idx) {
+				v = --i;
+				count -= step + 1;
+			} else
+				count = step;
+		}
+	}
+	assert(binomial_coeff(v, k) <= idx);
+	assert(binomial_coeff(v + 1, k) > idx);
+}
+
+
 template <typename OutputIterator>
-OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t n,
+OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t v,
                                     const binomial_coeff_table& binomial_coeff, OutputIterator out) {
-	--n;
+	--v;
 
 	for (index_t k = dim + 1; k > 0; --k) {
-		if (binomial_coeff(n, k) > idx) {
-			index_t count = n;
-			while (count > 0) {
-				index_t i = n;
-				index_t step = count >> 1;
-				i -= step;
-				if (binomial_coeff(i, k) > idx) {
-					n = --i;
-					count -= step + 1;
-				} else
-					count = step;
-			}
-		}
-		assert(binomial_coeff(n, k) <= idx);
-		assert(binomial_coeff(n + 1, k) > idx);
+		get_next_vertex(v, idx, k, binomial_coeff);
 
-		*out++ = n;
-		idx -= binomial_coeff(n, k);
+		*out++ = v;
+		idx -= binomial_coeff(v, k);
 	}
 
 	return out;
@@ -349,7 +355,7 @@ public:
 
 class simplex_coboundary_enumerator_sparse {
 private:
-	index_t idx, modified_idx, v, k;
+	index_t idx_below, idx_above, v, k, w;
 	const binomial_coeff_table& binomial_coeff;
     const sparse_distance_matrix& sparse_dist;
     std::vector<index_t> vertices;
@@ -359,16 +365,14 @@ private:
 
 public:
 	simplex_coboundary_enumerator_sparse(index_t _idx, index_t _dim, index_t _n, const binomial_coeff_table& _binomial_coeff, sparse_distance_matrix& _sparse_dist)
-	    : idx(_idx), modified_idx(_idx), v(_n - 1), k(_dim + 1), binomial_coeff(_binomial_coeff), sparse_dist(_sparse_dist), v_intersection(ii, ee)
+	    : idx_below(_idx), idx_above(0), v(_n - 1), k(_dim + 1), w(_n - 1), binomial_coeff(_binomial_coeff), sparse_dist(_sparse_dist), v_intersection(ii, ee)
     {
-        get_simplex_vertices(idx, _dim, _n, _binomial_coeff, std::back_inserter(vertices));
+        get_simplex_vertices(idx_below, _dim, _n, _binomial_coeff, std::back_inserter(vertices));
         
         for (auto v: vertices) {
             ii.push_back(sparse_dist.neighbors[v].rbegin());
             ee.push_back(sparse_dist.neighbors[v].rend());
         }
-        
-        vertices.push_back(-1);
 
     }
 
@@ -378,17 +382,19 @@ public:
 
 	std::pair<entry_t, index_t> next() {
         
-        auto v = v_intersection.has_next();
+        index_t v = get_index(v_intersection.next());
+		
+		while (w > v && idx_below > 0) {
+			get_next_vertex(w, idx_below, k, binomial_coeff);
         
-        while (k > 0 && vertices[k - 1] > v) {
-            vertices[k] = vertices[k - 1];
-            --k;
-        }
-        
-        vertices[k] = v;
+			idx_below -= binomial_coeff(w, k);
+			idx_above += binomial_coeff(w, k + 1);
 
-        //...
-		auto result = std::make_pair(make_entry(modified_idx + binomial_coeff(v, k + 1), k & 1 ? -1 : 1), v);
+			--k;
+			assert(k != -1);
+		}
+		
+		auto result = std::make_pair(make_entry(idx_above + binomial_coeff(v, k + 1) + idx_below, k & 1 ? -1 : 1), v);
 		
         
 		return result;
