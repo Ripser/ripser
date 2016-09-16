@@ -94,7 +94,7 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 	return inverse;
 }
 
-void get_next_vertex(index_t& v, const index_t idx, const index_t k, const binomial_coeff_table& binomial_coeff) {
+index_t get_next_vertex(index_t& v, const index_t idx, const index_t k, const binomial_coeff_table& binomial_coeff) {
 
 	if (binomial_coeff(v, k) > idx) {
 		index_t count = v;
@@ -111,6 +111,8 @@ void get_next_vertex(index_t& v, const index_t idx, const index_t k, const binom
 	}
 	assert(binomial_coeff(v, k) <= idx);
 	assert(binomial_coeff(v + 1, k) > idx);
+	
+	return v;
 }
 
 
@@ -321,7 +323,6 @@ public:
 	size_t size() const { return neighbors.size(); }
 };
 
-
 template <class T>
 struct second_argument_greater {
 	bool operator()(const T &lhs, const T &rhs) const
@@ -347,9 +348,6 @@ public:
 	
     set_intersection_enumerator (InputIteratorCollection& _first, InputIteratorCollection& _last) : first(_first), last(_last) {}
     
-//    template <class InputCollection>
-//    set_intersection_enumerator (InputCollection _set) : first(_first), last(_last) {}
-    
     bool has_next() {
         for (auto &it0 = first[0], &end0 = last[0]; it0 != end0; ++it0) {
             auto x = *it0;
@@ -371,7 +369,6 @@ public:
     }
 };
 
-
 class simplex_coboundary_enumerator_sparse {
 private:
 	index_t idx_below, idx_above, v, k, w;
@@ -392,8 +389,6 @@ public:
             ii.push_back(sparse_dist.neighbors[v].rbegin());
             ee.push_back(sparse_dist.neighbors[v].rend());
         }
-		
-		get_next_vertex(w, idx_below, k, binomial_coeff);
     }
 
 	bool has_next() {
@@ -401,31 +396,17 @@ public:
 	}
 
 	std::pair<entry_t, index_t> next() {
-        
         index_t v = get_index(v_intersection.next());
 		
-		
-		
-		while (w > v && idx_below > 0) {
+		while (k > 0 && get_next_vertex(w, idx_below, k, binomial_coeff) > v) {
 			idx_below -= binomial_coeff(w, k);
 			idx_above += binomial_coeff(w, k + 1);
-
 			--k;
-			
-			get_next_vertex(w, idx_below, k, binomial_coeff);
-        
-
-			assert(k != -1);
 		}
 		
-		auto result = std::make_pair(make_entry(idx_above + binomial_coeff(v, k + 1) + idx_below, k & 1 ? -1 : 1), v);
-		
-        
-		return result;
+		return std::make_pair(make_entry(idx_above + binomial_coeff(v, k + 1) + idx_below, k & 1 ? -1 : 1), v);
 	}
 };
-
-
 
 template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
 	value_t* pointer = &distances[0];
