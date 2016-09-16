@@ -315,6 +315,87 @@ public:
 };
 
 
+template <class InputIteratorCollection>
+class set_intersection_enumerator {
+public:
+    InputIteratorCollection first, last;
+    
+    set_intersection_enumerator (InputIteratorCollection _first, InputIteratorCollection _last) : first(_first), last(_last) {}
+    
+//    template <class InputCollection>
+//    set_intersection_enumerator (InputCollection _set) : first(_first), last(_last) {}
+    
+    bool has_next() {
+        for (auto &it0 = first[0], end0 = last[0]; it0 != end0; ++it0) {
+            auto x = *it0;
+            for (size_t idx = 1; idx < first.size(); ++idx) {
+                auto &it = first[idx], end = last[idx];
+                while (*it < x) if (++it == end) return false;
+                if (*it > x) goto continue_outer;
+            }
+            return true;
+        continue_outer: ;
+        }
+        return false;
+    }
+    
+    // only valid after has_next() has been called
+    decltype(*first[0]) next() {
+        return *first[0]++;
+    }
+};
+
+
+class simplex_coboundary_enumerator_sparse {
+private:
+	index_t idx, modified_idx, v, k;
+	const binomial_coeff_table& binomial_coeff;
+    const sparse_distance_matrix& sparse_dist;
+    std::vector<index_t> vertices;
+    
+    std::vector<std::vector<diameter_index_t>::const_reverse_iterator> ii, ee;
+    set_intersection_enumerator<decltype(ii)> v_intersection;
+
+public:
+	simplex_coboundary_enumerator_sparse(index_t _idx, index_t _dim, index_t _n, const binomial_coeff_table& _binomial_coeff, sparse_distance_matrix& _sparse_dist)
+	    : idx(_idx), modified_idx(_idx), v(_n - 1), k(_dim + 1), binomial_coeff(_binomial_coeff), sparse_dist(_sparse_dist), v_intersection(ii, ee)
+    {
+        get_simplex_vertices(idx, _dim, _n, _binomial_coeff, std::back_inserter(vertices));
+        
+        for (auto v: vertices) {
+            ii.push_back(sparse_dist.neighbors[v].rbegin());
+            ee.push_back(sparse_dist.neighbors[v].rend());
+        }
+        
+        vertices.push_back(-1);
+
+    }
+
+	bool has_next() {
+		return v_intersection.has_next();
+	}
+
+	std::pair<entry_t, index_t> next() {
+        
+        auto v = v_intersection.has_next();
+        
+        while (k > 0 && vertices[k - 1] > v) {
+            vertices[k] = vertices[k - 1];
+            --k;
+        }
+        
+        vertices[k] = v;
+
+        //...
+		auto result = std::make_pair(make_entry(modified_idx + binomial_coeff(v, k + 1), k & 1 ? -1 : 1), v);
+		
+        
+		return result;
+	}
+};
+
+
+
 template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
 	value_t* pointer = &distances[0];
 	for (index_t i = 1; i < size(); ++i) {
