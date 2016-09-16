@@ -240,17 +240,18 @@ public:
 
 class simplex_coboundary_enumerator {
 private:
-	index_t idx, modified_idx, v, k;
+	index_t idx_below, idx_above, v, k;
 	const binomial_coeff_table& binomial_coeff;
 
 public:
 	simplex_coboundary_enumerator(index_t _idx, index_t _dim, index_t _n, const binomial_coeff_table& _binomial_coeff)
-	    : idx(_idx), modified_idx(_idx), v(_n - 1), k(_dim + 1), binomial_coeff(_binomial_coeff) {}
+	    : idx_below(_idx), idx_above(0), v(_n - 1), k(_dim + 1), binomial_coeff(_binomial_coeff) {}
 
 	bool has_next() {
-		while ((v != -1) && (binomial_coeff(v, k) <= idx)) {
-			idx -= binomial_coeff(v, k);
-			modified_idx += binomial_coeff(v, k + 1) - binomial_coeff(v, k);
+		while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
+			idx_below -= binomial_coeff(v, k);
+			idx_above += binomial_coeff(v, k + 1);
+
 			--v;
 			--k;
 			assert(k != -1);
@@ -259,32 +260,29 @@ public:
 	}
 
 	std::pair<entry_t, index_t> next() {
-		auto result = std::make_pair(make_entry(modified_idx + binomial_coeff(v, k + 1), k & 1 ? -1 : 1), v);
+		auto result = std::make_pair(make_entry(idx_above + binomial_coeff(v, k + 1) + idx_below, k & 1 ? -1 : 1), v);
 		--v;
 		return result;
 	}
 };
 
-
 class simplex_boundary_enumerator {
 private:
-	index_t idx, modified_idx, dim, v, k;
+	index_t idx_below, idx_above, dim, v, k;
 	const binomial_coeff_table& binomial_coeff;
 
 public:
-	simplex_boundary_enumerator(index_t _idx, index_t _dim, index_t _n,
-	                            const binomial_coeff_table& _binomial_coeff)
-	    : idx(_idx), modified_idx(_idx), dim(_dim), k(dim + 1), v(_n - 1),
-	      binomial_coeff(_binomial_coeff) {}
+	simplex_boundary_enumerator(index_t _idx, index_t _dim, index_t _n, const binomial_coeff_table& _binomial_coeff)
+	    : idx_below(_idx), idx_above(0), dim(_dim), k(dim + 1), v(_n - 1), binomial_coeff(_binomial_coeff) {}
 
 	bool has_next() {
-		if ((v != -1) && (binomial_coeff(v, k) > idx)) {
+		if ((v != -1) && (binomial_coeff(v, k) > idx_below)) {
 			index_t count = v;
 			while (count > 0) {
 				index_t i = v;
 				index_t step = count >> 1;
 				i -= step;
-				if (binomial_coeff(i, k) > idx) {
+				if (binomial_coeff(i, k) > idx_below) {
 					v = --i;
 					count -= step + 1;
 				} else
@@ -292,15 +290,14 @@ public:
 			}
 		}
 
-		return (v != -1) && (binomial_coeff(v, k) <= idx);
+		return (v != -1) && (binomial_coeff(v, k) <= idx_below);
 	}
 
 	std::pair<entry_t, index_t> next() {
-		auto result =
-		    std::make_pair(make_entry(modified_idx - binomial_coeff(v, k), k & 1 ? 1 : -1), v);
+		auto result = std::make_pair(make_entry(idx_above - binomial_coeff(v, k) + idx_below, k & 1 ? 1 : -1), v);
 
-		idx -= binomial_coeff(v, k);
-		modified_idx += binomial_coeff(v, k - 1) - binomial_coeff(v, k);
+		idx_below -= binomial_coeff(v, k);
+		idx_above += binomial_coeff(v, k - 1);
 
 		--v;
 		--k;
