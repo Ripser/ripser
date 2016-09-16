@@ -46,8 +46,8 @@ template <class Key, class T> class hash_map : public std::unordered_map<Key, T>
 typedef float value_t;
 // typedef uint16_t value_t;
 
-typedef long index_t;
-typedef short coefficient_t;
+typedef int64_t index_t;
+typedef int16_t coefficient_t;
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
