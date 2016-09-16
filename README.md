@@ -34,7 +34,7 @@ Ripser's efficiency is based on a few important concepts and principles:
 
 
 ### Version
-[Latest release][latest-release]: 1.0 (July 2016)
+[Latest release][latest-release]: 1.0.1 (September 2016)
 
 
 ### Building
