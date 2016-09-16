@@ -240,17 +240,18 @@ public:
 
 class simplex_coboundary_enumerator {
 private:
-	index_t idx, modified_idx, v, k;
+	index_t idx_below, idx_above, v, k;
 	const binomial_coeff_table& binomial_coeff;
 
 public:
 	simplex_coboundary_enumerator(index_t _idx, index_t _dim, index_t _n, const binomial_coeff_table& _binomial_coeff)
-	    : idx(_idx), modified_idx(_idx), v(_n - 1), k(_dim + 1), binomial_coeff(_binomial_coeff) {}
+	    : idx_below(_idx), idx_above(0), v(_n - 1), k(_dim + 1), binomial_coeff(_binomial_coeff) {}
 
 	bool has_next() {
-		while ((v != -1) && (binomial_coeff(v, k) <= idx)) {
-			idx -= binomial_coeff(v, k);
-			modified_idx += binomial_coeff(v, k + 1) - binomial_coeff(v, k);
+		while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
+			idx_below -= binomial_coeff(v, k);
+			idx_above += binomial_coeff(v, k + 1);
+
 			--v;
 			--k;
 			assert(k != -1);
@@ -259,7 +260,7 @@ public:
 	}
 
 	std::pair<entry_t, index_t> next() {
-		auto result = std::make_pair(make_entry(modified_idx + binomial_coeff(v, k + 1), k & 1 ? -1 : 1), v);
+		auto result = std::make_pair(make_entry(idx_above + binomial_coeff(v, k + 1) + idx_below, k & 1 ? -1 : 1), v);
 		--v;
 		return result;
 	}
@@ -680,10 +681,10 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 				coefficient_t simplex_coefficient = get_coefficient(simplex) * factor % modulus;
-				
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-				reduction_column.push(make_diameter_entry(get_diameter(simplex), get_index(simplex), simplex_coefficient));
+				reduction_column.push(
+				    make_diameter_entry(get_diameter(simplex), get_index(simplex), simplex_coefficient));
 #endif
 
 				vertices.clear();
@@ -824,8 +825,7 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	std::vector<value_t> distances;
 
 	for (int i = 0; i < n; ++i)
-		for (int j = 0; j < i; ++j)
-			if (i > j) distances.push_back(eucl_dist(i, j));
+		for (int j = 0; j < i; ++j) distances.push_back(eucl_dist(i, j));
 
 	return compressed_lower_distance_matrix(std::move(distances));
 }
