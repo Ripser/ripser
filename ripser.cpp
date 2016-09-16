@@ -310,9 +310,9 @@ public:
 	    : neighbors(mat.size())
     {
 
-		for (index_t i = 1; i < size(); ++i)
+		for (index_t i = 0; i < size(); ++i)
 			for (index_t j = 0; j < size(); ++j)
-                if (mat(i, j) <= threshold)
+                if (i != j && mat(i, j) <= threshold)
                     neighbors[i].push_back(diameter_index_t(mat(i, j), j));
 	}
 
@@ -322,23 +322,42 @@ public:
 };
 
 
-template <class InputIteratorCollection>
+template <class T>
+struct second_argument_greater {
+	bool operator()(const T &lhs, const T &rhs) const
+	{
+		return lhs.second > rhs.second;
+	}
+};
+
+template <class T>
+struct second_argument_equal_to {
+	bool operator()(const T &lhs, const T &rhs) const
+	{
+		return lhs.second == rhs.second;
+	}
+};
+
+template <class InputIteratorCollection, class Compare, class Equal>
 class set_intersection_enumerator {
 public:
-    InputIteratorCollection first, last;
-    
-    set_intersection_enumerator (InputIteratorCollection _first, InputIteratorCollection _last) : first(_first), last(_last) {}
+	InputIteratorCollection &first, &last;
+	Compare comp;
+	Equal equal;
+	
+    set_intersection_enumerator (InputIteratorCollection& _first, InputIteratorCollection& _last) : first(_first), last(_last) {}
     
 //    template <class InputCollection>
 //    set_intersection_enumerator (InputCollection _set) : first(_first), last(_last) {}
     
     bool has_next() {
-        for (auto &it0 = first[0], end0 = last[0]; it0 != end0; ++it0) {
+        for (auto &it0 = first[0], &end0 = last[0]; it0 != end0; ++it0) {
             auto x = *it0;
             for (size_t idx = 1; idx < first.size(); ++idx) {
                 auto &it = first[idx], end = last[idx];
-                while (*it < x) if (++it == end) return false;
-                if (*it > x) goto continue_outer;
+                while (comp(*it, x)) if (++it == end) return false;
+				auto y = *it;
+                if (!equal(y, x)) goto continue_outer;
             }
             return true;
         continue_outer: ;
@@ -361,7 +380,7 @@ private:
     std::vector<index_t> vertices;
     
     std::vector<std::vector<diameter_index_t>::const_reverse_iterator> ii, ee;
-    set_intersection_enumerator<decltype(ii)> v_intersection;
+    set_intersection_enumerator<decltype(ii), second_argument_greater<diameter_index_t>, second_argument_equal_to<diameter_index_t>> v_intersection;
 
 public:
 	simplex_coboundary_enumerator_sparse(index_t _idx, index_t _dim, index_t _n, const binomial_coeff_table& _binomial_coeff, sparse_distance_matrix& _sparse_dist)
@@ -373,7 +392,8 @@ public:
             ii.push_back(sparse_dist.neighbors[v].rbegin());
             ee.push_back(sparse_dist.neighbors[v].rend());
         }
-
+		
+		get_next_vertex(w, idx_below, k, binomial_coeff);
     }
 
 	bool has_next() {
@@ -384,13 +404,17 @@ public:
         
         index_t v = get_index(v_intersection.next());
 		
+		
+		
 		while (w > v && idx_below > 0) {
-			get_next_vertex(w, idx_below, k, binomial_coeff);
-        
 			idx_below -= binomial_coeff(w, k);
 			idx_above += binomial_coeff(w, k + 1);
 
 			--k;
+			
+			get_next_vertex(w, idx_below, k, binomial_coeff);
+        
+
 			assert(k != -1);
 		}
 		
