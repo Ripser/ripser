@@ -291,7 +291,7 @@ public:
 
 		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
 
-		return diameter_entry_t(coface_diameter, idx_above + binomial_coeff(v, k + 1) + idx_below, coface_coefficient);
+		return diameter_entry_t(coface_diameter, idx_above + binomial_coeff(v--, k + 1) + idx_below, coface_coefficient);
 	}
 };
 
@@ -443,9 +443,9 @@ public:
 
 		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
 
-		return diameter_entry_t(get_diameter(x),
+		return diameter_entry_t(coface_diameter,
 								idx_above + binomial_coeff(get_index(x), k + 1) + idx_below,
-								k & 1 ? -1 : 1);
+								coface_coefficient);
 	}
 };
 
