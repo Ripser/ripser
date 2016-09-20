@@ -333,7 +333,7 @@ public:
 
 		for (index_t i = 0; i < size(); ++i)
 			for (index_t j = 0; j < size(); ++j)
-				if (i != j && mat(i, j) <= threshold) neighbors[i].push_back(diameter_index_t(mat(i, j), j));
+				if (i != j && mat(i, j) <= threshold) neighbors[i].push_back(std::make_pair(mat(i, j), j));
 	}
 
 	value_t operator()(const index_t i, const index_t j) const;
@@ -432,6 +432,7 @@ public:
 	}
 
 	diameter_entry_t next() {
+		++ii[0];
 
 		while (k > 0 && get_next_vertex(max_vertex_below, idx_below, k, binomial_coeff) > get_index(x)) {
 			idx_below -= binomial_coeff(max_vertex_below, k);
