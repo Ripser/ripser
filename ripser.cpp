@@ -347,39 +347,6 @@ template <class T> struct second_argument_equal_to {
 	bool operator()(const T& lhs, const T& rhs) const { return lhs.second == rhs.second; }
 };
 
-template <class InputIteratorCollection, class Compare, class Equal, class Representative>
-class set_intersection_enumerator {
-public:
-	InputIteratorCollection &ii, &ee;
-	Compare comp;
-	Equal equal;
-	Representative rep;
-
-	set_intersection_enumerator(InputIteratorCollection& _first, InputIteratorCollection& _last)
-	    : ii(_first), ee(_last) {}
-
-	bool has_next() {
-		for (auto &it0 = ii[0], &end0 = ee[0]; it0 != end0; ++it0) {
-			auto x = *it0;
-			for (size_t idx = 1; idx < ii.size(); ++idx) {
-				auto &it = ii[idx], end = ee[idx];
-				while (comp(*it, x))
-					if (++it == end) return false;
-				auto y = *it;
-				if (!equal(y, x))
-					goto continue_outer;
-				else
-					x = rep(x, y);
-			}
-			return true;
-		continue_outer:;
-		}
-		return false;
-	}
-
-	// only valid after has_next() has been called
-	decltype(*ii[0]) next() { return *ii[0]++; }
-};
 
 template<>
 class simplex_coboundary_enumerator<const sparse_distance_matrix&> {
@@ -411,7 +378,7 @@ public:
 		}
 	}
 
-	bool has_next() {
+	bool has_next(bool all_cofaces = true) {
 		for (auto &it0 = ii[0], &end0 = ee[0]; it0 != end0; ++it0) {
 			x = *it0;
 			for (size_t idx = 1; idx < ii.size(); ++idx) {
@@ -424,7 +391,7 @@ public:
 				else
 					x = std::min(x, y, greater_diameter_or_smaller_index<diameter_index_t>());
 			}
-			return true;
+			return all_cofaces || !(k > 0 && get_next_vertex(max_vertex_below, idx_below, k, binomial_coeff) > get_index(x));
 		continue_outer:;
 		}
 		return false;
@@ -634,6 +601,11 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 		if (pivot_column_index.find(index) == pivot_column_index.end()) {
 			value_t diameter = comp.diameter(index);
 			if (diameter <= threshold) columns_to_reduce.push_back(std::make_pair(diameter, index));
+#ifdef INDICATE_PROGRESS
+		if ((index + 1) % 1000 == 0)
+			std::cout << "\033[K"
+			          << "assembled " << columns_to_reduce.size() << " out of " << (index + 1) << "/" << num_simplices << " columns" << std::flush << "\r";
+#endif
 		}
 	}
 
@@ -649,11 +621,15 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 #endif
 }
 
+
+
 template <typename Comparator>
-void assemble_columns_to_reduce_sparse(std::vector<diameter_index_t>& columns_to_reduce,
-                                       hash_map<index_t, index_t>& pivot_column_index, const Comparator& comp,
+void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
+									   std::vector<diameter_index_t>& columns_to_reduce,
+                                       hash_map<index_t, index_t>& pivot_column_index,
+									   const sparse_distance_matrix& sparse_dist,
+                                       const Comparator& comp,
                                        index_t dim, index_t n, value_t threshold, const coefficient_t modulus,
-                                       const sparse_distance_matrix& sparse_dist,
                                        const binomial_coeff_table& binomial_coeff) {
 
 	// iterate over all (previous) columns_to_reduce
@@ -665,30 +641,26 @@ void assemble_columns_to_reduce_sparse(std::vector<diameter_index_t>& columns_to
 	          << "assembling columns" << std::flush << "\r";
 #endif
 
-	std::vector<diameter_index_t> previous_columns_to_reduce;
-	previous_columns_to_reduce.swap(columns_to_reduce);
-	
 	columns_to_reduce.clear();
+	
+	std::vector<diameter_index_t> next_simplices;
 
-	for (diameter_index_t simplex : previous_columns_to_reduce) {
+	for (diameter_index_t simplex : simplices) {
 		// coface_entries.clear();
-		simplex_coboundary_enumerator<sparse_distance_matrix> cofaces(simplex, dim, n, modulus, sparse_dist, binomial_coeff);
+		simplex_coboundary_enumerator<const sparse_distance_matrix&> cofaces(simplex, dim, n, modulus, sparse_dist, binomial_coeff);
 
-		while (cofaces.has_next()) {
+		while (cofaces.has_next(false)) {
 			auto coface = cofaces.next();
+			
+			next_simplices.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
 		
-			columns_to_reduce.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
+			if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end())
+				columns_to_reduce.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
 		}
 	}
-
-
-//	for (index_t index = 0; index < num_simplices; ++index) {
-//		if (pivot_column_index.find(index) == pivot_column_index.end()) {
-//			value_t diameter = comp.diameter(index);
-//			if (diameter <= threshold) columns_to_reduce.push_back(std::make_pair(diameter, index));
-//		}
-//	}
-
+	
+	simplices.swap(next_simplices);
+	
 #ifdef INDICATE_PROGRESS
 	std::cout << "\033[K"
 	          << "sorting " << columns_to_reduce.size() << " columns" << std::flush << "\r";
@@ -1102,14 +1074,16 @@ int main(int argc, char** argv) {
 
 	std::vector<diameter_index_t> columns_to_reduce;
 
+	std::vector<diameter_index_t> simplices , &edges = simplices;
+	rips_filtration_comparator<decltype(dist)> comp(dist, 1, binomial_coeff);
+	for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
+		value_t diameter = comp.diameter(index);
+			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
+	}
+	
 	{
 		union_find dset(n);
-		std::vector<diameter_index_t> edges;
-		rips_filtration_comparator<decltype(dist)> comp(dist, 1, binomial_coeff);
-		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
-			value_t diameter = comp.diameter(index);
-			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
-		}
+
 		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
 
 #ifdef PRINT_PERSISTENCE_PAIRS
@@ -1149,7 +1123,7 @@ int main(int argc, char** argv) {
 		              comp, comp_prev, binomial_coeff);
 
 		if (dim < dim_max) {
-			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
+			assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index, sparse_dist, comp, dim, n, threshold, modulus, binomial_coeff);
 		}
 	}
 }
