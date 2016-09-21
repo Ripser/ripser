@@ -1,19 +1,23 @@
-/*  Ripser: a lean C++ code for the computation of Vietoris-Rips persistence barcodes
+/*
 
-    Copyright 2015-2016 Ulrich Bauer.
+Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+Copyright 2015-2016 Ulrich Bauer.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License along
+with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
 
 //#define ASSEMBLE_REDUCTION_MATRIX
 //#define USE_COEFFICIENTS
@@ -240,17 +244,18 @@ public:
 
 class simplex_coboundary_enumerator {
 private:
-	index_t idx, modified_idx, v, k;
+	index_t idx_below, idx_above, v, k;
 	const binomial_coeff_table& binomial_coeff;
 
 public:
 	simplex_coboundary_enumerator(index_t _idx, index_t _dim, index_t _n, const binomial_coeff_table& _binomial_coeff)
-	    : idx(_idx), modified_idx(_idx), v(_n - 1), k(_dim + 1), binomial_coeff(_binomial_coeff) {}
+	    : idx_below(_idx), idx_above(0), v(_n - 1), k(_dim + 1), binomial_coeff(_binomial_coeff) {}
 
 	bool has_next() {
-		while ((v != -1) && (binomial_coeff(v, k) <= idx)) {
-			idx -= binomial_coeff(v, k);
-			modified_idx += binomial_coeff(v, k + 1) - binomial_coeff(v, k);
+		while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
+			idx_below -= binomial_coeff(v, k);
+			idx_above += binomial_coeff(v, k + 1);
+
 			--v;
 			--k;
 			assert(k != -1);
@@ -259,7 +264,7 @@ public:
 	}
 
 	std::pair<entry_t, index_t> next() {
-		auto result = std::make_pair(make_entry(modified_idx + binomial_coeff(v, k + 1), k & 1 ? -1 : 1), v);
+		auto result = std::make_pair(make_entry(idx_above + binomial_coeff(v, k + 1) + idx_below, k & 1 ? -1 : 1), v);
 		--v;
 		return result;
 	}
