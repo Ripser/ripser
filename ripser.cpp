@@ -632,10 +632,6 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
                                        index_t dim, index_t n, value_t threshold, const coefficient_t modulus,
                                        const binomial_coeff_table& binomial_coeff) {
 
-	// iterate over all (previous) columns_to_reduce
-	// find cofaces, additional vertices
-	// if additional vertex is larger than all current ones: append to columns_to_reduce
-
 #ifdef INDICATE_PROGRESS
 	std::cout << "\033[K"
 	          << "assembling columns" << std::flush << "\r";
@@ -646,7 +642,6 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
 	std::vector<diameter_index_t> next_simplices;
 
 	for (diameter_index_t simplex : simplices) {
-		// coface_entries.clear();
 		simplex_coboundary_enumerator<const sparse_distance_matrix&> cofaces(simplex, dim, n, modulus, sparse_dist, binomial_coeff);
 
 		while (cofaces.has_next(false)) {
@@ -673,12 +668,11 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
 #endif
 }
 
-template <typename DistanceMatrix, //typename FullDistanceMatrix,
+template <typename DistanceMatrix,
 typename ComparatorCofaces, typename Comparator>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
                    index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                    const std::vector<coefficient_t>& multiplicative_inverse, const DistanceMatrix& dist,
-//				   const FullDistanceMatrix& dist_full,
                    const ComparatorCofaces& comp, const Comparator& comp_prev,
                    const binomial_coeff_table& binomial_coeff) {
 
@@ -758,22 +752,14 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				reduction_column.push(simplex);
 #endif
 
-//				value_t diameter = comp_prev.diameter(get_index(simplex));
-//				assert(comp.diameter(get_index(simplex)) == get_diameter(simplex));
-
 				vertices.clear();
 				get_simplex_vertices(get_index(simplex), dim, n, binomial_coeff, std::back_inserter(vertices));
 
 				coface_entries.clear();
 				simplex_coboundary_enumerator<decltype(dist)> cofaces(simplex, dim, n, modulus, dist, binomial_coeff);
-//				simplex_coboundary_enumerator<FullDistanceMatrix> cofaces_full(simplex, dim, n, modulus, dist_full, binomial_coeff);
 
 				while (cofaces.has_next()) {
-//					assert(cofaces_full.has_next());
 					diameter_entry_t coface = cofaces.next();
-//					, coface_full = cofaces_full.next();
-//					value_t diameter = comp.diameter(get_index(coface));
-//					assert(comp.diameter(get_index(coface)) == get_diameter(coface));
 
 					if (get_diameter(coface) <= threshold) {
 						coface_entries.push_back(coface);
@@ -1119,7 +1105,7 @@ int main(int argc, char** argv) {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, sparse_dist, //dist,
+		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, sparse_dist,
 		              comp, comp_prev, binomial_coeff);
 
 		if (dim < dim_max) {
