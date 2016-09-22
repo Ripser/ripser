@@ -37,6 +37,8 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 #include <unordered_map>
 
+#include "prettyprint.hpp"
+
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/sparse_hash_map>
 template <class Key, class T> class hash_map : public google::sparse_hash_map<Key, T> {
@@ -645,7 +647,13 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #ifdef INDICATE_PROGRESS
 				std::cout << "\033[K";
 #endif
-				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
+				std::cout << " [" << diameter << "," << death << "): {";
+				while (get_index(pivot = get_pivot(working_coboundary, modulus)) != -1) {
+					std::cout << vertices_of_simplex(get_index(pivot), dim + 1, n, binomial_coeff) << ":" << get_coefficient(pivot);
+					working_coboundary.pop();
+					if (get_index(pivot = get_pivot(working_coboundary, modulus)) != -1) std::cout << ", ";
+				}
+				std::cout << "}" << std::endl;
 			}
 #endif
 
