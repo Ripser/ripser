@@ -635,7 +635,15 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #ifdef INDICATE_PROGRESS
 				std::cout << "\033[K";
 #endif
-				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+//				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+				std::cout << " [" << diameter << ", ): {";
+				auto cocycle = reduction_column;
+				while (get_index(pivot = get_pivot(cocycle, modulus)) != -1) {
+					std::cout << vertices_of_simplex(get_index(pivot), dim, n, binomial_coeff) << ":" << get_coefficient(pivot);
+					cocycle.pop();
+					if (get_index(pivot = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
+				}
+				std::cout << "}" << std::endl;
 #endif
 				break;
 			}
@@ -647,11 +655,14 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #ifdef INDICATE_PROGRESS
 				std::cout << "\033[K";
 #endif
+//				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
 				std::cout << " [" << diameter << "," << death << "): {";
-				while (get_index(pivot = get_pivot(working_coboundary, modulus)) != -1) {
-					std::cout << vertices_of_simplex(get_index(pivot), dim + 1, n, binomial_coeff) << ":" << get_coefficient(pivot);
-					working_coboundary.pop();
-					if (get_index(pivot = get_pivot(working_coboundary, modulus)) != -1) std::cout << ", ";
+				auto cocycle = reduction_column;
+				diameter_entry_t e;
+				while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+					std::cout << vertices_of_simplex(get_index(e), dim, n, binomial_coeff) << ":" << get_coefficient(pivot);
+					cocycle.pop();
+					if (get_index(e = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
 				}
 				std::cout << "}" << std::endl;
 			}
