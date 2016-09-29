@@ -213,42 +213,6 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 	}
 };
 
-template <typename DistanceMatrix> class rips_filtration_comparator {
-public:
-	const DistanceMatrix& dist;
-	const index_t dim;
-
-private:
-	mutable std::vector<index_t> vertices;
-	const binomial_coeff_table& binomial_coeff;
-
-public:
-	rips_filtration_comparator(const DistanceMatrix& _dist, const index_t _dim,
-	                           const binomial_coeff_table& _binomial_coeff)
-	    : dist(_dist), dim(_dim), vertices(_dim + 1), binomial_coeff(_binomial_coeff){};
-
-	value_t diameter(const index_t index) const {
-		value_t diam = 0;
-		get_simplex_vertices(index, dim, dist.size(), binomial_coeff, vertices.begin());
-
-		for (index_t i = 0; i <= dim; ++i)
-			for (index_t j = 0; j < i; ++j) { diam = std::max(diam, dist(vertices[i], vertices[j])); }
-		return diam;
-	}
-
-	bool operator()(const index_t a, const index_t b) const {
-		assert(a < binomial_coeff(dist.size(), dim + 1));
-		assert(b < binomial_coeff(dist.size(), dim + 1));
-
-		return greater_diameter_or_smaller_index<diameter_index_t>()(diameter_index_t(diameter(a), a),
-		                                                             diameter_index_t(diameter(b), b));
-	}
-
-	template <typename Entry> bool operator()(const Entry& a, const Entry& b) const {
-		return operator()(get_index(a), get_index(b));
-	}
-};
-
 template <class DistanceMatrix> class simplex_coboundary_enumerator {
 private:
 	index_t idx_below, idx_above, v, k;
@@ -584,51 +548,10 @@ template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t 
 	column.push(std::make_pair(diameter, e));
 }
 
-template <typename Comparator>
-void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
-                                hash_map<index_t, index_t>& pivot_column_index, const Comparator& comp, index_t dim,
-                                index_t n, value_t threshold, const binomial_coeff_table& binomial_coeff) {
-	index_t num_simplices = binomial_coeff(n, dim + 2);
-
-	columns_to_reduce.clear();
-
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K"
-	          << "assembling " << num_simplices << " columns" << std::flush << "\r";
-#endif
-
-	for (index_t index = 0; index < num_simplices; ++index) {
-		if (pivot_column_index.find(index) == pivot_column_index.end()) {
-			value_t diameter = comp.diameter(index);
-			if (diameter <= threshold) columns_to_reduce.push_back(std::make_pair(diameter, index));
-#ifdef INDICATE_PROGRESS
-		if ((index + 1) % 1000 == 0)
-			std::cout << "\033[K"
-			          << "assembled " << columns_to_reduce.size() << " out of " << (index + 1) << "/" << num_simplices << " columns" << std::flush << "\r";
-#endif
-		}
-	}
-
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K"
-	          << "sorting " << num_simplices << " columns" << std::flush << "\r";
-#endif
-
-	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
-	          greater_diameter_or_smaller_index<diameter_index_t>());
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K";
-#endif
-}
-
-
-
-template <typename Comparator>
 void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
 									   std::vector<diameter_index_t>& columns_to_reduce,
                                        hash_map<index_t, index_t>& pivot_column_index,
 									   const sparse_distance_matrix& sparse_dist,
-                                       const Comparator& comp,
                                        index_t dim, index_t n, value_t threshold, const coefficient_t modulus,
                                        const binomial_coeff_table& binomial_coeff) {
 
@@ -668,12 +591,10 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
 #endif
 }
 
-template <typename DistanceMatrix,
-typename ComparatorCofaces, typename Comparator>
+template <typename DistanceMatrix>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
                    index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                    const std::vector<coefficient_t>& multiplicative_inverse, const DistanceMatrix& dist,
-                   const ComparatorCofaces& comp, const Comparator& comp_prev,
                    const binomial_coeff_table& binomial_coeff) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
@@ -1099,17 +1020,14 @@ int main(int argc, char** argv) {
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
-		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
-		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
-
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
 		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, sparse_dist,
-		              comp, comp_prev, binomial_coeff);
+		              binomial_coeff);
 
 		if (dim < dim_max) {
-			assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index, sparse_dist, comp, dim, n, threshold, modulus, binomial_coeff);
+			assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index, sparse_dist, dim, n, threshold, modulus, binomial_coeff);
 		}
 	}
 }
