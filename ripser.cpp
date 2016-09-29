@@ -982,16 +982,21 @@ int main(int argc, char** argv) {
 	std::vector<diameter_index_t> columns_to_reduce;
 
 	std::vector<diameter_index_t> simplices , &edges = simplices;
-	rips_filtration_comparator<decltype(dist)> comp(dist, 1, binomial_coeff);
-	for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
-		value_t diameter = comp.diameter(index);
-			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
+    
+    for (index_t i = 0; i < n; ++i) {
+        simplex_coboundary_enumerator<const sparse_distance_matrix&> cofaces(i, 0, n, modulus, sparse_dist, binomial_coeff);
+
+		while (cofaces.has_next(false)) {
+			auto coface = cofaces.next();
+            value_t diameter = get_diameter(coface);
+			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, get_index(coface)));
+        }
+
+		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
 	}
 	
 	{
 		union_find dset(n);
-
-		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim 0:" << std::endl;
