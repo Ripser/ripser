@@ -926,7 +926,8 @@ int main(int argc, char** argv) {
 
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+				if (get_diameter(e) > 0)
+					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 				dset.link(u, v);
 			} else
