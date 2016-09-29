@@ -685,7 +685,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-	compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
+	compressed_sparse_matrix<diameter_entry_t> reduction_coefficients;
 #else
 #ifdef USE_COEFFICIENTS
 	std::vector<diameter_entry_t> reduction_coefficients;
@@ -723,9 +723,9 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 		diameter_entry_t pivot(0, -1, -1 + modulus);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-		// initialize reduction_matrix as identity matrix
-		reduction_matrix.append_column();
-		reduction_matrix.push_back(diameter_entry_t(column_to_reduce, 1));
+		// initialize reduction_coefficients as identity matrix
+		reduction_coefficients.append_column();
+		reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, 1));
 #else
 #ifdef USE_COEFFICIENTS
 		reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, 1));
@@ -738,18 +738,18 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 			const coefficient_t factor = modulus - get_coefficient(pivot);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-			for (auto it = reduction_matrix.cbegin(j); it != reduction_matrix.cend(j); ++it)
-#endif
-			{
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-				diameter_entry_t simplex = *it;
+			auto coeffs_begin = reduction_coefficients.cbegin(j), coeffs_end = reduction_coefficients.cend(j);
 #else
 #ifdef USE_COEFFICIENTS
-				diameter_entry_t simplex = reduction_coefficients[j];
+			auto coeffs_begin = &reduction_coefficients[j], coeffs_end = &reduction_coefficients[j] + 1;
 #else
-				diameter_entry_t simplex = columns_to_reduce[j];
+			auto coeffs_begin = &columns_to_reduce[j], coeffs_end = &columns_to_reduce[j] + 1;
 #endif
 #endif
+
+			for (auto it = coeffs_begin; it != coeffs_end; ++it)
+			{
+				diameter_entry_t simplex = *it;
 				set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
@@ -817,9 +817,9 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-			// replace current column of reduction_matrix (with a single diagonal 1 entry)
+			// replace current column of reduction_coefficients (with a single diagonal 1 entry)
 			// by reduction_column (possibly with a different entry on the diagonal)
-			reduction_matrix.pop_back();
+			reduction_coefficients.pop_back();
 			while (true) {
 				diameter_entry_t e = pop_pivot(reduction_column, modulus);
 				if (get_index(e) == -1) break;
@@ -827,7 +827,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				set_coefficient(e, inverse * get_coefficient(e) % modulus);
 				assert(get_coefficient(e) > 0);
 #endif
-				reduction_matrix.push_back(e);
+				reduction_coefficients.push_back(e);
 			}
 #else
 #ifdef USE_COEFFICIENTS
