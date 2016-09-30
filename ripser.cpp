@@ -18,7 +18,6 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-
 //#define ASSEMBLE_REDUCTION_MATRIX
 //#define USE_COEFFICIENTS
 
@@ -99,7 +98,6 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 }
 
 index_t get_next_vertex(index_t& v, const index_t idx, const index_t k, const binomial_coeff_table& binomial_coeff) {
-
 	if (binomial_coeff(v, k) > idx) {
 		index_t count = v;
 		while (count > 0) {
@@ -115,7 +113,6 @@ index_t get_next_vertex(index_t& v, const index_t idx, const index_t k, const bi
 	}
 	assert(binomial_coeff(v, k) <= idx);
 	assert(binomial_coeff(v + 1, k) > idx);
-
 	return v;
 }
 
@@ -123,14 +120,11 @@ template <typename OutputIterator>
 OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t v,
                                     const binomial_coeff_table& binomial_coeff, OutputIterator out) {
 	--v;
-
 	for (index_t k = dim + 1; k > 0; --k) {
 		get_next_vertex(v, idx, k, binomial_coeff);
-
 		*out++ = v;
 		idx -= binomial_coeff(v, k);
 	}
-
 	return out;
 }
 
@@ -172,7 +166,7 @@ typedef index_t entry_t;
 const index_t get_index(entry_t i) { return i; }
 index_t get_coefficient(entry_t i) { return 1; }
 entry_t make_entry(index_t _index, coefficient_t _value) { return entry_t(_index); }
-void set_coefficient(index_t& e, const coefficient_t c) { }
+void set_coefficient(index_t& e, const coefficient_t c) {}
 
 #endif
 
@@ -182,7 +176,7 @@ template <typename Entry> struct smaller_index {
 	bool operator()(const Entry& a, const Entry& b) { return get_index(a) < get_index(b); }
 };
 
-class diameter_index_t: public std::pair<value_t, index_t> {
+class diameter_index_t : public std::pair<value_t, index_t> {
 public:
 	diameter_index_t() : std::pair<value_t, index_t>() {}
 	diameter_index_t(std::pair<value_t, index_t> p) : std::pair<value_t, index_t>(p) {}
@@ -220,11 +214,8 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 template <class DistanceMatrix> class simplex_coboundary_enumerator {
 private:
 	index_t idx_below, idx_above, v, k;
-
 	std::vector<index_t> vertices;
-
 	const diameter_entry_t simplex;
-
 	const coefficient_t modulus;
 	const DistanceMatrix& dist;
 	const binomial_coeff_table& binomial_coeff;
@@ -253,13 +244,11 @@ public:
 	index_t next_index() { return idx_above + binomial_coeff(v--, k + 1) + idx_below; }
 
 	diameter_entry_t next() {
-
 		value_t coface_diameter = get_diameter(simplex);
-		for (index_t w : vertices) { coface_diameter = std::max(coface_diameter, dist(v, w)); }
-
+		for (index_t w : vertices) coface_diameter = std::max(coface_diameter, dist(v, w));
 		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
-
-		return diameter_entry_t(coface_diameter, idx_above + binomial_coeff(v--, k + 1) + idx_below, coface_coefficient);
+		return diameter_entry_t(coface_diameter, idx_above + binomial_coeff(v--, k + 1) + idx_below,
+		                        coface_coefficient);
 	}
 };
 
@@ -315,9 +304,7 @@ template <class T> struct second_argument_equal_to {
 	bool operator()(const T& lhs, const T& rhs) const { return lhs.second == rhs.second; }
 };
 
-
-template<>
-class simplex_coboundary_enumerator<const sparse_distance_matrix&> {
+template <> class simplex_coboundary_enumerator<const sparse_distance_matrix&> {
 private:
 	index_t idx_below, idx_above, v, k, max_vertex_below;
 	const binomial_coeff_table& binomial_coeff;
@@ -334,8 +321,8 @@ private:
 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, index_t _n,
-	                                     const coefficient_t _modulus, const sparse_distance_matrix& _sparse_dist,
-	                                     const binomial_coeff_table& _binomial_coeff)
+	                              const coefficient_t _modulus, const sparse_distance_matrix& _sparse_dist,
+	                              const binomial_coeff_table& _binomial_coeff)
 	    : simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(_n - 1), k(_dim + 1),
 	      max_vertex_below(_n - 1), modulus(_modulus), sparse_dist(_sparse_dist), binomial_coeff(_binomial_coeff) {
 		get_simplex_vertices(idx_below, _dim, _n, _binomial_coeff, std::back_inserter(vertices));
@@ -359,7 +346,8 @@ public:
 				else
 					x = std::min(x, y, greater_diameter_or_smaller_index<diameter_index_t>());
 			}
-			return all_cofaces || !(k > 0 && get_next_vertex(max_vertex_below, idx_below, k, binomial_coeff) > get_index(x));
+			return all_cofaces ||
+			       !(k > 0 && get_next_vertex(max_vertex_below, idx_below, k, binomial_coeff) > get_index(x));
 		continue_outer:;
 		}
 		return false;
@@ -378,9 +366,8 @@ public:
 
 		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
 
-		return diameter_entry_t(coface_diameter,
-								idx_above + binomial_coeff(get_index(x), k + 1) + idx_below,
-								coface_coefficient);
+		return diameter_entry_t(coface_diameter, idx_above + binomial_coeff(get_index(x), k + 1) + idx_below,
+		                        coface_coefficient);
 	}
 };
 
@@ -553,11 +540,11 @@ template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t 
 }
 
 void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
-									   std::vector<diameter_index_t>& columns_to_reduce,
-                                       hash_map<index_t, index_t>& pivot_column_index,
-									   const sparse_distance_matrix& sparse_dist,
-                                       index_t dim, index_t n, value_t threshold, const coefficient_t modulus,
-                                       const binomial_coeff_table& binomial_coeff) {
+                                std::vector<diameter_index_t>& columns_to_reduce,
+                                hash_map<index_t, index_t>& pivot_column_index,
+                                const sparse_distance_matrix& sparse_dist, index_t dim, index_t n, 
+                                value_t threshold, const coefficient_t modulus,
+                                const binomial_coeff_table& binomial_coeff) {
 
 #ifdef INDICATE_PROGRESS
 	std::cout << "\033[K"
@@ -565,24 +552,25 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
 #endif
 
 	columns_to_reduce.clear();
-	
+
 	std::vector<diameter_index_t> next_simplices;
 
 	for (diameter_index_t simplex : simplices) {
-		simplex_coboundary_enumerator<const sparse_distance_matrix&> cofaces(simplex, dim, n, modulus, sparse_dist, binomial_coeff);
+		simplex_coboundary_enumerator<const sparse_distance_matrix&> cofaces(simplex, dim, n, modulus, sparse_dist,
+		                                                                     binomial_coeff);
 
 		while (cofaces.has_next(false)) {
 			auto coface = cofaces.next();
-			
+
 			next_simplices.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
-		
+
 			if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end())
 				columns_to_reduce.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
 		}
 	}
-	
+
 	simplices.swap(next_simplices);
-	
+
 #ifdef INDICATE_PROGRESS
 	std::cout << "\033[K"
 	          << "sorting " << columns_to_reduce.size() << " columns" << std::flush << "\r";
@@ -614,7 +602,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 	std::vector<diameter_entry_t> coface_entries;
-	std::vector<index_t> vertices;
 
 	for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
 		auto column_to_reduce = columns_to_reduce[i];
@@ -668,8 +655,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 #endif
 
-			for (auto it = coeffs_begin; it != coeffs_end; ++it)
-			{
+			for (auto it = coeffs_begin; it != coeffs_end; ++it) {
 				diameter_entry_t simplex = *it;
 				set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 
@@ -677,18 +663,12 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				reduction_column.push(simplex);
 #endif
 
-				vertices.clear();
-				get_simplex_vertices(get_index(simplex), dim, n, binomial_coeff, std::back_inserter(vertices));
-
 				coface_entries.clear();
 				simplex_coboundary_enumerator<decltype(dist)> cofaces(simplex, dim, n, modulus, dist, binomial_coeff);
-
 				while (cofaces.has_next()) {
 					diameter_entry_t coface = cofaces.next();
-
 					if (get_diameter(coface) <= threshold) {
 						coface_entries.push_back(coface);
-
 						if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
 							if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end()) {
 								pivot = coface;
@@ -985,21 +965,21 @@ int main(int argc, char** argv) {
 
 	std::vector<diameter_index_t> columns_to_reduce;
 
-	std::vector<diameter_index_t> simplices , &edges = simplices;
+    std::vector<diameter_index_t> simplices, &edges = simplices;
     
     for (index_t i = 0; i < n; ++i) {
         simplex_coboundary_enumerator<const sparse_distance_matrix&> cofaces(i, 0, n, modulus, sparse_dist, binomial_coeff);
-
-		while (cofaces.has_next(false)) {
-			auto coface = cofaces.next();
+        
+        while (cofaces.has_next(false)) {
+            auto coface = cofaces.next();
             value_t diameter = get_diameter(coface);
-			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, get_index(coface)));
+            if (diameter <= threshold) edges.push_back(std::make_pair(diameter, get_index(coface)));
         }
-
-		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
-	}
-	
-	{
+        
+        std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
+    }
+    
+    {
 		union_find dset(n);
 
 #ifdef PRINT_PERSISTENCE_PAIRS
@@ -1014,8 +994,7 @@ int main(int argc, char** argv) {
 
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) > 0)
-					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+				if (get_diameter(e) > 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 				dset.link(u, v);
 			} else
@@ -1033,11 +1012,12 @@ int main(int argc, char** argv) {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, sparse_dist,
-		              binomial_coeff);
+		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse,
+		              sparse_dist, binomial_coeff);
 
 		if (dim < dim_max) {
-			assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index, sparse_dist, dim, n, threshold, modulus, binomial_coeff);
+			assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index, sparse_dist, dim, n,
+			                           threshold, modulus, binomial_coeff);
 		}
 	}
 }
