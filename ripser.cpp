@@ -18,7 +18,6 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-
 //#define ASSEMBLE_REDUCTION_MATRIX
 //#define USE_COEFFICIENTS
 
@@ -167,7 +166,7 @@ typedef index_t entry_t;
 const index_t get_index(entry_t i) { return i; }
 index_t get_coefficient(entry_t i) { return 1; }
 entry_t make_entry(index_t _index, coefficient_t _value) { return entry_t(_index); }
-void set_coefficient(index_t& e, const coefficient_t c) { }
+void set_coefficient(index_t& e, const coefficient_t c) {}
 
 #endif
 
@@ -177,7 +176,7 @@ template <typename Entry> struct smaller_index {
 	bool operator()(const Entry& a, const Entry& b) { return get_index(a) < get_index(b); }
 };
 
-class diameter_index_t: public std::pair<value_t, index_t> {
+class diameter_index_t : public std::pair<value_t, index_t> {
 public:
 	diameter_index_t() : std::pair<value_t, index_t>() {}
 	diameter_index_t(std::pair<value_t, index_t> p) : std::pair<value_t, index_t>(p) {}
@@ -284,7 +283,8 @@ public:
 		value_t coface_diameter = get_diameter(simplex);
 		for (index_t w : vertices) coface_diameter = std::max(coface_diameter, dist(v, w));
 		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
-		return diameter_entry_t(coface_diameter, idx_above + binomial_coeff(v--, k + 1) + idx_below, coface_coefficient);
+		return diameter_entry_t(coface_diameter, idx_above + binomial_coeff(v--, k + 1) + idx_below,
+		                        coface_coefficient);
 	}
 };
 
@@ -503,9 +503,10 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 			value_t diameter = comp.diameter(index);
 			if (diameter <= threshold) columns_to_reduce.push_back(std::make_pair(diameter, index));
 #ifdef INDICATE_PROGRESS
-		if ((index + 1) % 1000 == 0)
-			std::cout << "\033[K"
-			          << "assembled " << columns_to_reduce.size() << " out of " << (index + 1) << "/" << num_simplices << " columns" << std::flush << "\r";
+			if ((index + 1) % 1000 == 0)
+				std::cout << "\033[K"
+				          << "assembled " << columns_to_reduce.size() << " out of " << (index + 1) << "/"
+				          << num_simplices << " columns" << std::flush << "\r";
 #endif
 		}
 	}
@@ -525,8 +526,7 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
                    index_t dim, index_t n, value_t threshold, coefficient_t modulus,
-                   const std::vector<coefficient_t>& multiplicative_inverse,
-				   const DistanceMatrix& dist,
+                   const std::vector<coefficient_t>& multiplicative_inverse, const DistanceMatrix& dist,
                    const ComparatorCofaces& comp, const Comparator& comp_prev,
                    const binomial_coeff_table& binomial_coeff) {
 
@@ -596,8 +596,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 #endif
 
-			for (auto it = coeffs_begin; it != coeffs_end; ++it)
-			{
+			for (auto it = coeffs_begin; it != coeffs_end; ++it) {
 				diameter_entry_t simplex = *it;
 				set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 
@@ -927,8 +926,7 @@ int main(int argc, char** argv) {
 
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) > 0)
-					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+				if (get_diameter(e) > 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 				dset.link(u, v);
 			} else
@@ -949,8 +947,8 @@ int main(int argc, char** argv) {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse,
-					  dist, comp, comp_prev, binomial_coeff);
+		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, dist,
+		              comp, comp_prev, binomial_coeff);
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
