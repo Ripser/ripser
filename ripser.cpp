@@ -99,7 +99,6 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 }
 
 index_t get_next_vertex(index_t& v, const index_t idx, const index_t k, const binomial_coeff_table& binomial_coeff) {
-
 	if (binomial_coeff(v, k) > idx) {
 		index_t count = v;
 		while (count > 0) {
@@ -115,7 +114,6 @@ index_t get_next_vertex(index_t& v, const index_t idx, const index_t k, const bi
 	}
 	assert(binomial_coeff(v, k) <= idx);
 	assert(binomial_coeff(v + 1, k) > idx);
-
 	return v;
 }
 
@@ -123,14 +121,11 @@ template <typename OutputIterator>
 OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t v,
                                     const binomial_coeff_table& binomial_coeff, OutputIterator out) {
 	--v;
-
 	for (index_t k = dim + 1; k > 0; --k) {
 		get_next_vertex(v, idx, k, binomial_coeff);
-
 		*out++ = v;
 		idx -= binomial_coeff(v, k);
 	}
-
 	return out;
 }
 
@@ -256,11 +251,8 @@ public:
 template <class DistanceMatrix> class simplex_coboundary_enumerator {
 private:
 	index_t idx_below, idx_above, v, k;
-
 	std::vector<index_t> vertices;
-
 	const diameter_entry_t simplex;
-
 	const coefficient_t modulus;
 	const DistanceMatrix& dist;
 	const binomial_coeff_table& binomial_coeff;
@@ -289,12 +281,9 @@ public:
 	index_t next_index() { return idx_above + binomial_coeff(v--, k + 1) + idx_below; }
 
 	diameter_entry_t next() {
-
 		value_t coface_diameter = get_diameter(simplex);
-		for (index_t w : vertices) { coface_diameter = std::max(coface_diameter, dist(v, w)); }
-
+		for (index_t w : vertices) coface_diameter = std::max(coface_diameter, dist(v, w));
 		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
-
 		return diameter_entry_t(coface_diameter, idx_above + binomial_coeff(v--, k + 1) + idx_below, coface_coefficient);
 	}
 };
@@ -676,7 +665,8 @@ template <typename DistanceMatrix,
 typename ComparatorCofaces, typename Comparator>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
                    index_t dim, index_t n, value_t threshold, coefficient_t modulus,
-                   const std::vector<coefficient_t>& multiplicative_inverse, const DistanceMatrix& dist,
+                   const std::vector<coefficient_t>& multiplicative_inverse,
+				   const DistanceMatrix& dist,
                    const ComparatorCofaces& comp, const Comparator& comp_prev,
                    const binomial_coeff_table& binomial_coeff) {
 
@@ -693,7 +683,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 	std::vector<diameter_entry_t> coface_entries;
-	std::vector<index_t> vertices;
 
 	for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
 		auto column_to_reduce = columns_to_reduce[i];
@@ -756,18 +745,12 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				reduction_column.push(simplex);
 #endif
 
-				vertices.clear();
-				get_simplex_vertices(get_index(simplex), dim, n, binomial_coeff, std::back_inserter(vertices));
-
 				coface_entries.clear();
 				simplex_coboundary_enumerator<decltype(dist)> cofaces(simplex, dim, n, modulus, dist, binomial_coeff);
-
 				while (cofaces.has_next()) {
 					diameter_entry_t coface = cofaces.next();
-
 					if (get_diameter(coface) <= threshold) {
 						coface_entries.push_back(coface);
-
 						if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
 							if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end()) {
 								pivot = coface;
@@ -1065,11 +1048,11 @@ int main(int argc, char** argv) {
 	std::vector<diameter_index_t> columns_to_reduce;
 
 	std::vector<diameter_index_t> simplices , &edges = simplices;
-	rips_filtration_comparator<decltype(dist)> comp(dist, 1, binomial_coeff);
-	for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
-		value_t diameter = comp.diameter(index);
+		rips_filtration_comparator<decltype(dist)> comp(dist, 1, binomial_coeff);
+		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
+			value_t diameter = comp.diameter(index);
 			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
-	}
+		}
 	
 	{
 		union_find dset(n);
