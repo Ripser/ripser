@@ -180,6 +180,7 @@ class diameter_index_t : public std::pair<value_t, index_t> {
 public:
 	diameter_index_t() : std::pair<value_t, index_t>() {}
 	diameter_index_t(std::pair<value_t, index_t> p) : std::pair<value_t, index_t>(p) {}
+	diameter_index_t(index_t i) : std::pair<value_t, index_t>(0, i) {}
 };
 value_t get_diameter(diameter_index_t i) { return i.first; }
 index_t get_index(diameter_index_t i) { return i.second; }
@@ -187,8 +188,6 @@ index_t get_index(diameter_index_t i) { return i.second; }
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
 	diameter_entry_t(std::pair<value_t, entry_t> p) : std::pair<value_t, entry_t>(p) {}
-	diameter_entry_t(entry_t e) : std::pair<value_t, entry_t>(0, e) {}
-	diameter_entry_t() : diameter_entry_t(0) {}
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
 	    : std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
 	diameter_entry_t(diameter_index_t _diameter_index, coefficient_t _coefficient)
@@ -968,7 +967,7 @@ int main(int argc, char** argv) {
     std::vector<diameter_index_t> simplices, &edges = simplices;
     
     for (index_t i = 0; i < n; ++i) {
-        simplex_coboundary_enumerator<const sparse_distance_matrix&> cofaces(i, 0, n, modulus, sparse_dist, binomial_coeff);
+        simplex_coboundary_enumerator<const sparse_distance_matrix&> cofaces(diameter_index_t(i), 0, n, modulus, sparse_dist, binomial_coeff);
         
         while (cofaces.has_next(false)) {
             auto coface = cofaces.next();
