@@ -23,6 +23,8 @@
 
 //#define USE_GOOGLE_HASHMAP
 
+#include "prettyprint.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -542,7 +544,7 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 #endif
 }
 
-template <typename BoundaryEnumerator, typename Sorter, typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
+template <typename BoundaryEnumerator, typename Sorter, bool cohomology = true, typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
                    const DistanceMatrix& dist, const ComparatorCofaces& comp, const Comparator& comp_prev, index_t dim,
                    index_t n, value_t threshold, coefficient_t modulus,
@@ -678,11 +680,25 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 		found_persistence_pair:
 #ifdef PRINT_PERSISTENCE_PAIRS
 			value_t death = get_diameter(pivot);
-			 {
+			if (diameter != death) {
 #ifdef INDICATE_PROGRESS
 				std::cout << "\033[K";
 #endif
-				std::cout << " [" << diameter << "," << death << ")" << " " << get_index(column_to_reduce) << ":" << get_index(pivot) << std::endl << std::flush;
+				auto cycle = working_coboundary;
+				diameter_entry_t e;
+
+				if (cohomology || might_be_apparent_pair)
+					std::cout << " [" << diameter << "," << death << ")" << " " << get_index(column_to_reduce) << ":" << get_index(pivot) << std::endl << std::flush;
+				else {
+					std::cout << " [" << diameter << "," << death << "): {";
+					while (get_index(e = get_pivot(cycle, modulus)) != -1) {
+						std::cout << vertices_of_simplex(get_index(e), dim - 1, n, binomial_coeff) << ":" << get_coefficient(e);
+						cycle.pop();
+						if (get_index(e = get_pivot(cycle, modulus)) != -1) std::cout << ", ";
+ 				}
+ 				std::cout << "}" << std::endl;
+				}
+
 			}
 #endif
 
@@ -1009,7 +1025,7 @@ int main(int argc, char** argv) {
 		hash_map<index_t, index_t> boundary_pivot_column_index;
 		boundary_pivot_column_index.reserve(boundary_columns_to_reduce.size());
 
-		compute_pairs<simplex_boundary_enumerator, smaller_diameter_or_greater_index<diameter_entry_t>>(boundary_columns_to_reduce, boundary_pivot_column_index, dist, comp_prev, comp, dim + 1, n, threshold, modulus,
+		compute_pairs<simplex_boundary_enumerator, smaller_diameter_or_greater_index<diameter_entry_t>, false>(boundary_columns_to_reduce, boundary_pivot_column_index, dist, comp_prev, comp, dim + 1, n, threshold, modulus,
 		              multiplicative_inverse, binomial_coeff);
 	
 
