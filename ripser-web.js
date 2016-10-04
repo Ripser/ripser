@@ -45,7 +45,18 @@ function init() {
 			  if (f != "") compute();
 			  });
 	}
-
+	
+	if (searchVars.dim) {
+		dim.value = searchVars.dim;
+	}
+	
+	if (searchVars.dim_min) {
+		dim_min.value = searchVars.dim_min;
+	}
+	
+	if (searchVars.dim_min) {
+		threshold.value = searchVars.threshold;
+	}
 }
 
 function moduleDidLoad() {
