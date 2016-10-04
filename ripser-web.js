@@ -120,8 +120,9 @@ function compute() {
     running_since = (new Date()).getTime();
 	
 	dimMin = parseInt(document.getElementById("dim_min").value) || 0;
-    
-    worker.postMessage({ "file": f, "dim": parseInt(dim.value), "threshold": parseFloatWithDefault(threshold.value, Infinity), "format": parseInt(format.value) });
+	
+	if (worker != undefined)
+    	worker.postMessage({ "file": f, "dim": parseInt(dim.value), "threshold": parseFloatWithDefault(threshold.value, Infinity), "format": parseInt(format.value) });
     
 }
 
