@@ -27,6 +27,24 @@ function init() {
 	
 	ga('create', 'UA-83191949-1', 'auto');
 	ga('send', 'pageview');
+	
+	
+	var searchVars = {};
+	if (window.location.search.length > 1) {
+		var pairs = window.location.search.substr(1).split('&');
+		for (var key_ix = 0; key_ix < pairs.length; key_ix++) {
+			var keyValue = pairs[key_ix].split('=');
+			searchVars[unescape(keyValue[0])] =
+			keyValue.length > 1 ? unescape(keyValue[1]) : '';
+		}
+	}
+	
+	if (searchVars.url) {
+		$.get(searchVars.url, function(data) {
+			  f = data;			  
+			  if (f != "") compute();
+			  });
+	}
 
 }
 
@@ -105,7 +123,7 @@ function handleMessage(message) {
 			initBarcode(range, message.data.dim);
 		}
 	} else if (message.data.type == "interval") {
-		if (message.data.dim >= dimMin)
+		if (message.data.dim >= dimMin) // && (message.data.death - message.data.birth > 0.005 * range[1]))
 		{
 			insertBar(message.data.birth, (message.data.death ? message.data.death : range[1]));
 		}
@@ -177,7 +195,7 @@ function insertBar(birth, death) {
 	height = barcodeHeight();
 	y.domain(index).range([0, height]);
 		
-	svg.transition().delay(50)
+	svg//.transition().delay(50)
 	.attr("height", height + margin.top + margin.bottom);
 
 	g.selectAll(".bar").data(data)
@@ -192,7 +210,7 @@ function insertBar(birth, death) {
     .append("title").html(function(d) { return "[" + chop(d.birth).toString() + ",&thinsp;" + chop(d.death).toString() + ")"; } );
 
 	g.selectAll(".bar")//.data(data)
-	.transition().delay(50)
+	//.transition().delay(50)
 	.attr("transform", function(d, i) { return "translate(0," + y(i) + ")"; });
 
 }
