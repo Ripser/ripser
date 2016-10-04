@@ -58,6 +58,10 @@ function init() {
 	if (searchVars.dim_min) {
 		threshold.value = searchVars.threshold;
 	}
+	
+	if (searchVars.format) {
+		format.value = searchVars.format;
+	}
 }
 
 function moduleDidLoad() {
