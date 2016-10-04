@@ -9,7 +9,8 @@ var worker;
 var dimMin;
 
 function init() {
-    (worker = new Worker("ripser-worker.js")).addEventListener("message", handleMessage, false);
+    if (navigator.mimeTypes['application/x-pnacl'] == undefined)
+		(worker = new Worker("ripser-worker.js")).addEventListener("message", handleMessage, false);
 
     fileInput.addEventListener("change", read_and_compute);
     
@@ -62,6 +63,7 @@ function init() {
 function moduleDidLoad() {
     common.hideModule();
     worker = common.naclModule;
+	if (f != "") compute();
 }
 
 function handleCrash(event) {
@@ -104,9 +106,11 @@ function compute() {
 	
 	if (f == "") return;
 	
-	if (running_since != undefined) {
-		worker.terminate();
-		(worker = new Worker("ripser-worker.js")).addEventListener("message", handleMessage, false);
+	if (navigator.mimeTypes['application/x-pnacl'] == undefined) {
+		if (running_since != undefined) {
+			worker.terminate();
+			(worker = new Worker("ripser-worker.js")).addEventListener("message", handleMessage, false);
+		}
 	}
 	
     running_since = (new Date()).getTime();
