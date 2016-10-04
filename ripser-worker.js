@@ -6,5 +6,5 @@ addEventListener('message', function(e) {
     Module.ripser_emscripten(data.file, data.dim, data.threshold, data.format);
     toc = (new Date()).getTime();
 
-    postMessage();
+	postMessage(null);
 }, false);
