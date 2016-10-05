@@ -60,7 +60,14 @@ function init() {
 	}
 	
 	if (searchVars.format) {
-		format.value = searchVars.format;
+		format.value =
+		{
+			"lower-distance" : 0,
+			"upper-distance" : 1,
+			"distance" : 2,
+			"point-cloud" : 3,
+			"dipha" : 4,
+		}[searchVars.format];
 	}
 }
 
