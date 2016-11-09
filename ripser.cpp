@@ -946,7 +946,13 @@ int main(int argc, char** argv) {
 		exit(-1);
 	}
 
+	std::chrono::time_point<std::chrono::system_clock> start;
+
+	start = std::chrono::system_clock::now();
+
 	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
+
+	std::cout << "Reading file in " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000. << " s.\n";
 
 	index_t n = dist.size();
 
@@ -955,7 +961,12 @@ int main(int argc, char** argv) {
 	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
 	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]" << std::endl;
 
+	start = std::chrono::system_clock::now();
+
 	sparse_distance_matrix sparse_dist(dist, threshold);
+	
+	std::cout << "Building sparse distance matrix in " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000. << " s.\n";
+	
 
 	dim_max = std::min(dim_max, n - 2);
 
@@ -966,8 +977,6 @@ int main(int argc, char** argv) {
 
     std::vector<diameter_index_t> simplices, &edges = simplices;
 	
-	std::chrono::time_point<std::chrono::system_clock> start, end;
-	long elapsed_time;
 	
 	start = std::chrono::system_clock::now();
 
@@ -1020,8 +1029,7 @@ int main(int argc, char** argv) {
 		}
 	}
 	
-	end = std::chrono::system_clock::now();
-	elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "Computed Rips persistence in " << elapsed_time << " ms.\n";
+	std::cout << "Computing Rips persistence in " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000. << " s.\n";
+
 
 }
