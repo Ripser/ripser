@@ -965,19 +965,19 @@ int main(int argc, char** argv) {
 	std::vector<diameter_index_t> columns_to_reduce;
 
     std::vector<diameter_index_t> simplices, &edges = simplices;
-    
-    for (index_t i = 0; i < n; ++i) {
-        simplex_coboundary_enumerator<const sparse_distance_matrix&> cofaces(diameter_index_t(i), 0, n, modulus, sparse_dist, binomial_coeff);
-        
-        while (cofaces.has_next(false)) {
-            auto coface = cofaces.next();
-            value_t diameter = get_diameter(coface);
-            if (diameter <= threshold) edges.push_back(std::make_pair(diameter, get_index(coface)));
-        }
-        
-        std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
+	
+	std::chrono::time_point<std::chrono::system_clock> start, end;
+	long elapsed_time;
+	
+	start = std::chrono::system_clock::now();
+
+    for (index_t e = 0; e < dist.distances.size(); ++e) {
+        value_t diameter = dist.distances[e];
+		if (diameter <= threshold) edges.push_back(std::make_pair(diameter, e));
     }
-    
+	
+	std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
+
     {
 		union_find dset(n);
 
@@ -1019,4 +1019,9 @@ int main(int argc, char** argv) {
 			                           threshold, modulus, binomial_coeff);
 		}
 	}
+	
+	end = std::chrono::system_clock::now();
+	elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+	std::cout << "Computed Rips persistence in " << elapsed_time << " ms.\n";
+
 }
