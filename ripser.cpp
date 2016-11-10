@@ -686,7 +686,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 }
 
-enum file_format { LOWER_DISTANCE_MATRIX, UPPER_DISTANCE_MATRIX, DISTANCE_MATRIX, POINT_CLOUD, DIPHA };
+enum file_format { LOWER_DISTANCE_MATRIX, UPPER_DISTANCE_MATRIX, DISTANCE_MATRIX, POINT_CLOUD, DIPHA, RIPSER };
 
 template <typename T> T read(std::istream& s) {
 	T result;
@@ -787,6 +787,12 @@ compressed_lower_distance_matrix read_dipha(std::istream& input_stream) {
 	return compressed_lower_distance_matrix(std::move(distances));
 }
 
+compressed_lower_distance_matrix read_ripser(std::istream& input_stream) {
+	std::vector<value_t> distances;
+	while (!input_stream.eof()) distances.push_back(read<value_t>(input_stream));
+	return compressed_lower_distance_matrix(std::move(distances));
+}
+
 compressed_lower_distance_matrix read_file(std::istream& input_stream, file_format format) {
 	switch (format) {
 	case LOWER_DISTANCE_MATRIX:
@@ -799,6 +805,8 @@ compressed_lower_distance_matrix read_file(std::istream& input_stream, file_form
 		return read_point_cloud(input_stream);
 	case DIPHA:
 		return read_dipha(input_stream);
+	case RIPSER:
+		return read_ripser(input_stream);
 	}
 }
 
@@ -816,6 +824,7 @@ void print_usage_and_exit(int exit_code) {
 	          << "                     distance       (full distance matrix)" << std::endl
 	          << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
 	          << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
+	          << "                     ripser         (distance matrix in Ripser binary file format)" << std::endl
 	          << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
 	          << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
 #ifdef USE_COEFFICIENTS
@@ -867,6 +876,8 @@ int main(int argc, char** argv) {
 				format = POINT_CLOUD;
 			else if (parameter == "dipha")
 				format = DIPHA;
+			else if (parameter == "ripser")
+				format = RIPSER;
 			else
 				print_usage_and_exit(-1);
 #ifdef USE_COEFFICIENTS
