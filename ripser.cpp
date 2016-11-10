@@ -619,7 +619,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 						}
 					}
 				}
-				for (auto e : coface_entries) working_coboundary.push(e);
+				for (auto coface : coface_entries) working_coboundary.push(coface);
 			}
 
 			pivot = get_pivot(working_coboundary, modulus);
