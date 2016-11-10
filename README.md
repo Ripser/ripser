@@ -7,6 +7,8 @@ Copyright © 2015–2016 [Ulrich Bauer].
 
 Ripser is a lean C++ code for the computation of Vietoris–Rips persistence barcodes. It can do just this one thing, but does it extremely well.
 
+To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The computation happens inside the browser (using [PNaCl] on Chrome and JavaScript via [Emscripten] on other browsers).
+
 The main features of Ripser:
 
   - time- and memory-efficient
@@ -14,7 +16,7 @@ The main features of Ripser:
   - support for coefficients in prime finite fields
   - no external dependencies (optional support for Google's [sparsehash])
 
-Currently, Ripser outperforms other codes ([Dionysus], [DIPHA], [GUDHI], [Perseus], [PHAT]) by a factor of more than 40 in computation time and a factor of more than 15 in memory efficiency. (Note that [PHAT] does not contain code for generating Vietoris–Rips filtrations).
+Currently, Ripser outperforms other codes ([Dionysus], [DIPHA], [GUDHI], [Perseus], [PHAT]) by a factor of more than 40 in computation time and a factor of more than 15 in memory efficiency (for the example linked at [live.ripser.org]). (Note that [PHAT] does not contain code for generating Vietoris–Rips filtrations).
 
 Input formats currently supported by Ripser:
 
@@ -57,7 +59,7 @@ Ripser supports several compile-time options. They are switched on by defining t
   - `USE_COEFFICIENTS`: enable support for coefficients in a prime field
   - `INDICATE_PROGRESS`: indicate the current progress in the console
   - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default in the code; comment out to disable)
-  - `USE_GOOGLE_HASHMAP`: enable support for Google's [sparsehash] data structure; may further reducue memory footprint
+  - `USE_GOOGLE_HASHMAP`: enable support for Google's [sparsehash] data structure; may further reduce memory footprint
 
 For example, to build Ripser with support for coefficients:
 
@@ -89,13 +91,17 @@ The following features are currently planned for future versions:
  - computation of representative cycles for persistent homology (currenly only *co*cycles are computed)
  - support for sparse distance matrices
 
+Prototype implementations are already avaliable; please contact the author if one of these features might be relevant for your research.
+
 
 ### License
 
 Ripser is licensed under the [LGPL] 3.0. Please contact the author if you want to use Ripser in your software under a different license. 
 
-
 [Ulrich Bauer]: <http://ulrich-bauer.org>
+[live.ripser.org]: <http://live.ripser.org>
+[PNaCl]: <https://www.chromium.org/nativeclient/pnacl/>
+[Emscripten]: <http://emscripten.org>
 [latest-release]: <https://github.com/Ripser/ripser/releases/latest>
 [Dionysus]: <http://www.mrzv.org/software/dionysus/>
 [DIPHA]: <http://git.io/dipha>
