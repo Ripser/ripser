@@ -1,0 +1,19 @@
+geometry74:~ uli$ /usr/bin/time -l java -Xmx16G -cp Bitbucket/phat-paper/benchmark:Source/javaplex/dist/javaplex-4.2.1.jar RipsFiltration ~/Bitbucket/phat-paper/benchmark/point\ cloud/sphere_3_192_points.dat 2 3
+Constructing Rips filtration in 425.57800000000003 s
+Computing persistence (default) in 2848.477 s
+     3275.48 real      3900.79 user        36.35 sys
+12636958720  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+   4791446  page reclaims
+         2  page faults
+         0  swaps
+         5  block input operations
+         5  block output operations
+         0  messages sent
+         0  messages received
+         5  signals received
+         9  voluntary context switches
+   9898205  involuntary context switches
+
