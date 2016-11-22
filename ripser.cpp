@@ -548,7 +548,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 		auto column_to_reduce = columns_to_reduce[i];
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>, smaller_index<diameter_entry_t>>
+		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>, greater_diameter_or_smaller_index<diameter_entry_t>>
 		    reduction_column;
 #endif
 
@@ -574,20 +574,25 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 		// initialize reduction_coefficients as identity matrix
 		reduction_coefficients.append_column();
-		reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, 1));
-#else
+#endif
 #ifdef USE_COEFFICIENTS
 		reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, 1));
 #endif
-#endif
-
+		
 		bool might_be_apparent_pair = (i == j);
 
 		do {
 			const coefficient_t factor = modulus - get_coefficient(pivot);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
+#ifdef USE_COEFFICIENTS
 			auto coeffs_begin = reduction_coefficients.cbegin(j), coeffs_end = reduction_coefficients.cend(j);
+#else
+			std::vector<diameter_entry_t> coeffs(0);
+			coeffs.push_back(columns_to_reduce[j]);
+			for (auto it = reduction_coefficients.cbegin(j); it != reduction_coefficients.cend(j); ++it) coeffs.push_back(*it);
+			auto coeffs_begin = coeffs.begin(), coeffs_end = coeffs.end();
+#endif
 #else
 #ifdef USE_COEFFICIENTS
 			auto coeffs_begin = &reduction_coefficients[j], coeffs_end = &reduction_coefficients[j] + 1;
@@ -661,7 +666,12 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 			// replace current column of reduction_coefficients (with a single diagonal 1 entry)
 			// by reduction_column (possibly with a different entry on the diagonal)
+#ifdef USE_COEFFICIENTS
 			reduction_coefficients.pop_back();
+#else
+			pop_pivot(reduction_column, modulus);
+#endif
+			
 			while (true) {
 				diameter_entry_t e = pop_pivot(reduction_column, modulus);
 				if (get_index(e) == -1) break;
