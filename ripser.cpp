@@ -136,13 +136,13 @@ std::vector<index_t> vertices_of_simplex(const index_t simplex_index, const inde
 }
 
 #ifdef USE_COEFFICIENTS
-struct entry_t {
+struct __attribute__((packed)) entry_t {
 	index_t index : 8 * (sizeof(index_t) - sizeof(coefficient_t));
 	coefficient_t coefficient;
 	entry_t(index_t _index, coefficient_t _coefficient) : index(_index), coefficient(_coefficient) {}
 	entry_t(index_t _index) : index(_index), coefficient(1) {}
 	entry_t() : index(0), coefficient(1) {}
-} __attribute__((packed));
+};
 
 static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
 
