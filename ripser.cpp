@@ -94,35 +94,6 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 	return inverse;
 }
 
-index_t get_next_vertex(index_t& v, const index_t idx, const index_t k, const binomial_coeff_table& binomial_coeff) {
-	if (binomial_coeff(v, k) > idx) {
-		index_t count = v;
-		while (count > 0) {
-			index_t i = v;
-			index_t step = count >> 1;
-			i -= step;
-			if (binomial_coeff(i, k) > idx) {
-				v = --i;
-				count -= step + 1;
-			} else
-				count = step;
-		}
-	}
-	assert(binomial_coeff(v, k) <= idx && binomial_coeff(v + 1, k) > idx);
-	return v;
-}
-
-template <typename OutputIterator>
-OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t v,
-                                    const binomial_coeff_table& binomial_coeff, OutputIterator out) {
-	--v;
-	for (index_t k = dim + 1; k > 0; --k) {
-		get_next_vertex(v, idx, k, binomial_coeff);
-		*out++ = v;
-		idx -= binomial_coeff(v, k);
-	}
-	return out;
-}
 
 #ifdef USE_COEFFICIENTS
 struct __attribute__((packed)) entry_t {
@@ -193,46 +164,6 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 	bool operator()(const Entry& a, const Entry& b) {
 		return (get_diameter(a) > get_diameter(b)) ||
 		       ((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
-	}
-};
-
-template <class DistanceMatrix> class simplex_coboundary_enumerator {
-private:
-	index_t idx_below, idx_above, v, k;
-	std::vector<index_t> vertices;
-	const diameter_entry_t simplex;
-	const coefficient_t modulus;
-	const DistanceMatrix& dist;
-	const binomial_coeff_table& binomial_coeff;
-
-public:
-	simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, index_t _n,
-	                              const coefficient_t _modulus, const DistanceMatrix& _dist,
-	                              const binomial_coeff_table& _binomial_coeff)
-	    : simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(_n - 1), k(_dim + 1), modulus(_modulus),
-	      binomial_coeff(_binomial_coeff), dist(_dist), vertices(_dim + 1) {
-		get_simplex_vertices(get_index(_simplex), _dim, _n, binomial_coeff, vertices.begin());
-	}
-
-	bool has_next() {
-		while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
-			idx_below -= binomial_coeff(v, k);
-			idx_above += binomial_coeff(v, k + 1);
-			--v;
-			--k;
-			assert(k != -1);
-		}
-		return v != -1;
-	}
-
-	index_t next_index() { return idx_above + binomial_coeff(v--, k + 1) + idx_below; }
-
-	diameter_entry_t next() {
-		value_t coface_diameter = get_diameter(simplex);
-		for (index_t w : vertices) coface_diameter = std::max(coface_diameter, dist(v, w));
-		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
-		return diameter_entry_t(coface_diameter, idx_above + binomial_coeff(v--, k + 1) + idx_below,
-		                        coface_coefficient);
 	}
 };
 
@@ -447,17 +378,84 @@ public:
 	    : dist(_dist), n(_dist.size()), dim_max(std::min(_dim_max, index_t(_dist.size() - 2))), threshold(_threshold),
 	      modulus(_modulus), binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
-
+	
+	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
+		if (binomial_coeff(v, k) > idx) {
+			index_t count = v;
+			while (count > 0) {
+				index_t i = v;
+				index_t step = count >> 1;
+				i -= step;
+				if (binomial_coeff(i, k) > idx) {
+					v = --i;
+					count -= step + 1;
+				} else
+					count = step;
+			}
+		}
+		assert(binomial_coeff(v, k) <= idx && binomial_coeff(v + 1, k) > idx);
+		return v;
+	}
+	
+	template <typename OutputIterator>
+	OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t v,
+										OutputIterator out) const {
+		--v;
+		for (index_t k = dim + 1; k > 0; --k) {
+			get_next_vertex(v, idx, k);
+			*out++ = v;
+			idx -= binomial_coeff(v, k);
+		}
+		return out;
+	}
+	
 	value_t compute_diameter(const index_t index, index_t dim) const {
 		value_t diam = 0;
 
 		vertices.clear();
-		get_simplex_vertices(index, dim, dist.size(), binomial_coeff, std::back_inserter(vertices));
+		get_simplex_vertices(index, dim, dist.size(), std::back_inserter(vertices));
 
 		for (index_t i = 0; i <= dim; ++i)
 			for (index_t j = 0; j < i; ++j) { diam = std::max(diam, dist(vertices[i], vertices[j])); }
 		return diam;
 	}
+	
+	class simplex_coboundary_enumerator {
+	private:
+		index_t idx_below, idx_above, v, k;
+		std::vector<index_t> vertices;
+		const diameter_entry_t simplex;
+		const coefficient_t modulus;
+		const compressed_lower_distance_matrix& dist;
+		const binomial_coeff_table& binomial_coeff;
+		
+	public:
+		simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, const ripser& parent)
+		: simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1), modulus(parent.modulus),
+		binomial_coeff(parent.binomial_coeff), dist(parent.dist), vertices(_dim + 1) {
+			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
+		}
+		
+		bool has_next() {
+			while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
+				idx_below -= binomial_coeff(v, k);
+				idx_above += binomial_coeff(v, k + 1);
+				--v;
+				--k;
+				assert(k != -1);
+			}
+			return v != -1;
+		}
+		
+		diameter_entry_t next() {
+			value_t coface_diameter = get_diameter(simplex);
+			for (index_t w : vertices) coface_diameter = std::max(coface_diameter, dist(v, w));
+			index_t coface_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
+			coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
+			return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
+		}
+	};
+
 
 	void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
 	                                hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
@@ -580,8 +578,7 @@ public:
 #endif
 
 					coface_entries.clear();
-					simplex_coboundary_enumerator<decltype(dist)> cofaces(simplex, dim, n, modulus, dist,
-					                                                      binomial_coeff);
+					simplex_coboundary_enumerator cofaces(simplex, dim, *this);
 					while (cofaces.has_next()) {
 						diameter_entry_t coface = cofaces.next();
 						if (get_diameter(coface) <= threshold) {
@@ -687,7 +684,7 @@ public:
 			std::vector<index_t> vertices_of_edge(2);
 			for (auto e : edges) {
 				vertices_of_edge.clear();
-				get_simplex_vertices(get_index(e), 1, n, binomial_coeff, std::back_inserter(vertices_of_edge));
+				get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
 				index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 
 				if (u != v) {
