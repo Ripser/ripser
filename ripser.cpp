@@ -52,27 +52,20 @@ typedef int16_t coefficient_t;
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
-	index_t n_max, k_max;
-
 public:
-	binomial_coeff_table(index_t n, index_t k) {
-		n_max = n;
-		k_max = k;
-
-		B.resize(n + 1);
+	binomial_coeff_table(index_t n, index_t k) : B(n + 1) {
 		for (index_t i = 0; i <= n; i++) {
 			B[i].resize(k + 1);
-			for (index_t j = 0; j <= std::min(i, k); j++) {
+			for (index_t j = 0; j <= std::min(i, k); j++)
 				if (j == 0 || j == i)
 					B[i][j] = 1;
 				else
 					B[i][j] = B[i - 1][j - 1] + B[i - 1][j];
-			}
 		}
 	}
 
 	index_t operator()(index_t n, index_t k) const {
-		assert(n <= n_max && k <= k_max);
+		assert(n < B.size() && k < B[n].size());
 		return B[n][k];
 	}
 };
