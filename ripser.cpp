@@ -403,7 +403,7 @@ public:
 	}
 	
 	value_t compute_diameter(const index_t index, index_t dim) const {
-		value_t diam = 0;
+		value_t diam = -std::numeric_limits<value_t>::infinity();
 
 		vertices.clear();
 		get_simplex_vertices(index, dim, dist.size(), std::back_inserter(vertices));
@@ -682,7 +682,7 @@ public:
 
 				if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-					if (get_diameter(e) > 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+					if (get_diameter(e) != 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 					dset.link(u, v);
 				} else
