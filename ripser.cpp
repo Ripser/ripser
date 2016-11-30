@@ -137,6 +137,8 @@ index_t get_index(diameter_index_t i) { return i.second; }
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
 	diameter_entry_t(std::pair<value_t, entry_t> p) : std::pair<value_t, entry_t>(p) {}
+	diameter_entry_t(entry_t e) : std::pair<value_t, entry_t>(0, e) {}
+	diameter_entry_t() : diameter_entry_t(0) {}
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
 	    : std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
 	diameter_entry_t(diameter_index_t _diameter_index, coefficient_t _coefficient)
@@ -201,14 +203,6 @@ public:
 	}
 
 	size_t size() const { return neighbors.size(); }
-};
-
-template <class T> struct second_argument_greater {
-	bool operator()(const T& lhs, const T& rhs) const { return lhs.second > rhs.second; }
-};
-
-template <class T> struct second_argument_equal_to {
-	bool operator()(const T& lhs, const T& rhs) const { return lhs.second == rhs.second; }
 };
 
 template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
@@ -494,16 +488,16 @@ public:
 		return out;
 	}
 	
-//	value_t compute_diameter(const index_t index, index_t dim) const {
-//		value_t diam = -std::numeric_limits<value_t>::infinity();
-//
-//		vertices.clear();
-//		get_simplex_vertices(index, dim, sparse_dist.size(), std::back_inserter(vertices));
-//
-//		for (index_t i = 0; i <= dim; ++i)
-//			for (index_t j = 0; j < i; ++j) { diam = std::max(diam, sparse_dist(vertices[i], vertices[j])); }
-//		return diam;
-//	}
+	value_t compute_diameter(const index_t index, index_t dim) const {
+		value_t diam = -std::numeric_limits<value_t>::infinity();
+
+		vertices.clear();
+		get_simplex_vertices(index, dim, sparse_dist.size(), std::back_inserter(vertices));
+
+		for (index_t i = 0; i <= dim; ++i)
+			for (index_t j = 0; j < i; ++j) { diam = std::max(diam, dist(vertices[i], vertices[j])); }
+		return diam;
+	}
 	
 void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
                                 std::vector<diameter_index_t>& columns_to_reduce,
