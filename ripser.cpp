@@ -548,7 +548,7 @@ public:
 #ifdef USE_COEFFICIENTS
 				auto coeffs_begin = reduction_coefficients.cbegin(j), coeffs_end = reduction_coefficients.cend(j);
 #else
-				std::vector<diameter_entry_t> coeffs(0);
+				std::vector<diameter_entry_t> coeffs;
 				coeffs.push_back(columns_to_reduce[j]);
 				for (auto it = reduction_coefficients.cbegin(j); it != reduction_coefficients.cend(j); ++it)
 					coeffs.push_back(*it);
