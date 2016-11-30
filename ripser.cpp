@@ -381,7 +381,10 @@ class ripser {
 	coefficient_t modulus;
 	compressed_lower_distance_matrix dist;
 	sparse_distance_matrix sparse_dist;
+	
 	mutable std::vector<index_t> vertices;
+	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> ii;
+	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> ee;
 
 public:
 	ripser(compressed_lower_distance_matrix&& _dist,sparse_distance_matrix&& _sparse_dist, index_t _dim_max, value_t _threshold, coefficient_t _modulus)
@@ -400,9 +403,11 @@ public:
 		const sparse_distance_matrix& sparse_dist;
 		const binomial_coeff_table& binomial_coeff;
 
-		std::vector<index_t> vertices;
+		std::vector<index_t>& vertices;
 		
-		std::vector<std::vector<diameter_index_t>::const_reverse_iterator> ii, ee;
+		std::vector<std::vector<diameter_index_t>::const_reverse_iterator>& ii;
+		std::vector<std::vector<diameter_index_t>::const_reverse_iterator>& ee;
+
 		
 		diameter_index_t x;
 		
@@ -410,7 +415,12 @@ public:
 	public:
 		simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, const ripser& _parent)
 		:  parent(_parent), simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1),
-		max_vertex_below(parent.n - 1), modulus(parent.modulus), sparse_dist(parent.sparse_dist), binomial_coeff(parent.binomial_coeff) {
+		max_vertex_below(parent.n - 1), modulus(parent.modulus), sparse_dist(parent.sparse_dist), binomial_coeff(parent.binomial_coeff), vertices(parent.vertices), ii(parent.ii), ee(parent.ee) {
+			
+			ii.clear();
+			ee.clear();
+			vertices.clear();
+			
 			parent.get_simplex_vertices(idx_below, _dim, parent.n, std::back_inserter(vertices));
 			
 			for (auto v : vertices) {
