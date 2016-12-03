@@ -298,7 +298,7 @@ public:
 	void init_rows();
 
 	compressed_distance_matrix(std::vector<value_t>&& _distances)
-	    : distances(_distances), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
+	    : distances(std::move(_distances)), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
 		assert(distances.size() == size() * (size() - 1) / 2);
 		init_rows();
 	}
@@ -350,7 +350,7 @@ class euclidean_distance_matrix {
 public:
 	std::vector<std::vector<value_t>> points;
 
-	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(_points) {}
+	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(std::move(_points)) {}
 
 	value_t operator()(const index_t i, const index_t j) const {
 		return std::sqrt(std::inner_product(points[i].begin(), points[i].end(), points[j].begin(), value_t(),
