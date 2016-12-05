@@ -170,7 +170,7 @@ public:
 	void init_rows();
 
 	compressed_distance_matrix(std::vector<value_t>&& _distances)
-	    : distances(_distances), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
+	    : distances(std::move(_distances)), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
 		assert(distances.size() == size() * (size() - 1) / 2);
 		init_rows();
 	}
@@ -222,7 +222,7 @@ class euclidean_distance_matrix {
 public:
 	std::vector<std::vector<value_t>> points;
 
-	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(_points) {}
+	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(std::move(_points)) {}
 
 	value_t operator()(const index_t i, const index_t j) const {
 		return std::sqrt(std::inner_product(points[i].begin(), points[i].end(), points[j].begin(), value_t(),
@@ -358,17 +358,17 @@ template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t 
 }
 
 class ripser {
+	compressed_lower_distance_matrix dist;
 	index_t dim_max, n;
 	value_t threshold;
+	coefficient_t modulus;
 	const binomial_coeff_table binomial_coeff;
 	std::vector<coefficient_t> multiplicative_inverse;
-	coefficient_t modulus;
-	compressed_lower_distance_matrix dist;
 	mutable std::vector<index_t> vertices;
 
 public:
 	ripser(compressed_lower_distance_matrix&& _dist, index_t _dim_max, value_t _threshold, coefficient_t _modulus)
-	    : dist(_dist), n(_dist.size()), dim_max(std::min(_dim_max, index_t(_dist.size() - 2))), threshold(_threshold),
+	    : dist(std::move(_dist)), dim_max(std::min(_dim_max, index_t(dist.size() - 2))), n(dist.size()), threshold(_threshold),
 	      modulus(_modulus), binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 	
