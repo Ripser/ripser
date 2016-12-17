@@ -206,13 +206,11 @@ template <> void compressed_distance_matrix<UPPER_TRIANGULAR>::init_rows() {
 }
 
 template <> value_t compressed_distance_matrix<UPPER_TRIANGULAR>::operator()(index_t i, index_t j) const {
-	if (i > j) std::swap(i, j);
-	return i == j ? 0 : rows[i][j];
+	return i == j ? 0 : i > j ? rows[j][i] : rows[i][j];
 }
 
 template <> value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(index_t i, index_t j) const {
-	if (i > j) std::swap(i, j);
-	return i == j ? 0 : rows[j][i];
+	return i == j ? 0 : i < j ? rows[j][i] : rows[i][j];
 }
 
 typedef compressed_distance_matrix<LOWER_TRIANGULAR> compressed_lower_distance_matrix;
