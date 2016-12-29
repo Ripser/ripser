@@ -171,7 +171,7 @@ public:
 	void init_rows();
 
 	compressed_distance_matrix(std::vector<value_t>&& _distances)
-	    : distances(_distances), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
+	    : distances(std::move(_distances)), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
 		assert(distances.size() == size() * (size() - 1) / 2);
 		init_rows();
 	}
@@ -236,7 +236,7 @@ class euclidean_distance_matrix {
 public:
 	std::vector<std::vector<value_t>> points;
 
-	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(_points) {}
+	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(std::move(_points)) {}
 
 	value_t operator()(const index_t i, const index_t j) const {
 		return std::sqrt(std::inner_product(points[i].begin(), points[i].end(), points[j].begin(), value_t(),
@@ -375,9 +375,9 @@ template <typename DistanceMatrix> class ripser {
 	DistanceMatrix dist;
 	index_t n, dim_max;
 	value_t threshold;
+	coefficient_t modulus;
 	const binomial_coeff_table binomial_coeff;
 	std::vector<coefficient_t> multiplicative_inverse;
-	coefficient_t modulus;
 	mutable std::vector<index_t> vertices;
 	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> neighbor_it;
 	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> neighbor_end;
@@ -485,7 +485,8 @@ public:
 		simplex_sparse_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, const ripser& _parent)
 		    : parent(_parent), simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1),
 		      k(_dim + 1), max_vertex_below(parent.n - 1), modulus(parent.modulus), dist(parent.dist),
-		      binomial_coeff(parent.binomial_coeff), vertices(parent.vertices), neighbor_it(parent.neighbor_it), neighbor_end(parent.neighbor_end) {
+		      binomial_coeff(parent.binomial_coeff), vertices(parent.vertices), neighbor_it(parent.neighbor_it),
+		      neighbor_end(parent.neighbor_end) {
 
 			neighbor_it.clear();
 			neighbor_end.clear();
@@ -1111,10 +1112,10 @@ int main(int argc, char** argv) {
 	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
 	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]" << std::endl;
 
-
 #ifdef SPARSE_DISTANCE_MATRIX
 	ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus).compute_barcodes();
 #else
-	ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold, modulus).compute_barcodes();
+	ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold, modulus)
+	    .compute_barcodes();
 #endif
 }
