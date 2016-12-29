@@ -1355,10 +1355,6 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 			                                  dim + 1);
 		}
 	}
-
-#ifdef __native_client__
-	instance->PostMessage(pp::Var());
-#endif
 }
 
 void run_ripser(std::string f, index_t dim_max, value_t threshold, index_t format_index) {
