@@ -422,8 +422,8 @@ public:
 		
 	public:
 		simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, const ripser& parent)
-		: simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1), modulus(parent.modulus),
-		binomial_coeff(parent.binomial_coeff), dist(parent.dist), vertices(_dim + 1) {
+		: idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1), vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
+		binomial_coeff(parent.binomial_coeff) {
 			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
 		}
 		
