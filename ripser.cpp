@@ -565,8 +565,8 @@ public:
 	public:
 		simplex_sparse_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
 		                                     const ripser& _parent)
-		    : parent(_parent), simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0),
-		      v(parent.n - 1), k(_dim + 1), max_vertex_below(parent.n - 1), modulus(parent.modulus),
+		    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0),
+		      v(parent.n - 1), k(_dim + 1), max_vertex_below(parent.n - 1), simplex(_simplex), modulus(parent.modulus),
 		      dist(parent.dist), binomial_coeff(parent.binomial_coeff), vertices(parent.vertices),
 		      neighbor_it(parent.neighbor_it), neighbor_end(parent.neighbor_end) {
 
