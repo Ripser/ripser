@@ -54,6 +54,7 @@ typedef int16_t coefficient_t;
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
+
 public:
 	binomial_coeff_table(index_t n, index_t k) : B(n + 1) {
 		for (index_t i = 0; i <= n; i++) {
@@ -226,7 +227,7 @@ template <> value_t compressed_distance_matrix<UPPER_TRIANGULAR>::operator()(con
 }
 
 template <> value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(const index_t i, const index_t j) const {
-	return i == j ? 0 : i > j ? rows[i][j] : rows[j][i];
+	return i == j ? 0 : i < j ? rows[j][i] : rows[i][j];
 }
 
 typedef compressed_distance_matrix<LOWER_TRIANGULAR> compressed_lower_distance_matrix;
@@ -441,8 +442,8 @@ public:
 
 	public:
 		simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, const ripser& parent)
-		    : simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1),
-		      modulus(parent.modulus), binomial_coeff(parent.binomial_coeff), dist(parent.dist), vertices(_dim + 1) {
+		    : idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1), vertices(_dim + 1),
+		      simplex(_simplex), modulus(parent.modulus), dist(parent.dist), binomial_coeff(parent.binomial_coeff) {
 			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
 		}
 
