@@ -61,14 +61,16 @@ template <class Key, class T> class hash_map : public std::unordered_map<Key, T>
 #endif
 
 typedef float value_t;
-typedef int64_t index_t;
-typedef int16_t coefficient_t;
+// typedef uint16_t value_t;
+
+typedef long index_t;
+typedef short coefficient_t;
 
 #ifdef __native_client__
 class RipserInstance;
 static RipserInstance* instance;
 
-void ripser(std::string f, index_t dim_max, value_t threshold, index_t format_index);
+void run_ripser(std::string f, index_t dim_max, value_t threshold, index_t format_index);
 
 class RipserInstance : public pp::Instance {
 public:
@@ -1238,20 +1240,21 @@ template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes() {
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
+		for (index_t i = 0; i < n; ++i) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
-		pp::VarDictionary var_dict;
-		var_dict.Set("type", "interval");
-		var_dict.Set("birth", 0);
-		var_dict.Set("dim", 0);
-		instance->PostMessage(var_dict);
+			pp::VarDictionary var_dict;
+			var_dict.Set("type", "interval");
+			var_dict.Set("birth", 0);
+			var_dict.Set("dim", 0);
+			instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-		EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
+			EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
 #endif
+		}
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
@@ -1325,20 +1328,21 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
+		for (index_t i = 0; i < n; ++i) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
-		pp::VarDictionary var_dict;
-		var_dict.Set("type", "interval");
-		var_dict.Set("birth", 0);
-		var_dict.Set("dim", 0);
-		instance->PostMessage(var_dict);
+			pp::VarDictionary var_dict;
+			var_dict.Set("type", "interval");
+			var_dict.Set("birth", 0);
+			var_dict.Set("dim", 0);
+			instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-		EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
+			EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
 #endif
+		}
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
@@ -1378,7 +1382,7 @@ void run_ripser(std::string f, index_t dim_max, value_t threshold, index_t forma
 #ifdef __native_client__
 	pp::VarDictionary var_dict;
 	var_dict.Set("type", "distance-matrix");
-	var_dict.Set("size", int32_t(n));
+	var_dict.Set("size", int32_t(dist.size()));
 	var_dict.Set("min", *value_range.first);
 	var_dict.Set("max", *value_range.second);
 	instance->PostMessage(var_dict);
@@ -1393,6 +1397,10 @@ void run_ripser(std::string f, index_t dim_max, value_t threshold, index_t forma
 	.compute_barcodes();
 #else
 	ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold, modulus).compute_barcodes();
+#endif
+	
+#ifdef __native_client__
+	instance->PostMessage(pp::Var());
 #endif
 
 }

@@ -40,9 +40,23 @@ function init() {
 		}
 	}
 	
+	var HttpClient = function() {
+		this.get = function(aUrl, aCallback) {
+			var anHttpRequest = new XMLHttpRequest();
+			anHttpRequest.onreadystatechange = function() {
+				if (anHttpRequest.readyState == 4 && anHttpRequest.status == 200)
+					aCallback(anHttpRequest.responseText);
+			}
+			
+			anHttpRequest.open( "GET", aUrl, true );
+			anHttpRequest.send( null );
+		}
+	}
+	
 	if (searchVars.url) {
-		$.get(searchVars.url, function(data) {
-			  f = data;			  
+		var client = new HttpClient();
+		client.get(searchVars.url, function(data) {
+			  f = data;
 			  if (f != "") compute();
 			  });
 	}
@@ -55,7 +69,7 @@ function init() {
 		dim_min.value = searchVars.dim_min;
 	}
 	
-	if (searchVars.dim_min) {
+	if (searchVars.threshold) {
 		threshold.value = searchVars.threshold;
 	}
 	
@@ -217,7 +231,7 @@ function insertBar(birth, death) {
 	
 	index.push(data.length);
 	data.push({"birth": birth, "death": death});
-	index.sort(function(a, b) { return data[b].death - data[b].birth - data[a].death + data[a].birth; });
+	index.sort(function(a, b) { return (data[b].death - data[b].birth - data[a].death + data[a].birth) || (a - b) ; });
 	
 	height = barcodeHeight();
 	y.domain(index).range([0, height]);
