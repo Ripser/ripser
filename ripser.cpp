@@ -24,8 +24,6 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 //#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
-#define SPARSE_DISTANCE_MATRIX
-
 //#define USE_GOOGLE_HASHMAP
 
 #include <algorithm>
@@ -1063,14 +1061,14 @@ int main(int argc, char** argv) {
 	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]"
 	          << std::endl;
 
-#ifdef SPARSE_DISTANCE_MATRIX
-	ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
-	    .compute_barcodes();
-#else
-	ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold,
-	                               modulus)
-	    .compute_barcodes();
-#endif
+	if (threshold == std::numeric_limits<value_t>::max())
+		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
+		.compute_barcodes();
+	else
+		ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold,
+									   modulus)
+		.compute_barcodes();
+	
 }
 
 template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes() {
