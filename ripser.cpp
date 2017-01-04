@@ -1238,9 +1238,9 @@ template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes() {
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-		for (index_t i = 0; i < n; ++i) {
+		for (index_t i = 0; i < n; ++i) if (dset.find(i) == i) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+			std::cout << " [0, )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
 			pp::VarDictionary var_dict;
@@ -1326,9 +1326,9 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-		for (index_t i = 0; i < n; ++i) {
+		for (index_t i = 0; i < n; ++i) if (dset.find(i) == i) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+			std::cout << " [0, )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
 			pp::VarDictionary var_dict;
