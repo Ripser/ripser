@@ -565,10 +565,11 @@ public:
 	public:
 		simplex_sparse_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
 		                                     const ripser& _parent)
-		    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0),
-		      v(parent.n - 1), k(_dim + 1), max_vertex_below(parent.n - 1), simplex(_simplex), modulus(parent.modulus),
-		      dist(parent.dist), binomial_coeff(parent.binomial_coeff), vertices(parent.vertices),
-		      neighbor_it(parent.neighbor_it), neighbor_end(parent.neighbor_end) {
+		    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1),
+		      k(_dim + 1), max_vertex_below(parent.n - 1), simplex(_simplex),
+		      modulus(parent.modulus), dist(parent.dist), binomial_coeff(parent.binomial_coeff),
+		      vertices(parent.vertices), neighbor_it(parent.neighbor_it),
+		      neighbor_end(parent.neighbor_end) {
 
 			neighbor_it.clear();
 			neighbor_end.clear();
@@ -1172,12 +1173,11 @@ int main(int argc, char** argv) {
 
 	if (threshold == std::numeric_limits<value_t>::max())
 		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
-		.compute_barcodes();
+		    .compute_barcodes();
 	else
 		ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold,
-									   modulus)
-		.compute_barcodes();
-	
+		                               modulus)
+		    .compute_barcodes();
 }
 #endif
 #endif
@@ -1238,21 +1238,22 @@ template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes() {
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-		for (index_t i = 0; i < n; ++i) if (dset.find(i) == i) {
+		for (index_t i = 0; i < n; ++i)
+			if (dset.find(i) == i) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-			std::cout << " [0, )" << std::endl << std::flush;
+				std::cout << " [0, )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
-			pp::VarDictionary var_dict;
-			var_dict.Set("type", "interval");
-			var_dict.Set("birth", 0);
-			var_dict.Set("dim", 0);
-			instance->PostMessage(var_dict);
+				pp::VarDictionary var_dict;
+				var_dict.Set("type", "interval");
+				var_dict.Set("birth", 0);
+				var_dict.Set("dim", 0);
+				instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-			EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
+				EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
 #endif
-		}
+			}
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
@@ -1326,21 +1327,22 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-		for (index_t i = 0; i < n; ++i) if (dset.find(i) == i) {
+		for (index_t i = 0; i < n; ++i)
+			if (dset.find(i) == i) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-			std::cout << " [0, )" << std::endl << std::flush;
+				std::cout << " [0, )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
-			pp::VarDictionary var_dict;
-			var_dict.Set("type", "interval");
-			var_dict.Set("birth", 0);
-			var_dict.Set("dim", 0);
-			instance->PostMessage(var_dict);
+				pp::VarDictionary var_dict;
+				var_dict.Set("type", "interval");
+				var_dict.Set("birth", 0);
+				var_dict.Set("dim", 0);
+				instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-			EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
+				EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
 #endif
-		}
+			}
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
@@ -1370,9 +1372,9 @@ void run_ripser(std::string f, index_t dim_max, value_t threshold, index_t forma
 	std::stringstream file_stream(f);
 
 	compressed_lower_distance_matrix dist = read_file(file_stream, format);
-	
+
 	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
-	
+
 #ifdef __native_client__
 	pp::VarDictionary var_dict;
 	var_dict.Set("type", "distance-matrix");
@@ -1382,21 +1384,22 @@ void run_ripser(std::string f, index_t dim_max, value_t threshold, index_t forma
 	instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-	EM_ASM_({postMessage({"type" : "distance-matrix", "size" : $0, "min" : $1, "max" : $2})}, dist.size(),
-			*value_range.first, *value_range.second);
+	EM_ASM_({postMessage({"type" : "distance-matrix", "size" : $0, "min" : $1, "max" : $2})},
+	        dist.size(), *value_range.first, *value_range.second);
 #endif
-	
+
 #ifdef SPARSE_DISTANCE_MATRIX
 	ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
-	.compute_barcodes();
+	    .compute_barcodes();
 #else
-	ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold, modulus).compute_barcodes();
+	ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold,
+	                               modulus)
+	    .compute_barcodes();
 #endif
-	
+
 #ifdef __native_client__
 	instance->PostMessage(pp::Var());
 #endif
-
 }
 
 #ifdef __EMSCRIPTEN__
