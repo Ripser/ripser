@@ -1071,8 +1071,8 @@ int main(int argc, char** argv) {
 		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
 		.compute_barcodes();
 	else
-		ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold,
-									   modulus)
+		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
+		                               threshold, modulus)
 		.compute_barcodes();
 	
 }
