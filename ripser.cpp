@@ -103,8 +103,8 @@ static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the sa
 entry_t make_entry(index_t _index, coefficient_t _coefficient) {
 	return entry_t(_index, _coefficient);
 }
-index_t get_index(entry_t e) { return e.index; }
-index_t get_coefficient(entry_t e) { return e.coefficient; }
+index_t get_index(const entry_t& e) { return e.index; }
+index_t get_coefficient(const entry_t& e) { return e.coefficient; }
 void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
 
 bool operator==(const entry_t& e1, const entry_t& e2) {
@@ -119,10 +119,10 @@ std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
 #else
 
 typedef index_t entry_t;
-const index_t get_index(entry_t i) { return i; }
-index_t get_coefficient(entry_t i) { return 1; }
+const index_t get_index(const entry_t& i) { return i; }
+index_t get_coefficient(const entry_t& i) { return 1; }
 entry_t make_entry(index_t _index, coefficient_t _value) { return entry_t(_index); }
-void set_coefficient(index_t& e, const coefficient_t c) {}
+void set_coefficient(entry_t& e, const coefficient_t c) {}
 
 #endif
 
@@ -131,22 +131,22 @@ const entry_t& get_entry(const entry_t& e) { return e; }
 class diameter_index_t : public std::pair<value_t, index_t> {
 public:
 	diameter_index_t() : std::pair<value_t, index_t>() {}
-	diameter_index_t(std::pair<value_t, index_t> p) : std::pair<value_t, index_t>(p) {}
+	diameter_index_t(std::pair<value_t, index_t>&& p) : std::pair<value_t, index_t>(std::move(p)) {}
 };
-value_t get_diameter(diameter_index_t i) { return i.first; }
-index_t get_index(diameter_index_t i) { return i.second; }
+value_t get_diameter(const diameter_index_t& i) { return i.first; }
+index_t get_index(const diameter_index_t& i) { return i.second; }
 
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
 	diameter_entry_t(std::pair<value_t, entry_t> p) : std::pair<value_t, entry_t>(p) {}
-	diameter_entry_t(entry_t e) : std::pair<value_t, entry_t>(0, e) {}
-	diameter_entry_t() : diameter_entry_t(0) {}
+	diameter_entry_t(entry_t&& e) : std::pair<value_t, entry_t>(0, std::move(e)) {}
+	diameter_entry_t() : diameter_entry_t(entry_t()) {}
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
 	    : std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
-	diameter_entry_t(diameter_index_t _diameter_index, coefficient_t _coefficient)
+	diameter_entry_t(const diameter_index_t& _diameter_index, coefficient_t _coefficient)
 	    : std::pair<value_t, entry_t>(get_diameter(_diameter_index),
 	                                  make_entry(get_index(_diameter_index), _coefficient)) {}
-	diameter_entry_t(diameter_index_t _diameter_index) : diameter_entry_t(_diameter_index, 1) {}
+	diameter_entry_t(const diameter_index_t& _diameter_index) : diameter_entry_t(_diameter_index, 1) {}
 };
 
 const entry_t& get_entry(const diameter_entry_t& p) { return p.second; }
@@ -248,9 +248,15 @@ public:
 	std::vector<std::vector<value_t>> points;
 
 	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points)
-	    : points(std::move(_points)) {}
+	    : points(std::move(_points)) {
+			for (auto p: points) {
+				assert(p.size() == points.front().size());
+			}
+		}
 
 	value_t operator()(const index_t i, const index_t j) const {
+		assert(i < points.size());
+		assert(j < points.size());
 		return std::sqrt(std::inner_product(
 		    points[i].begin(), points[i].end(), points[j].begin(), value_t(), std::plus<value_t>(),
 		    [](value_t u, value_t v) { return (u - v) * (u - v); }));
@@ -679,7 +685,7 @@ public:
 			value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-			if ((i + 1) % 1000 == 0)
+			//if ((i + 1) % 1000 == 0)
 				std::cout << "\033[K"
 				          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
 				          << " (diameter " << diameter << ")" << std::flush << "\r";
