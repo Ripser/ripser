@@ -1388,14 +1388,13 @@ void run_ripser(std::string f, index_t dim_max, value_t threshold, index_t forma
 	        dist.size(), *value_range.first, *value_range.second);
 #endif
 
-#ifdef SPARSE_DISTANCE_MATRIX
-	ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
-	    .compute_barcodes();
-#else
-	ripser<sparse_distance_matrix>(sparse_distance_matrix(dist, threshold), dim_max, threshold,
-	                               modulus)
-	    .compute_barcodes();
-#endif
+	if (threshold == std::numeric_limits<value_t>::max())
+		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
+		    .compute_barcodes();
+	else
+		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max, threshold,
+		                               modulus)
+		    .compute_barcodes();
 
 #ifdef __native_client__
 	instance->PostMessage(pp::Var());
