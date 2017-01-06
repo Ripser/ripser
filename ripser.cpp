@@ -61,8 +61,13 @@ template <class Key, class T> class hash_map : public std::unordered_map<Key, T>
 typedef float value_t;
 // typedef uint16_t value_t;
 
+#ifdef __EMSCRIPTEN__
 typedef long index_t;
 typedef short coefficient_t;
+#else
+typedef int64_t index_t;
+typedef short coefficient_t;
+#endif
 
 #ifdef __native_client__
 class RipserInstance;
