@@ -61,19 +61,14 @@ template <class Key, class T> class hash_map : public std::unordered_map<Key, T>
 typedef float value_t;
 // typedef uint16_t value_t;
 
-#ifdef __EMSCRIPTEN__
-typedef long index_t;
-typedef short coefficient_t;
-#else
 typedef int64_t index_t;
 typedef short coefficient_t;
-#endif
 
 #ifdef __native_client__
 class RipserInstance;
 static RipserInstance* instance;
 
-void run_ripser(std::string f, index_t dim_max, value_t threshold, index_t format_index);
+void run_ripser(std::string f, int dim_max, float threshold, int format_index);
 
 class RipserInstance : public pp::Instance {
 public:
@@ -724,7 +719,7 @@ public:
 		instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-		EM_ASM_({postMessage({"type" : "dim", "dim" : $0})}, dim);
+		EM_ASM_({postMessage({"type" : "dim", "dim" : $0})}, int32_t(dim));
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
@@ -852,7 +847,7 @@ public:
 #endif
 #ifdef __EMSCRIPTEN__
 					EM_ASM_({postMessage({"type" : "interval", "birth" : $0, "dim" : $1})},
-					        diameter, dim);
+					        diameter, int32_t(dim));
 #endif
 					break;
 				}
@@ -877,7 +872,7 @@ public:
 #ifdef __EMSCRIPTEN__
 					EM_ASM_({postMessage(
 					            {"type" : "interval", "birth" : $0, "death" : $1, "dim" : $2})},
-					        diameter, death, dim);
+					        diameter, death, int32_t(dim));
 #endif
 				}
 
@@ -973,7 +968,7 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-	EM_ASM_({postMessage({"type" : "point-cloud", "number" : $0, "dim" : $1})}, n,
+	EM_ASM_({postMessage({"type" : "point-cloud", "number" : $0, "dim" : $1})}, int32_t(n),
 	        eucl_dist.points.front().size());
 #endif
 
@@ -1364,7 +1359,7 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 	}
 }
 
-void run_ripser(std::string f, index_t dim_max, value_t threshold, index_t format_index) {
+void run_ripser(std::string f, int dim_max, float threshold, int format_index) {
 
 	file_format format = static_cast<file_format>(format_index);
 
