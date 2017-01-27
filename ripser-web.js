@@ -19,17 +19,7 @@ function init() {
     threshold.addEventListener("change", compute);
     
     format.addEventListener("change", function(e) {fileInput.value = null; read_and_compute()});
-	
-	(function(i,s,o,g,r,a,m){
-	 i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-	
-	ga('create', 'UA-83191949-1', 'auto');
-	ga('send', 'pageview');
-	
-	
+		
 	var searchVars = {};
 	if (window.location.search.length > 1) {
 		var pairs = window.location.search.substr(1).split('&');
