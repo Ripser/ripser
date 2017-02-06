@@ -583,7 +583,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
                    const binomial_coeff_table& binomial_coeff) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
-	std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
+	if (!cohomology) std::cout << "persistence intervals in dim " << dim - 1 << ":" << std::endl;
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
@@ -708,12 +708,12 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				auto cycle = working_coboundary;
 				diameter_entry_t e;
 
-				if (cohomology || might_be_apparent_pair)
-					std::cout << " [" << diameter << "," << death << ")" << " " << get_index(column_to_reduce) << ":" << get_index(pivot) << std::endl << std::flush;
+				if (cohomology || might_be_apparent_pair);
+//					std::cout << " [" << diameter << "," << death << ")" << " " << get_index(column_to_reduce) << ":" << get_index(pivot) << std::endl << std::flush;
 				else {
-					std::cout << " [" << diameter << "," << death << "): {";
+					std::cout << " [" << death << "," << diameter << "): {";
 					while (get_index(e = get_pivot(cycle, modulus)) != -1) {
-						std::cout << vertices_of_simplex(get_index(e), dim - 1, n, binomial_coeff) << ":" << get_coefficient(e);
+						std::cout << vertices_of_simplex(get_index(e), dim - 1, n, binomial_coeff) << ":" << get_diameter(e);
 						cycle.pop();
 						if (get_index(e = get_pivot(cycle, modulus)) != -1) std::cout << ", ";
  				}
@@ -1001,10 +1001,14 @@ int main(int argc, char** argv) {
 		}
 		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
 
-#ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim 0:" << std::endl;
-#endif
+//#ifdef PRINT_PERSISTENCE_PAIRS
+//		std::cout << "persistence intervals in dim 0:" << std::endl;
+//#endif
 
+		bool done = false;
+		
+		index_t a = 566, b = 463;
+		
 		std::vector<index_t> vertices_of_edge(2);
 		for (auto e : edges) {
 			vertices_of_edge.clear();
@@ -1012,19 +1016,24 @@ int main(int argc, char** argv) {
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 
 			if (u != v) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) > 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
-#endif
+//#ifdef PRINT_PERSISTENCE_PAIRS
+//				if (get_diameter(e) > 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+//#endif
 				dset.link(u, v);
+				
+				if (!done && (dset.find(a) == dset.find(b))) {
+					done = true;
+					std::cout << a << " and " << b << " connected at " << get_diameter(e) << std::endl;
+				}
 			} else
 				columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-#ifdef PRINT_PERSISTENCE_PAIRS
-		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
-#endif
+//#ifdef PRINT_PERSISTENCE_PAIRS
+//		for (index_t i = 0; i < n; ++i)
+//			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+//#endif
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
@@ -1039,7 +1048,6 @@ int main(int argc, char** argv) {
 		
 		std::vector<diameter_index_t> boundary_columns_to_reduce;
 
-		std::cout << "===" << std::endl;
 		for (auto it = pivot_column_index.begin(); it != pivot_column_index.end(); ++it) {
 			auto pair = *it;
 			
@@ -1047,11 +1055,10 @@ int main(int argc, char** argv) {
 			index_t primal_birth = get_index(columns_to_reduce[pair.second]);
 			
 			//if (comp_prev.diameter(primal_birth) < comp.diameter(primal_death))
-			std::cout << " [" << comp_prev.diameter(primal_birth) << "," << comp.diameter(primal_death) << ")" << " " << primal_birth << ":" << primal_death << std::endl;
+//			std::cout << " [" << comp_prev.diameter(primal_birth) << "," << comp.diameter(primal_death) << ")" << " " << primal_birth << ":" << primal_death << std::endl;
 
 			boundary_columns_to_reduce.push_back(std::make_pair(comp.diameter(primal_death), primal_death));
 		}
-		std::cout << "===" << std::endl;
 		
 		std::sort(boundary_columns_to_reduce.rbegin(), boundary_columns_to_reduce.rend(),
 	          greater_diameter_or_smaller_index<diameter_index_t>());
