@@ -1223,21 +1223,22 @@ template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes() {
 
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) != 0)
-					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+                if (get_diameter(e) != 0) {
+                    std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 #ifdef __native_client__
-				pp::VarDictionary var_dict;
-				var_dict.Set("type", "interval");
-				var_dict.Set("birth", 0.);
-				var_dict.Set("death", get_diameter(e));
-				var_dict.Set("dim", 0);
-				instance->PostMessage(var_dict);
+                    pp::VarDictionary var_dict;
+                    var_dict.Set("type", "interval");
+                    var_dict.Set("birth", 0.);
+                    var_dict.Set("death", get_diameter(e));
+                    var_dict.Set("dim", 0);
+                    instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-				EM_ASM_({postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
-				        get_diameter(e));
+                    EM_ASM_({postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
+                            get_diameter(e));
 #endif
+                }
 				dset.link(u, v);
 			} else
 				columns_to_reduce.push_back(e);
@@ -1311,22 +1312,23 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 
 			if (u != v) {
+                if (get_diameter(e) != 0) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) != 0)
-					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+                    std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 #ifdef __native_client__
-				pp::VarDictionary var_dict;
-				var_dict.Set("type", "interval");
-				var_dict.Set("birth", 0.);
-				var_dict.Set("death", get_diameter(e));
-				var_dict.Set("dim", 0);
-				instance->PostMessage(var_dict);
+                    pp::VarDictionary var_dict;
+                    var_dict.Set("type", "interval");
+                    var_dict.Set("birth", 0.);
+                    var_dict.Set("death", get_diameter(e));
+                    var_dict.Set("dim", 0);
+                    instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
-				EM_ASM_({postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
-				        get_diameter(e));
+                    EM_ASM_({postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
+                            get_diameter(e));
 #endif
+                }
 				dset.link(u, v);
 			} else
 				columns_to_reduce.push_back(e);
