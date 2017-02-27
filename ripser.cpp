@@ -1222,8 +1222,8 @@ template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes() {
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 
 			if (u != v) {
-#ifdef PRINT_PERSISTENCE_PAIRS
                 if (get_diameter(e) != 0) {
+#ifdef PRINT_PERSISTENCE_PAIRS
                     std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 #ifdef __native_client__
