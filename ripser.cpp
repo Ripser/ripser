@@ -519,6 +519,8 @@ public:
 #endif
 #endif
 
+		compressed_sparse_matrix<diameter_entry_t> reduced_matrix;
+
 		std::vector<diameter_entry_t> coface_entries;
 
 		for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
@@ -557,8 +559,11 @@ public:
 			reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, 1));
 #endif
 
+#ifdef USE_APPARENT_PAIRS
 			bool might_be_apparent_pair = (i == j);
-
+#else
+			bool might_be_apparent_pair = false;
+#endif
 			do {
 				const coefficient_t factor = modulus - get_coefficient(pivot);
 
@@ -670,6 +675,15 @@ public:
 				reduction_coefficients.pop_back();
 				reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, inverse));
 #endif
+#endif
+
+#ifdef STORE_REDUCED_MATRIX
+				reduced_matrix.append_column();
+				while (true) {
+					diameter_entry_t e = pop_pivot(working_coboundary, modulus);
+					if (get_index(e) == -1) break;
+					reduced_matrix.push_back(e);
+				}
 #endif
 				break;
 			} while (true);
