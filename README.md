@@ -74,7 +74,7 @@ The input is given either in a file whose name is passed as an argument, or thro
   - `--format`: use the specified file format for the input.  The following formats are supported:
     - `lower-distance` (default if no format is specified): lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
     - `upper-distance`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB functions `pdist` or  `seqpdist`, exported to a CSV file
-    - `distances`: full distance matrix; similar to the above, but for all entries of the distance matrix
+    - `distance`: full distance matrix; similar to the above, but for all entries of the distance matrix
     - `dipha`: DIPHA distance matrix as described on the [DIPHA] website
     - `point-cloud`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line
   - `--dim k`: compute persistent homology up to dimension *k*
