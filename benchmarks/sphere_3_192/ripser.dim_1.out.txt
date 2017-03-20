@@ -247,12 +247,12 @@ persistence intervals in dim 1:
  [0.24546,0.248903)
  [0.240869,0.288747)
  [0.189652,0.197515)
-        0.03 real         0.02 user         0.00 sys
-   3379200  maximum resident set size
+        0.02 real         0.02 user         0.00 sys
+   2682880  maximum resident set size
          0  average shared memory size
          0  average unshared data size
          0  average unshared stack size
-       844  page reclaims
+       674  page reclaims
          0  page faults
          0  swaps
          0  block input operations
@@ -260,5 +260,5 @@ persistence intervals in dim 1:
          0  messages sent
          0  messages received
          0  signals received
-         4  voluntary context switches
-        21  involuntary context switches
+         5  voluntary context switches
+         4  involuntary context switches
