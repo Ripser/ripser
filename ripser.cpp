@@ -489,7 +489,7 @@ public:
 				if (diameter <= threshold)
 					columns_to_reduce.push_back(std::make_pair(diameter, index));
 #ifdef INDICATE_PROGRESS
-				if ((index + 1) % 1000 == 0)
+				if ((index + 1) % 1000000 == 0)
 					std::cout << "\033[K"
 					          << "assembled " << columns_to_reduce.size() << " out of "
 					          << (index + 1) << "/" << num_simplices << " columns" << std::flush
@@ -543,7 +543,7 @@ public:
 			value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-			//if ((i + 1) % 1000 == 0)
+			if ((i + 1) % 1000000 == 0)
 				std::cout << "\033[K"
 				          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
 				          << " (diameter " << diameter << ")" << std::flush << "\r";
