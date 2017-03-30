@@ -1,0 +1,27 @@
+Boundary matrix: 
+Cocycles:        *.ccl
+Vertices:        
+Diagram:         
+Simplex vector generated, size: 1179808
+
+0%   10   20   30   40   50   60   70   80   90   100%
+|----|----|----|----|----|----|----|----|----|----|
+***************************************************
+Rips timer : Elapsed time [4.19] seconds
+Persistence timer : Elapsed time [2.38] seconds
+Total timer : Elapsed time [7.45] seconds
+        7.54 real         7.46 user         0.06 sys
+ 142344192  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+     34700  page reclaims
+        72  page faults
+         0  swaps
+         5  block input operations
+         0  block output operations
+         0  messages sent
+         0  messages received
+         0  signals received
+         7  voluntary context switches
+       212  involuntary context switches
