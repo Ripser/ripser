@@ -1,0 +1,55 @@
+
+Input filename: 
+/Users/uli/Bitbucket/phat-paper/benchmark/dipha/sphere_3_192.complex
+
+upper_dim: 2
+
+Number of processes used: 
+1
+
+Detailed information for rank 0:
+       time    prior mem     peak mem   bytes recv
+       0.0s         3 MB         4 MB         0 MB   complex.load_binary( input_filename, upper_dim );
+
+Number of cells in input: 
+1179808
+       0.2s         4 MB        40 MB         0 MB   get_filtration_to_cell_map( complex, dualize, filtration_to_cell_map );
+       0.1s        40 MB       127 MB        18 MB   get_cell_to_filtration_map( complex.get_num_cells(), filtration_to_cell_map, cell_to_filtration_map );
+       0.0s       154 MB       156 MB         0 MB   generate_unreduced_columns( complex, filtration_to_cell_map, cell_to_filtration_map, cur_dim, dualize, unreduced_columns );
+       0.0s       153 MB       156 MB         0 MB   reduction_kernel( complex.get_num_cells(), unreduced_columns, reduced_columns );
+       0.3s       150 MB       165 MB        53 MB   generate_unreduced_columns( complex, filtration_to_cell_map, cell_to_filtration_map, cur_dim, dualize, unreduced_columns );
+       0.1s       136 MB       169 MB         0 MB   reduction_kernel( complex.get_num_cells(), unreduced_columns, reduced_columns );
+       0.1s       167 MB       169 MB         1 MB   dipha::outputs::save_persistence_diagram( output_filename, complex, filtration_to_cell_map, reduced_columns, dualize, upper_dim );
+
+Overall running time in seconds: 
+0.8
+
+Reduction kernel running time in seconds: 
+0.1
+
+Overall peak mem in GB of all ranks: 
+0.2
+
+Individual peak mem in GB of per rank: 
+0.2
+
+Maximal communication traffic (without sorting) in GB between any pair of nodes:
+0.1
+
+Total communication traffic (without sorting) in GB between all pairs of nodes:
+0.1
+        0.90 real         0.71 user         0.15 sys
+ 177610752  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+     78019  page reclaims
+       164  page faults
+         0  swaps
+        10  block input operations
+         8  block output operations
+         0  messages sent
+         0  messages received
+         0  signals received
+        48  voluntary context switches
+       367  involuntary context switches

@@ -1,0 +1,57 @@
+
+Input filename: 
+/Users/uli/Bitbucket/phat-paper/benchmark/dipha/sphere_3_192.complex
+
+upper_dim: 3
+
+Number of processes used: 
+1
+
+Detailed information for rank 0:
+       time    prior mem     peak mem   bytes recv
+       0.0s         3 MB         4 MB         0 MB   complex.load_binary( input_filename, upper_dim );
+
+Number of cells in input: 
+56050288
+      12.3s         4 MB      1714 MB         0 MB   get_filtration_to_cell_map( complex, dualize, filtration_to_cell_map );
+       5.5s       431 MB      4416 MB       855 MB   get_cell_to_filtration_map( complex.get_num_cells(), filtration_to_cell_map, cell_to_filtration_map );
+       0.3s      2278 MB      4416 MB         0 MB   generate_unreduced_columns( complex, filtration_to_cell_map, cell_to_filtration_map, cur_dim, dualize, unreduced_columns );
+       0.0s      2279 MB      4416 MB         0 MB   reduction_kernel( complex.get_num_cells(), unreduced_columns, reduced_columns );
+       0.6s      2279 MB      4416 MB        53 MB   generate_unreduced_columns( complex, filtration_to_cell_map, cell_to_filtration_map, cur_dim, dualize, unreduced_columns );
+       0.0s      2240 MB      4416 MB         0 MB   reduction_kernel( complex.get_num_cells(), unreduced_columns, reduced_columns );
+      18.7s      2252 MB      5285 MB      3349 MB   generate_unreduced_columns( complex, filtration_to_cell_map, cell_to_filtration_map, cur_dim, dualize, unreduced_columns );
+       5.9s      3930 MB      5715 MB         0 MB   reduction_kernel( complex.get_num_cells(), unreduced_columns, reduced_columns );
+       6.8s      3716 MB      5715 MB       106 MB   dipha::outputs::save_persistence_diagram( output_filename, complex, filtration_to_cell_map, reduced_columns, dualize, upper_dim );
+
+Overall running time in seconds: 
+50.9
+
+Reduction kernel running time in seconds: 
+5.9
+
+Overall peak mem in GB of all ranks: 
+5.6
+
+Individual peak mem in GB of per rank: 
+5.6
+
+Maximal communication traffic (without sorting) in GB between any pair of nodes:
+4.3
+
+Total communication traffic (without sorting) in GB between all pairs of nodes:
+4.3
+       50.97 real        42.99 user         7.93 sys
+5993607168  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+   5448458  page reclaims
+         0  page faults
+         0  swaps
+         0  block input operations
+         6  block output operations
+         0  messages sent
+         0  messages received
+         0  signals received
+         6  voluntary context switches
+      6625  involuntary context switches
