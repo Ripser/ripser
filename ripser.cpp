@@ -637,7 +637,12 @@ public:
 				std::cout << " [" << diameter << ", ): {";
 				auto cocycle = reduction_column;
 				while (get_index(pivot = get_pivot(cocycle, modulus)) != -1) {
-					std::cout << vertices_of_simplex(get_index(pivot), dim, n, binomial_coeff) << ":" << get_coefficient(pivot);
+					vertices.clear();
+					get_simplex_vertices(get_index(pivot), dim, n, std::back_inserter(vertices));
+					std::cout << vertices;
+#ifdef USE_COEFFICIENTS
+					std::cout << ":" << get_coefficient(pivot);
+#endif
 					cocycle.pop();
 					if (get_index(pivot = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
 				}
@@ -658,7 +663,12 @@ public:
 				auto cocycle = reduction_column;
 				diameter_entry_t e;
 				while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-					std::cout << vertices_of_simplex(get_index(e), dim, n, binomial_coeff) << ":" << get_coefficient(pivot);
+					vertices.clear();
+					get_simplex_vertices(get_index(e), dim, n, std::back_inserter(vertices));
+					std::cout << vertices;
+#ifdef USE_COEFFICIENTS
+					std::cout << ":" << get_coefficient(pivot);
+#endif
 					cocycle.pop();
 					if (get_index(e = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
 				}
