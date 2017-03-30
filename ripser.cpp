@@ -169,6 +169,13 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 	}
 };
 
+template <typename Entry> struct smaller_diameter_or_greater_index {
+	bool operator()(const Entry& a, const Entry& b) {
+		return (get_diameter(a) < get_diameter(b)) ||
+		       ((get_diameter(a) == get_diameter(b)) && (get_index(a) > get_index(b)));
+	}
+};
+
 enum compressed_matrix_layout { LOWER_TRIANGULAR, UPPER_TRIANGULAR };
 
 template <compressed_matrix_layout Layout> class compressed_distance_matrix {
@@ -480,26 +487,27 @@ private:
 	const coefficient_t modulus;
 	const compressed_lower_distance_matrix& dist;
 	const binomial_coeff_table& binomial_coeff;
-	const index_t _dim;
+	const index_t dim;
+	const ripser& parent;
 
 public:
 	simplex_boundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
-		                              const ripser& parent)
-	: idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1),
-		      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
-		      binomial_coeff(parent.binomial_coeff), dim(_dim) {
+		                              const ripser& _parent)
+	: idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1),
+		      vertices(_dim + 1), simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
+		      binomial_coeff(_parent.binomial_coeff), dim(_dim), parent(_parent) {
 			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
 	}
 
 	bool has_next() {
-		get_next_vertex(v, idx_below, k, binomial_coeff);
+		parent.get_next_vertex(v, idx_below, k);
 		return (v != -1) && (binomial_coeff(v, k) <= idx_below);
 	}
 
 	diameter_entry_t next() {
 		index_t face_index = idx_above - binomial_coeff(v, k) + idx_below;
 		
-		value_t face_diameter = compute_diameter(face_index, dim);
+		value_t face_diameter = parent.compute_diameter(face_index, dim);
 												
 		coefficient_t face_coefficient = (k & 1 ? 1 : -1 + modulus) * get_coefficient(simplex) % modulus;
 
@@ -697,7 +705,12 @@ template <typename BoundaryEnumerator, typename Sorter, bool cohomology = true>
 				else {
 					std::cout << " [" << death << "," << diameter << "): {";
 					while (get_index(e = get_pivot(cycle, modulus)) != -1) {
-						std::cout << vertices_of_simplex(get_index(e), dim - 1, n, binomial_coeff) << ":" << get_diameter(e);
+						vertices.clear();
+						get_simplex_vertices(get_index(pivot), dim, n, std::back_inserter(vertices));
+						std::cout << vertices;
+#ifdef USE_COEFFICIENTS
+						std::cout << ":" << get_coefficient(pivot);
+#endif
 						cycle.pop();
 						if (get_index(e = get_pivot(cycle, modulus)) != -1) std::cout << ", ";
 				}
@@ -1036,7 +1049,7 @@ void ripser::compute_barcodes() {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs<simplex_coboundary_enumerator<decltype(dist)>, greater_diameter_or_smaller_index<diameter_entry_t>>(columns_to_reduce, pivot_column_index, dim);
+		compute_pairs<simplex_coboundary_enumerator, greater_diameter_or_smaller_index<diameter_entry_t>>(columns_to_reduce, pivot_column_index, dim);
 
 		std::vector<diameter_index_t> boundary_columns_to_reduce;
 
@@ -1049,7 +1062,7 @@ void ripser::compute_barcodes() {
 			//if (comp_prev.diameter(primal_birth) < comp.diameter(primal_death))
 //			std::cout << " [" << comp_prev.diameter(primal_birth) << "," << comp.diameter(primal_death) << ")" << " " << primal_birth << ":" << primal_death << std::endl;
 
-			boundary_columns_to_reduce.push_back(std::make_pair(comp.diameter(primal_death), primal_death));
+			boundary_columns_to_reduce.push_back(std::make_pair(compute_diameter(primal_death, dim + 1), primal_death));
 		}
 		
 		std::sort(boundary_columns_to_reduce.rbegin(), boundary_columns_to_reduce.rend(),
@@ -1058,7 +1071,7 @@ void ripser::compute_barcodes() {
 		hash_map<index_t, index_t> boundary_pivot_column_index;
 		boundary_pivot_column_index.reserve(boundary_columns_to_reduce.size());
 
-		compute_pairs<simplex_boundary_enumerator<decltype(dist)>, smaller_diameter_or_greater_index<diameter_entry_t>, false>(boundary_columns_to_reduce, boundary_pivot_column_index, dim + 1);
+		compute_pairs<simplex_boundary_enumerator, smaller_diameter_or_greater_index<diameter_entry_t>, false>(boundary_columns_to_reduce, boundary_pivot_column_index, dim + 1);
 	
 
 		if (dim < dim_max) {
