@@ -59,8 +59,24 @@ template <class Key, class T> class hash_map : public std::unordered_map<Key, T>
 #endif
 
 #ifdef INDICATE_PROGRESS
+#ifndef INICATE_STATS
+    #define INDICATE_STATS
+#endif
+const uint32_t display_q = 1<<12;
+bool line_kill = false;
+inline void kill_line(){
+    if(line_kill){
+        std::cout << "\r\033[K";
+        line_kill = false;
+    }
+}
+#else
+#define kill_line() 
+#endif
+
+#ifdef INDICATE_STATS
 #include <chrono>
-const uint32_t display_q = 1<<16;
+
 std::chrono::time_point<std::chrono::high_resolution_clock> time_0;
 void print_runtime(){
     auto now = std::chrono::high_resolution_clock::now();
@@ -648,8 +664,8 @@ public:
 
 		columns_to_reduce.clear();
 
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+
+#ifdef INDICATE_STATS
         print_runtime();		
 		std::cout << "assembling " << num_simplices << " columns" << std::flush << "\n";
 #endif
@@ -660,30 +676,26 @@ public:
 				if (diameter <= threshold)
 					columns_to_reduce.push_back(std::make_pair(diameter, index));
 #ifdef INDICATE_PROGRESS
-				if ((index + 1) % display_q == 0)
-					std::cout << "\033[K"
-					          << "assembled " << columns_to_reduce.size() << " out of "
-					          << (index + 1) << "/" << num_simplices << " columns" << std::flush
-					          << "\r";
+				if ((index + 1) % display_q == 0){
+                    std::cout << "\r\033[Kassembled " << columns_to_reduce.size() << " out of "
+					          << (index + 1) << "/" << num_simplices << " columns" << std::flush;
+                }
 #endif
 			}
 		}
 
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+
+#ifdef INDICATE_STATS
+        kill_line();
         print_runtime();		
 		std::cout << "assembled " << columns_to_reduce.size() << " columns out of " 
 		          << num_simplices << "\n";
-		std::cout << "\033[K";
         print_runtime();		
-		std::cout << "sorting " << columns_to_reduce.size() << " columns" << std::flush << "\n";
+		std::cout << "sorting " << columns_to_reduce.size() << " columns\n" << std::flush;
 #endif
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
-#endif
 	}
 
 	void assemble_sparse_columns_to_reduce(std::vector<diameter_index_t>& simplices,
@@ -691,10 +703,10 @@ public:
 	                                       hash_map<index_t, index_t>& pivot_column_index,
 	                                       index_t dim) {
 
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+
+#ifdef INDICATE_STATS
         print_runtime();		
-		std::cout << "assembling columns" << std::flush << "\n";
+		std::cout << "assembling columns\n" << std::flush;
 		index_t i = 0;
 #endif
 
@@ -709,10 +721,11 @@ public:
 			while (cofaces.has_next(false)) {
 				auto coface = cofaces.next();
 #ifdef INDICATE_PROGRESS
-				if (++i % display_q == 0)
-					std::cout << "\033[K"
-					          << "assembled " << columns_to_reduce.size() 
-					          <<  " columns" << std::flush << "\r";
+				if (++i % display_q == 0){
+					std::cout << "\r\033[Kassembled " << columns_to_reduce.size() 
+					          <<  " columns" << std::flush;
+                    line_kill = true;
+                }
 #endif                
 				next_simplices.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
 
@@ -724,34 +737,32 @@ public:
 
 		simplices.swap(next_simplices);
 
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+
+#ifdef INDICATE_STATS
+        kill_line(); 			
         print_runtime();		
 		std::cout << "assembled " << columns_to_reduce.size() << " columns out of "
 		          << simplices.size() << " simplices" << std::flush << "\n";
-		std::cout << "\033[K";
         print_runtime();		
 		std::cout << "sorting " << columns_to_reduce.size() << " columns" << std::flush << "\n";
 #endif
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
-#endif
+
 	}
 
 	template <typename BoundaryEnumerator>
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 	                   hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
-
+        kill_line(); 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+#ifdef INDICATE_STATS
         print_runtime();		
 		std::cout << "reducing "<< columns_to_reduce.size() <<" columns" << std::endl;
+		index_t num_apparent = 0, num_non_apparent = 0;
 #endif
 #ifdef __native_client__
 		pp::VarDictionary var_dict;
@@ -789,10 +800,11 @@ public:
 			value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-			if ((i + 1) % display_q == 0)
-				std::cout << "\033[K"
-				          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
+			if ((i + 1) % display_q == 0){
+				std::cout << "\r\033[Kreducing column " << i + 1 << "/" << columns_to_reduce.size()
 				          << " (diameter " << diameter << ")" << std::flush << "\r";
+	            line_kill = true;
+	            }
 				          
 #endif
 
@@ -855,9 +867,15 @@ public:
 								if (pivot_column_index.find(get_index(coface)) ==
 								    pivot_column_index.end()) {
 									pivot = coface;
+#ifdef INDICATE_STATS
+									num_apparent ++;
+#endif									
 									goto found_persistence_pair;
 								}
 								might_be_apparent_pair = false;
+#ifdef INDICATE_STATS								
+								num_non_apparent++;
+#endif
 							}
 						}
 					}
@@ -875,10 +893,8 @@ public:
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-					std::cout << "\033[K";
-#endif
-					std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+                    kill_line(); 
+					std::cout << "dim "<< dim <<": [" << diameter << ", )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
 					pp::VarDictionary var_dict;
@@ -898,10 +914,8 @@ public:
 				value_t death = get_diameter(pivot);
 				if (diameter != death) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-					std::cout << "\033[K";
-#endif
-					std::cout << " [" << diameter << "," << death << ")" << std::endl;
+                    kill_line(); 
+					std::cout << "dim "<< dim << ": [" << diameter << "," << death << ")" << std::endl;
 #endif
 #ifdef __native_client__
 					pp::VarDictionary var_dict;
@@ -952,12 +966,15 @@ public:
 			} while (true);
 		}
 
-#ifdef INDICATE_PROGRESS
-
-		std::cout << "\033[K";
+	
+#ifdef INDICATE_STATS
+        kill_line(); 
         print_runtime();		
-		std::cout << "reduced "<< columns_to_reduce.size() <<" columns" << std::endl;
+		std::cout << "reduced "<< columns_to_reduce.size() <<" columns. "<< num_apparent 
+	    	<< " apparent, " << num_non_apparent << " non-apparent ("
+    		<< float(num_non_apparent)/float(num_apparent+num_non_apparent) <<")" << std::endl;
 #endif
+        kill_line(); 
 	}
 
 	void compute_barcodes();
@@ -1001,8 +1018,8 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 
 	index_t n = eucl_dist.size();
 
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K";
+
+#ifdef INDICATE_STATS	
     print_runtime();		
 	std::cout << "point cloud with " << n << " points in dimension "
           << eucl_dist.points.front().size() << std::endl;
@@ -1145,7 +1162,7 @@ void print_usage_and_exit(int exit_code) {
 #ifndef __EMSCRIPTEN__
 #ifndef __native_client__
 int main(int argc, char** argv) {
-#ifdef INDICATE_PROGRESS
+#ifdef INDICATE_STATS
     time_0 = std::chrono::high_resolution_clock::now();
 #endif    
 	const char* filename = nullptr;
@@ -1214,7 +1231,7 @@ int main(int argc, char** argv) {
 
 	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
 
-#ifdef INDICATE_PROGRESS
+#ifdef INDICATE_STATS
     print_runtime();
 	std::cout <<"distance matrix with " << dist.size() << " points" << std::endl;
 	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]"
@@ -1358,7 +1375,7 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 			if (u != v) {
                 if (get_diameter(e) != 0) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-                    std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+                    std::cout << "dim 0: [0," << get_diameter(e) << ")" << std::endl;
 #endif
 #ifdef __native_client__
                     pp::VarDictionary var_dict;
@@ -1382,7 +1399,7 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				std::cout << " [0, )" << std::endl << std::flush;
+				std::cout << "dim 0: [0, )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
 				pp::VarDictionary var_dict;
