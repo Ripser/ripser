@@ -297,6 +297,44 @@ public:
 	}
 
 	size_t size() const { return neighbors.size(); }
+
+    sparse_distance_matrix(std::istream& input ){
+        std::string line;
+        value_t value;
+        index_t idx;
+        std::vector<int> lens;
+        for (int i = 0; std::getline(input, line); ++i) {
+            std::vector<diameter_index_t> nbv;
+            neighbors.push_back(nbv);
+            int len = 0;
+            std::istringstream s(line);
+            while(s >> idx && s>> value){
+                neighbors[i].push_back(std::make_pair(value, idx));
+                len++;
+            }
+            lens.push_back(len);
+        }
+        for(index_t i = 0; i < lens.size(); i++){
+            for(index_t j = 0; j < lens[i]; j++){
+                auto other = neighbors[i][j];
+                neighbors[get_index(other)].push_back(std::make_pair(get_diameter(other), i));
+            }
+        }        
+    }
+    void print(){
+        //For testing. The output of this can be parsed again.
+        //std::cout << "Sparse distance matrix of size " << neighbors.size() << std::endl;
+        for(int i = 0; i < neighbors.size(); i++){
+           // std::cout << "Line " << i << std::endl;
+            for(auto ed: neighbors[i]){
+                if(get_index(ed)< i)
+                    std::cout<< get_index(ed) << " " << get_diameter(ed) << " ";
+                else
+                    break;
+            }
+            std::cout << std::endl;
+        }        
+    }
 };
 
 template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
@@ -989,7 +1027,8 @@ enum file_format {
 	DISTANCE_MATRIX,
 	POINT_CLOUD,
 	DIPHA,
-	RIPSER
+	RIPSER,
+    LOWER_SPARSE
 };
 
 template <typename T> T read(std::istream& s) {
@@ -1147,7 +1186,9 @@ void print_usage_and_exit(int exit_code) {
 	    << "                     distance       (full distance matrix)" << std::endl
 	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
 	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
-	    << "                     ripser         (distance matrix in Ripser binary file format)"
+	    << "                     ripser         (distance matrix in Ripser binary file format)\n"
+	    << "                     lower-sparse   (sparse lower triangular distance matrix)"
+        
 	    << std::endl
 	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
 	    << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
@@ -1162,6 +1203,7 @@ void print_usage_and_exit(int exit_code) {
 #ifndef __EMSCRIPTEN__
 #ifndef __native_client__
 int main(int argc, char** argv) {
+    std::cout<< "starting ripser\n" <<std::flush;
 #ifdef INDICATE_STATS
     time_0 = std::chrono::high_resolution_clock::now();
 #endif    
@@ -1206,6 +1248,8 @@ int main(int argc, char** argv) {
 				format = DIPHA;
 			else if (parameter == "ripser")
 				format = RIPSER;
+			else if (parameter == "lower-sparse")
+				format = LOWER_SPARSE;                            
 			else
 				print_usage_and_exit(-1);
 #ifdef USE_COEFFICIENTS
@@ -1226,26 +1270,26 @@ int main(int argc, char** argv) {
 		std::cerr << "couldn't open file " << filename << std::endl;
 		exit(-1);
 	}
+    if(format != LOWER_SPARSE){
+        compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
+        auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
+       
+        if(threshold == std::numeric_limits<value_t>::max())
+            ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
+                .compute_barcodes();
+        else{
+            ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
+                                           threshold, modulus)
+                .compute_barcodes();             
+        }
+    }
+    else{
+		ripser<sparse_distance_matrix>(sparse_distance_matrix(filename ? file_stream : std::cin), dim_max,
+		                               threshold, modulus)        
+		.compute_barcodes();                     
+    }
+}    
 
-	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
-
-	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
-
-#ifdef INDICATE_STATS
-    print_runtime();
-	std::cout <<"distance matrix with " << dist.size() << " points" << std::endl;
-	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]"
-	          << std::endl;
-#endif
-
-	if (threshold == std::numeric_limits<value_t>::max())
-		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
-		.compute_barcodes();
-	else
-		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
-		                               threshold, modulus)
-		.compute_barcodes();
-}
 #endif
 #endif
 
@@ -1337,7 +1381,8 @@ template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes() {
 }
 
 template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
-
+    //for debugging and testing: 
+    //dist.print(); 
 	std::vector<diameter_index_t> columns_to_reduce;
 
 	std::vector<diameter_index_t> simplices;
