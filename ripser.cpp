@@ -58,6 +58,34 @@ public:
 template <class Key, class T> class hash_map : public std::unordered_map<Key, T> {};
 #endif
 
+#ifdef INDICATE_PROGRESS
+#ifndef INICATE_STATS
+    #define INDICATE_STATS
+#endif
+const uint32_t display_q = 1<<12;
+bool line_kill = false;
+inline void kill_line(){
+    if(line_kill){
+        std::cout << "\r\033[K";
+        line_kill = false;
+    }
+}
+#else
+#define kill_line() 
+#endif
+
+#ifdef INDICATE_STATS
+#include <chrono>
+
+std::chrono::time_point<std::chrono::high_resolution_clock> time_0;
+void print_runtime(){
+    auto now = std::chrono::high_resolution_clock::now();
+    auto tt = std::chrono::duration_cast<std::chrono::microseconds>(now - time_0);
+    char buff[20];
+    sprintf(buff, "[%04d.%06ds] ", tt.count()/1000000, tt.count()%1000000);
+    std::cout << buff;
+}
+#endif
 typedef float value_t;
 // typedef uint16_t value_t;
 
@@ -269,6 +297,44 @@ public:
 	}
 
 	size_t size() const { return neighbors.size(); }
+
+    sparse_distance_matrix(std::istream& input ){
+        std::string line;
+        value_t value;
+        index_t idx;
+        std::vector<int> lens;
+        for (int i = 0; std::getline(input, line); ++i) {
+            std::vector<diameter_index_t> nbv;
+            neighbors.push_back(nbv);
+            int len = 0;
+            std::istringstream s(line);
+            while(s >> idx && s>> value){
+                neighbors[i].push_back(std::make_pair(value, idx));
+                len++;
+            }
+            lens.push_back(len);
+        }
+        for(index_t i = 0; i < lens.size(); i++){
+            for(index_t j = 0; j < lens[i]; j++){
+                auto other = neighbors[i][j];
+                neighbors[get_index(other)].push_back(std::make_pair(get_diameter(other), i));
+            }
+        }        
+    }
+    void print(){
+        //For testing. The output of this can be parsed again.
+        //std::cout << "Sparse distance matrix of size " << neighbors.size() << std::endl;
+        for(int i = 0; i < neighbors.size(); i++){
+           // std::cout << "Line " << i << std::endl;
+            for(auto ed: neighbors[i]){
+                if(get_index(ed)< i)
+                    std::cout<< get_index(ed) << " " << get_diameter(ed) << " ";
+                else
+                    break;
+            }
+            std::cout << std::endl;
+        }        
+    }
 };
 
 template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
@@ -636,9 +702,10 @@ public:
 
 		columns_to_reduce.clear();
 
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
-		          << "assembling " << num_simplices << " columns" << std::flush << "\r";
+
+#ifdef INDICATE_STATS
+        print_runtime();		
+		std::cout << "assembling " << num_simplices << " columns" << std::flush << "\n";
 #endif
 
 		for (index_t index = 0; index < num_simplices; ++index) {
@@ -647,25 +714,26 @@ public:
 				if (diameter <= threshold)
 					columns_to_reduce.push_back(std::make_pair(diameter, index));
 #ifdef INDICATE_PROGRESS
-				if ((index + 1) % 1000 == 0)
-					std::cout << "\033[K"
-					          << "assembled " << columns_to_reduce.size() << " out of "
-					          << (index + 1) << "/" << num_simplices << " columns" << std::flush
-					          << "\r";
+				if ((index + 1) % display_q == 0){
+                    std::cout << "\r\033[Kassembled " << columns_to_reduce.size() << " out of "
+					          << (index + 1) << "/" << num_simplices << " columns" << std::flush;
+                }
 #endif
 			}
 		}
 
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
-		          << "sorting " << num_simplices << " columns" << std::flush << "\r";
+
+#ifdef INDICATE_STATS
+        kill_line();
+        print_runtime();		
+		std::cout << "assembled " << columns_to_reduce.size() << " columns out of " 
+		          << num_simplices << "\n";
+        print_runtime();		
+		std::cout << "sorting " << columns_to_reduce.size() << " columns\n" << std::flush;
 #endif
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
-#endif
 	}
 
 	void assemble_sparse_columns_to_reduce(std::vector<diameter_index_t>& simplices,
@@ -673,9 +741,11 @@ public:
 	                                       hash_map<index_t, index_t>& pivot_column_index,
 	                                       index_t dim) {
 
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
-		          << "assembling columns" << std::flush << "\r";
+
+#ifdef INDICATE_STATS
+        print_runtime();		
+		std::cout << "assembling columns\n" << std::flush;
+		index_t i = 0;
 #endif
 
 		--dim;
@@ -688,7 +758,13 @@ public:
 
 			while (cofaces.has_next(false)) {
 				auto coface = cofaces.next();
-
+#ifdef INDICATE_PROGRESS
+				if (++i % display_q == 0){
+					std::cout << "\r\033[Kassembled " << columns_to_reduce.size() 
+					          <<  " columns" << std::flush;
+                    line_kill = true;
+                }
+#endif                
 				next_simplices.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
 
 				if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end())
@@ -699,24 +775,32 @@ public:
 
 		simplices.swap(next_simplices);
 
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
-		          << "sorting " << columns_to_reduce.size() << " columns" << std::flush << "\r";
+
+#ifdef INDICATE_STATS
+        kill_line(); 			
+        print_runtime();		
+		std::cout << "assembled " << columns_to_reduce.size() << " columns out of "
+		          << simplices.size() << " simplices" << std::flush << "\n";
+        print_runtime();		
+		std::cout << "sorting " << columns_to_reduce.size() << " columns" << std::flush << "\n";
 #endif
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
-#endif
+
 	}
 
 	template <typename BoundaryEnumerator>
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 	                   hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
-
+        kill_line(); 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
+#endif
+#ifdef INDICATE_STATS
+        print_runtime();		
+		std::cout << "reducing "<< columns_to_reduce.size() <<" columns" << std::endl;
+		index_t num_apparent = 0, num_non_apparent = 0;
 #endif
 #ifdef __native_client__
 		pp::VarDictionary var_dict;
@@ -754,10 +838,12 @@ public:
 			value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-			//if ((i + 1) % 1000 == 0)
-				std::cout << "\033[K"
-				          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
+			if ((i + 1) % display_q == 0){
+				std::cout << "\r\033[Kreducing column " << i + 1 << "/" << columns_to_reduce.size()
 				          << " (diameter " << diameter << ")" << std::flush << "\r";
+	            line_kill = true;
+	            }
+				          
 #endif
 
 			index_t j = i;
@@ -819,9 +905,15 @@ public:
 								if (pivot_column_index.find(get_index(coface)) ==
 								    pivot_column_index.end()) {
 									pivot = coface;
+#ifdef INDICATE_STATS
+									num_apparent ++;
+#endif									
 									goto found_persistence_pair;
 								}
 								might_be_apparent_pair = false;
+#ifdef INDICATE_STATS								
+								num_non_apparent++;
+#endif
 							}
 						}
 					}
@@ -839,10 +931,8 @@ public:
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-					std::cout << "\033[K";
-#endif
-					std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+                    kill_line(); 
+					std::cout << "dim "<< dim <<": [" << diameter << ", )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
 					pp::VarDictionary var_dict;
@@ -862,10 +952,8 @@ public:
 				value_t death = get_diameter(pivot);
 				if (diameter != death) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-					std::cout << "\033[K";
-#endif
-					std::cout << " [" << diameter << "," << death << ")" << std::endl;
+                    kill_line(); 
+					std::cout << "dim "<< dim << ": [" << diameter << "," << death << ")" << std::endl;
 #endif
 #ifdef __native_client__
 					pp::VarDictionary var_dict;
@@ -916,9 +1004,15 @@ public:
 			} while (true);
 		}
 
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+	
+#ifdef INDICATE_STATS
+        kill_line(); 
+        print_runtime();		
+		std::cout << "reduced "<< columns_to_reduce.size() <<" columns. "<< num_apparent 
+	    	<< " apparent, " << num_non_apparent << " non-apparent ("
+    		<< float(num_non_apparent)/float(num_apparent+num_non_apparent) <<")" << std::endl;
 #endif
+        kill_line(); 
 	}
 
 	void compute_barcodes();
@@ -933,7 +1027,8 @@ enum file_format {
 	DISTANCE_MATRIX,
 	POINT_CLOUD,
 	DIPHA,
-	RIPSER
+	RIPSER,
+    LOWER_SPARSE
 };
 
 template <typename T> T read(std::istream& s) {
@@ -962,9 +1057,11 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 
 	index_t n = eucl_dist.size();
 
-#ifdef INDICATE_PROGRESS
+
+#ifdef INDICATE_STATS	
+    print_runtime();		
 	std::cout << "point cloud with " << n << " points in dimension "
-	          << eucl_dist.points.front().size() << std::endl;
+          << eucl_dist.points.front().size() << std::endl;
 #endif
 #ifdef __native_client__
 	pp::VarDictionary var_dict;
@@ -1089,7 +1186,9 @@ void print_usage_and_exit(int exit_code) {
 	    << "                     distance       (full distance matrix)" << std::endl
 	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
 	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
-	    << "                     ripser         (distance matrix in Ripser binary file format)"
+	    << "                     ripser         (distance matrix in Ripser binary file format)\n"
+	    << "                     lower-sparse   (sparse lower triangular distance matrix)"
+        
 	    << std::endl
 	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
 	    << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
@@ -1104,7 +1203,10 @@ void print_usage_and_exit(int exit_code) {
 #ifndef __EMSCRIPTEN__
 #ifndef __native_client__
 int main(int argc, char** argv) {
-
+    std::cout<< "starting ripser\n" <<std::flush;
+#ifdef INDICATE_STATS
+    time_0 = std::chrono::high_resolution_clock::now();
+#endif    
 	const char* filename = nullptr;
 
 	file_format format = DISTANCE_MATRIX;
@@ -1146,6 +1248,8 @@ int main(int argc, char** argv) {
 				format = DIPHA;
 			else if (parameter == "ripser")
 				format = RIPSER;
+			else if (parameter == "lower-sparse")
+				format = LOWER_SPARSE;                            
 			else
 				print_usage_and_exit(-1);
 #ifdef USE_COEFFICIENTS
@@ -1166,25 +1270,26 @@ int main(int argc, char** argv) {
 		std::cerr << "couldn't open file " << filename << std::endl;
 		exit(-1);
 	}
+    if(format != LOWER_SPARSE){
+        compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
+        auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
+       
+        if(threshold == std::numeric_limits<value_t>::max())
+            ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
+                .compute_barcodes();
+        else{
+            ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
+                                           threshold, modulus)
+                .compute_barcodes();             
+        }
+    }
+    else{
+		ripser<sparse_distance_matrix>(sparse_distance_matrix(filename ? file_stream : std::cin), dim_max,
+		                               threshold, modulus)        
+		.compute_barcodes();                     
+    }
+}    
 
-	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
-
-	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
-
-#ifdef INDICATE_PROGRESS
-	std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
-	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]"
-	          << std::endl;
-#endif
-
-	if (threshold == std::numeric_limits<value_t>::max())
-		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
-		.compute_barcodes();
-	else
-		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
-		                               threshold, modulus)
-		.compute_barcodes();
-}
 #endif
 #endif
 
@@ -1276,7 +1381,8 @@ template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes() {
 }
 
 template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
-
+    //for debugging and testing: 
+    //dist.print(); 
 	std::vector<diameter_index_t> columns_to_reduce;
 
 	std::vector<diameter_index_t> simplices;
@@ -1314,7 +1420,7 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 			if (u != v) {
                 if (get_diameter(e) != 0) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-                    std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+                    std::cout << "dim 0: [0," << get_diameter(e) << ")" << std::endl;
 #endif
 #ifdef __native_client__
                     pp::VarDictionary var_dict;
@@ -1338,7 +1444,7 @@ template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
 		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				std::cout << " [0, )" << std::endl << std::flush;
+				std::cout << "dim 0: [0, )" << std::endl << std::flush;
 #endif
 #ifdef __native_client__
 				pp::VarDictionary var_dict;

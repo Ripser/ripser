@@ -25,6 +25,7 @@ Input formats currently supported by Ripser:
   - comma-separated values full distance matrix
   - [DIPHA] distance matrix data
   - point cloud data
+  - sparse space-separated lower triangular matrix. Each line corresponds to a row. Row n consists of pairs (k dist(n,k)), where n>k. This especially means that the first line is empty. All missing values are presumed infinite. See the examples. When using sparse matrices, the threshold is ignored -- use a python filter.
 
 Ripser's efficiency is based on a few important concepts and principles:
   
