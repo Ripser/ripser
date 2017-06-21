@@ -90,6 +90,10 @@ bool is_prime(const coefficient_t n) {
 	return true;
 }
 
+coefficient_t normalize(const coefficient_t n, const coefficient_t modulus) {
+    return n > modulus/2 ? n - modulus : n;
+}
+
 std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) {
 	std::vector<coefficient_t> inverse(m);
 	inverse[1] = 1;
@@ -638,8 +642,9 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 //				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
 				std::cout << " [" << diameter << ", ): {";
 				auto cocycle = reduction_column;
-				while (get_index(pivot = get_pivot(cocycle, modulus)) != -1) {
-					std::cout << vertices_of_simplex(get_index(pivot), dim, n, binomial_coeff) << ":" << get_coefficient(pivot);
+				diameter_entry_t e;
+				while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+					std::cout << vertices_of_simplex(get_index(pivot), dim, n, binomial_coeff) << ":" << normalize(get_coefficient(e), modulus);
 					cocycle.pop();
 					if (get_index(pivot = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
 				}
@@ -660,7 +665,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				auto cocycle = reduction_column;
 				diameter_entry_t e;
 				while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-					std::cout << vertices_of_simplex(get_index(e), dim, n, binomial_coeff) << ":" << get_coefficient(pivot);
+					std::cout << vertices_of_simplex(get_index(e), dim, n, binomial_coeff) << ":" << normalize(get_coefficient(e), modulus);
 					cocycle.pop();
 					if (get_index(e = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
 				}
