@@ -424,6 +424,13 @@ public:
 		}
 		return out;
 	}
+    
+    std::vector<index_t> vertices_of_simplex(const index_t simplex_index, const index_t dim) {
+        std::vector<index_t> vertices(dim + 1);
+        get_simplex_vertices(simplex_index, dim, n,
+        vertices.begin());
+        return vertices;
+    }
 
 	value_t compute_diameter(const index_t index, index_t dim) const {
 		value_t diam = -std::numeric_limits<value_t>::infinity();
@@ -643,7 +650,7 @@ public:
 				auto cocycle = reduction_column;
 				diameter_entry_t e;
 				while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-					std::cout << vertices_of_simplex(get_index(pivot), dim, n, binomial_coeff) << ":" << normalize(get_coefficient(e), modulus);
+					std::cout << vertices_of_simplex(get_index(pivot), dim) << ":" << normalize(get_coefficient(e), modulus);
 					cocycle.pop();
 					if (get_index(pivot = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
 				}
@@ -664,7 +671,7 @@ public:
 				auto cocycle = reduction_column;
 				diameter_entry_t e;
 				while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-					std::cout << vertices_of_simplex(get_index(e), dim, n, binomial_coeff) << ":" << normalize(get_coefficient(e), modulus);
+					std::cout << vertices_of_simplex(get_index(e), dim) << ":" << normalize(get_coefficient(e), modulus);
 					cocycle.pop();
 					if (get_index(e = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
 				}
