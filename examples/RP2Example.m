@@ -19,13 +19,13 @@ Is3 = ripserDM(D, 3, 2);
 disp('Finished Z3');
 
 subplot(121);
-plotDGM(Is2{2}, 'r', 20, 0);
+plotDGM(Is2{2}, 'r', 20, 0), axis square;
 hold on;
-plotDGM(Is2{3}, [0, 0.5, 0]);
+plotDGM(Is2{3}, [0, 0.5, 0]), axis square;
 title('Z2 Coefficients');
 
 subplot(122);
-plotDGM(Is3{2}, 'r', 20, 0);
+plotDGM(Is3{2}, 'r', 20, 0), axis square;
 hold on;
-plotDGM(Is3{3}, [0, 0.5, 0]);
+plotDGM(Is3{3}, [0, 0.5, 0]),axis square;
 title('Z3 Coefficients');
