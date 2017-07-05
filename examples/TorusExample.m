@@ -13,7 +13,11 @@ Dgeo = sqrt(acos(data(:,1:2)*data(:,1:2)').^2 + acos(data(:,3:4)*data(:,3:4)').^
 Dgeo = Dgeo - diag(diag(Dgeo));
 
 % ambient
-Damb = squareform(pdist(data));
+%Damb = squareform(pdist(data));
+XSqr = sum(data.^2, 2);
+Damb = bsxfun(@plus, XSqr(:), XSqr(:)') - 2*(data*data');
+Damb = 0.5*(Damb + Damb');
+Damb(Damb < 0) = 0;
 
 disp('Doing Z2...');
 Is2geo = ripserDM(Dgeo, 2, 2);

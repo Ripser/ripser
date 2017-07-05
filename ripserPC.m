@@ -3,11 +3,13 @@ function [Is] = ripserPC( X, coeff, maxdim, thresh )
     %:param coeff: Field coefficient with which to run TDA
     %:param maxdim: Maximum dimension of homology
     %:param thresh: Threshold up to which to add edges
-    D = pdist(X);
+    XSqr = sum(X.^2, 2);
+    D = bsxfun(@plus, XSqr(:), XSqr(:)') - 2*(X*X');
+    D = 0.5*(D + D');
+    D(D < 0) = 0;
     if nargin < 4
         thresh = max(D(:))*2;
     end
-    d = single(D(:));
-    Is = ripser(d, coeff, maxdim, thresh);
+    Is = ripserDM(D, coeff, maxdim, thresh);
 end
 

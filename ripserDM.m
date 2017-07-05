@@ -6,7 +6,10 @@ function [Is] = ripserDM( D, coeff, maxdim, thresh )
     if nargin < 4
         thresh = max(D(:))*2;
     end
-    d = squareform(D);
+    %pdist surrogate
+    N = size(D, 1);
+    [I, J] = meshgrid(1:N, 1:N);
+    d = D(I < J);
     d = single(d(:));
     Is = ripser(d, coeff, maxdim, thresh);
 end
