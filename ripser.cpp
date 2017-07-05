@@ -987,7 +987,6 @@ void storeDGM(mxArray* PDs, int dim, std::vector<value_t>& births, std::vector<v
 	mxArray* IPr = mxCreateDoubleMatrix(N, 2, mxREAL);
 	double* I = mxGetPr(IPr);
 	for (int i = 0; i < N; i++) {
-		mexPrintf("%g %g\n", births[i], deaths[i]);
 		I[i] = (double)births[i];
 		I[N+i] = (double)deaths[i];
 	}
