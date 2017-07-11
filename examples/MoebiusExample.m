@@ -1,5 +1,6 @@
 %Moebius strip example.  A fake H1 class exists with Z2 coefficients
 %which does not exist with Z3 coefficients
+addpath('..');
 
 t = linspace(0, 2*pi, 500);
 t = t(:);

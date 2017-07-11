@@ -1,4 +1,4 @@
-function [Is] = ripserPC( X, coeff, maxdim, thresh )
+function [Is] = ripserPC( X, coeff, maxdim, thresh, wrap )
     %:param X: N X d point cloud with N points in d dimensions
     %:param coeff: Field coefficient with which to run TDA
     %:param maxdim: Maximum dimension of homology
@@ -10,6 +10,9 @@ function [Is] = ripserPC( X, coeff, maxdim, thresh )
     if nargin < 4
         thresh = max(D(:))*2;
     end
-    Is = ripserDM(D, coeff, maxdim, thresh);
+    if nargin < 5
+        wrap = 0;
+    end
+    Is = ripserDM(D, coeff, maxdim, thresh, wrap);
 end
 

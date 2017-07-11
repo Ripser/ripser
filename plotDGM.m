@@ -1,4 +1,8 @@
 function [] = plotDGM( I, color, sz, plotDiag )
+    hold on;
+    if size(I, 1) == 0
+        return;
+    end
     %Plot a persistence diagram
     if nargin < 2
         color = 'b';
@@ -17,10 +21,7 @@ function [] = plotDGM( I, color, sz, plotDiag )
         a = max(axMin - axRange/5, 0);
         b = axMax + axRange/5;
         plot([a, b], [a, b], 'k');
-        a
-        b
     end
-    hold on;
     scatter(I(:, 1), I(:, 2), sz, color, 'fill');
     xlabel('Birth Time');
     ylabel('Death Time');
