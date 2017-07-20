@@ -22,7 +22,7 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 //#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
-#define PRINT_PERSISTENCE_PAIRS
+//#define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
 
@@ -35,6 +35,10 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <queue>
 #include <sstream>
 #include <unordered_map>
+
+#ifdef MATLAB_MEX_FILE
+#include <mex.h>
+#endif
 
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/sparse_hash_map>
@@ -144,7 +148,7 @@ struct entry_t {
 	entry_t() : index(0), coefficient(1) {}
 } __attribute__((packed));
 
-static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
+//static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
 
 entry_t make_entry(index_t _index, coefficient_t _coefficient) { return entry_t(_index, _coefficient); }
 index_t get_index(entry_t e) { return e.index; }
@@ -525,7 +529,10 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 
 template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
-                   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
+					#ifdef MATLAB_MEX_FILE
+					std::vector<value_t>& births, std::vector<value_t>& deaths, value_t maxD,
+					#endif
+				   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                    const std::vector<coefficient_t>& multiplicative_inverse, const DistanceMatrix& dist,
                    const ComparatorCofaces& comp, const Comparator& comp_prev,
                    const binomial_coeff_table& binomial_coeff) {
@@ -638,17 +645,28 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
 #endif
+#ifdef MATLAB_MEX_FILE
+				births.push_back(diameter);
+				deaths.push_back(maxD);
+#endif
 				break;
 			}
 
 		found_persistence_pair:
+		value_t death = get_diameter(pivot);
 #ifdef PRINT_PERSISTENCE_PAIRS
-			value_t death = get_diameter(pivot);
 			if (diameter != death) {
 #ifdef INDICATE_PROGRESS
 				std::cout << "\033[K";
 #endif
 				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
+			}
+#endif
+
+#ifdef MATLAB_MEX_FILE
+			if (diameter != death) {
+				births.push_back(diameter);
+				deaths.push_back(death);
 			}
 #endif
 
@@ -826,6 +844,7 @@ void print_usage_and_exit(int exit_code) {
 	exit(exit_code);
 }
 
+#ifndef MATLAB_MEX_FILE
 int main(int argc, char** argv) {
 
 	const char* filename = nullptr;
@@ -955,3 +974,132 @@ int main(int argc, char** argv) {
 		}
 	}
 }
+
+#endif
+
+
+
+
+#ifdef MATLAB_MEX_FILE
+
+void storeDGM(mxArray* PDs, int dim, std::vector<value_t>& births, std::vector<value_t>& deaths) {
+	mwSize N = births.size();
+	mxArray* IPr = mxCreateDoubleMatrix(N, 2, mxREAL);
+	double* I = mxGetPr(IPr);
+	for (int i = 0; i < N; i++) {
+		I[i] = (double)births[i];
+		I[N+i] = (double)deaths[i];
+	}
+	mxSetCell(PDs, dim, IPr);
+}
+
+//std::vector<value_t> distances, index_t n, value_t threshold, index_t dim_max, std::vector<std::vector<float>>& dgms
+void mexFunction(int nOutArray, mxArray *OutArray[], int nInArray, const mxArray *InArray[]) {
+	if (nInArray < 4) {
+		mexErrMsgTxt("Expecting D, threshold, modulus, dim_max");
+		return;
+	}
+	//Inputs: Distances, thresh, coeff, dim_max
+	const mwSize *dims;
+	dims = mxGetDimensions(InArray[0]);
+	size_t N = dims[0];
+	value_t* D = (value_t*)mxGetPr(InArray[0]);
+	coefficient_t modulus = (coefficient_t)(*((double*)mxGetPr(InArray[1])));
+	index_t dim_max = (index_t)(*((double*)mxGetPr(InArray[2])));
+	double threshold = *((double*)mxGetPr(InArray[3]));
+
+	value_t maxD = D[0];
+	for (size_t i = 1; i < N; i++) {
+		if (D[i] > maxD) {
+			maxD = D[i];
+		}
+	}
+	//Check to make sure there are enough output arguments to hold
+	//all persistence diagrams
+	if (nOutArray < 1) {
+		mexErrMsgTxt("Need an output to hold cell array of persistence diagrams");
+		return;
+	}
+
+	//Setup cell array to hold output
+	mwSize cdims[1];
+	cdims[0] = dim_max+1;
+	mxArray* PDs = mxCreateCellArray(1, cdims);
+	OutArray[0] = PDs;
+
+
+	//Setup distance matrix, coefficient tables, etc
+	std::vector<value_t> distances(D, D+N);
+	compressed_lower_distance_matrix dist = compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
+	index_t n = dist.size();
+	dim_max = std::min(dim_max, n-2);
+
+	binomial_coeff_table binomial_coeff(n, dim_max + 2);
+	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
+
+	std::vector<value_t> births;
+	std::vector<value_t> deaths;
+
+
+	//Do 0D persistence first
+	std::vector<diameter_index_t> columns_to_reduce;
+
+	{
+		union_find dset(n);
+		std::vector<diameter_index_t> edges;
+		rips_filtration_comparator<decltype(dist)> comp(dist, 1, binomial_coeff);
+		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
+			value_t diameter = comp.diameter(index);
+			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
+		}
+		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
+
+		std::vector<index_t> vertices_of_edge(2);
+		for (auto e : edges) {
+			vertices_of_edge.clear();
+			get_simplex_vertices(get_index(e), 1, n, binomial_coeff, std::back_inserter(vertices_of_edge));
+			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
+
+			if (u != v) {
+				if (get_diameter(e) > 0) {
+					births.push_back(0);
+					deaths.push_back(get_diameter(e));
+				}
+				dset.link(u, v);
+			} else
+				columns_to_reduce.push_back(e);
+		}
+		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
+
+		for (index_t i = 0; i < n; ++i)
+			if (dset.find(i) == i) {
+				births.push_back(0);
+				deaths.push_back(maxD);
+			}
+
+		storeDGM(PDs, 0, births, deaths);
+	}
+
+	for (index_t dim = 1; dim <= dim_max; ++dim) {
+		births.clear();
+		deaths.clear();
+		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
+		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
+
+		hash_map<index_t, index_t> pivot_column_index;
+		pivot_column_index.reserve(columns_to_reduce.size());
+
+		compute_pairs(columns_to_reduce, pivot_column_index, births, deaths, maxD, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
+
+		storeDGM(PDs, dim, births, deaths);
+
+
+		if (dim < dim_max) {
+			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
+		}
+	}
+
+
+}
+
+#endif
