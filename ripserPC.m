@@ -7,6 +7,7 @@ function [Is] = ripserPC( X, coeff, maxdim, thresh, wrap )
     D = bsxfun(@plus, XSqr(:), XSqr(:)') - 2*(X*X');
     D = 0.5*(D + D');
     D(D < 0) = 0;
+    D = sqrt(D);
     if nargin < 4
         thresh = max(D(:))*2;
     end
