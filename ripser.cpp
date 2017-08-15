@@ -507,7 +507,7 @@ public:
 	diameter_entry_t next() {
 		index_t face_index = idx_above - binomial_coeff(v, k) + idx_below;
 		
-		value_t face_diameter = parent.compute_diameter(face_index, dim);
+		value_t face_diameter = parent.compute_diameter(face_index, dim - 1);
 												
 		coefficient_t face_coefficient = (k & 1 ? 1 : -1 + modulus) * get_coefficient(simplex) % modulus;
 
