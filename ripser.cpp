@@ -398,7 +398,7 @@ public:
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
 	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
-		if (binomial_coeff(v, k) > idx) {
+		if ((v != -1) && (binomial_coeff(v, k) > idx)) {
 			index_t count = v;
 			while (count > 0) {
 				index_t i = v;
@@ -411,7 +411,7 @@ public:
 					count = step;
 			}
 		}
-		assert(binomial_coeff(v, k) <= idx && binomial_coeff(v + 1, k) > idx);
+		//assert(binomial_coeff(v, k) <= idx && binomial_coeff(v + 1, k) > idx);
 		return v;
 	}
 
@@ -1010,14 +1010,10 @@ void ripser::compute_barcodes() {
 		std::sort(edges.rbegin(), edges.rend(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
 
-//#ifdef PRINT_PERSISTENCE_PAIRS
-//		std::cout << "persistence intervals in dim 0:" << std::endl;
-//#endif
+#ifdef PRINT_PERSISTENCE_PAIRS
+		std::cout << "persistence intervals in dim 0:" << std::endl;
+#endif
 
-		bool done = false;
-		
-		index_t a = 566, b = 463;
-		
 		std::vector<index_t> vertices_of_edge(2);
 		for (auto e : edges) {
 			vertices_of_edge.clear();
@@ -1025,24 +1021,19 @@ void ripser::compute_barcodes() {
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 
 			if (u != v) {
-//#ifdef PRINT_PERSISTENCE_PAIRS
-//				if (get_diameter(e) != 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
-//#endif
+#ifdef PRINT_PERSISTENCE_PAIRS
+				if (get_diameter(e) != 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+#endif
 				dset.link(u, v);
-				
-				if (!done && (dset.find(a) == dset.find(b))) {
-					done = true;
-					std::cout << a << " and " << b << " connected at " << get_diameter(e) << std::endl;
-				}
 			} else
 				columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-//#ifdef PRINT_PERSISTENCE_PAIRS
-//		for (index_t i = 0; i < n; ++i)
-//			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
-//#endif
+#ifdef PRINT_PERSISTENCE_PAIRS
+		for (index_t i = 0; i < n; ++i)
+			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+#endif
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
@@ -1059,8 +1050,8 @@ void ripser::compute_barcodes() {
 			index_t primal_death = pair.first;
 			index_t primal_birth = get_index(columns_to_reduce[pair.second]);
 			
-			//if (comp_prev.diameter(primal_birth) < comp.diameter(primal_death))
-//			std::cout << " [" << comp_prev.diameter(primal_birth) << "," << comp.diameter(primal_death) << ")" << " " << primal_birth << ":" << primal_death << std::endl;
+			if (compute_diameter(primal_birth, dim) < compute_diameter(primal_death, dim + 1))
+			std::cout << " [" << compute_diameter(primal_birth, dim) << "," << compute_diameter(primal_death, dim + 1) << ")" << " " << primal_birth << ":" << primal_death << std::endl;
 
 			boundary_columns_to_reduce.push_back(std::make_pair(compute_diameter(primal_death, dim + 1), primal_death));
 		}
