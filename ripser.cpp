@@ -585,8 +585,7 @@ template <typename BoundaryEnumerator, typename Sorter, bool cohomology = true>
 			auto column_to_reduce = columns_to_reduce[i];
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-			                    greater_diameter_or_smaller_index<diameter_entry_t>>
+			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>, Sorter>
 			    reduction_column;
 #endif
 
@@ -706,10 +705,10 @@ template <typename BoundaryEnumerator, typename Sorter, bool cohomology = true>
 					std::cout << " [" << death << "," << diameter << "): {";
 					while (get_index(e = get_pivot(cycle, modulus)) != -1) {
 						vertices.clear();
-						get_simplex_vertices(get_index(pivot), dim, n, std::back_inserter(vertices));
+						get_simplex_vertices(get_index(e), dim - 1, n, std::back_inserter(vertices));
 						std::cout << vertices;
 #ifdef USE_COEFFICIENTS
-						std::cout << ":" << get_coefficient(pivot);
+						std::cout << ":" << get_coefficient(e);
 #endif
 						cycle.pop();
 						if (get_index(e = get_pivot(cycle, modulus)) != -1) std::cout << ", ";
