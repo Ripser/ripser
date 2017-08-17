@@ -702,7 +702,7 @@ template <typename BoundaryEnumerator, typename Sorter, bool cohomology = true>
 				if (cohomology || might_be_apparent_pair);
 //					std::cout << " [" << diameter << "," << death << ")" << " " << get_index(column_to_reduce) << ":" << get_index(pivot) << std::endl << std::flush;
 				else {
-					std::cout << " [" << death << "," << diameter << "): {";
+					std::cout << " [" << death << "," << diameter << "):  {";
 					while (get_index(e = get_pivot(cycle, modulus)) != -1) {
 						vertices.clear();
 						get_simplex_vertices(get_index(e), dim - 1, n, std::back_inserter(vertices));
@@ -1047,11 +1047,6 @@ void ripser::compute_barcodes() {
 			auto pair = *it;
 			
 			index_t primal_death = pair.first;
-			index_t primal_birth = get_index(columns_to_reduce[pair.second]);
-			
-			if (compute_diameter(primal_birth, dim) < compute_diameter(primal_death, dim + 1))
-			std::cout << " [" << compute_diameter(primal_birth, dim) << "," << compute_diameter(primal_death, dim + 1) << ")" << " " << primal_birth << ":" << primal_death << std::endl;
-
 			boundary_columns_to_reduce.push_back(std::make_pair(compute_diameter(primal_death, dim + 1), primal_death));
 		}
 		
@@ -1062,7 +1057,6 @@ void ripser::compute_barcodes() {
 		boundary_pivot_column_index.reserve(boundary_columns_to_reduce.size());
 
 		compute_pairs<simplex_boundary_enumerator, smaller_diameter_or_greater_index<diameter_entry_t>, false>(boundary_columns_to_reduce, boundary_pivot_column_index, dim + 1);
-	
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, dim + 1);
