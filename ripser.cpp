@@ -52,6 +52,8 @@ typedef float value_t;
 typedef int64_t index_t;
 typedef int16_t coefficient_t;
 
+template<> const pretty_print::delimiters_values<char> pretty_print::delimiters<std::vector<index_t>, char>::values = { "{", ", ", "}" };
+
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
 
