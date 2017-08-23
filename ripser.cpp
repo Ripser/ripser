@@ -26,8 +26,6 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 //#define USE_GOOGLE_HASHMAP
 
-#include "prettyprint.hpp"
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -51,8 +49,6 @@ template <class Key, class T> class hash_map : public std::unordered_map<Key, T>
 typedef float value_t;
 typedef int64_t index_t;
 typedef int16_t coefficient_t;
-
-template<> const pretty_print::delimiters_values<char> pretty_print::delimiters<std::vector<index_t>, char>::values = { "{", ", ", "}" };
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
@@ -708,7 +704,14 @@ template <typename BoundaryEnumerator, typename Sorter, bool cohomology = true>
 					while (get_index(e = get_pivot(cycle, modulus)) != -1) {
 						vertices.clear();
 						get_simplex_vertices(get_index(e), dim - 1, n, std::back_inserter(vertices));
-						std::cout << vertices;
+						
+						std::cout << "{";
+						auto it = vertices.begin();
+						if (it != vertices.end()) {
+							std::cout << *it++;
+							while (it != vertices.end()) std::cout << "," << *it++;
+						}
+						std::cout << "}";
 #ifdef USE_COEFFICIENTS
 						std::cout << ":" << get_coefficient(e);
 #endif
