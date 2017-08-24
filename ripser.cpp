@@ -1079,7 +1079,7 @@ int main(int argc, char** argv) {
 	std::cout << "value range: [" << min << "," << max << "]"
 	          << std::endl;
 
-	if (threshold == std::numeric_limits<value_t>::max())
+	if (threshold == std::numeric_limits<value_t>::infinity())
 		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
 		.compute_barcodes();
 	else
