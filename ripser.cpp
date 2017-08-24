@@ -587,7 +587,7 @@ public:
 				if (diameter <= threshold)
 					columns_to_reduce.push_back(std::make_pair(diameter, index));
 #ifdef INDICATE_PROGRESS
-				if ((index + 1) % 1000 == 0)
+				if ((index + 1) % 1000000 == 0)
 					std::cout << "\033[K"
 					          << "assembled " << columns_to_reduce.size() << " out of "
 					          << (index + 1) << "/" << num_simplices << " columns" << std::flush
@@ -685,7 +685,7 @@ public:
 			value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-			//if ((i + 1) % 1000 == 0)
+			if ((i + 1) % 1000000 == 0)
 				std::cout << "\033[K"
 				          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
 				          << " (diameter " << diameter << ")" << std::flush << "\r";
@@ -1002,7 +1002,7 @@ int main(int argc, char** argv) {
 	file_format format = DISTANCE_MATRIX;
 
 	index_t dim_max = 1;
-	value_t threshold = std::numeric_limits<value_t>::max();
+	value_t threshold = std::numeric_limits<value_t>::infinity();
 
 #ifdef USE_COEFFICIENTS
 	coefficient_t modulus = 2;
@@ -1064,7 +1064,19 @@ int main(int argc, char** argv) {
 	std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
 
 	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
-	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]"
+	
+	value_t min = std::numeric_limits<value_t>::infinity(), max = -std::numeric_limits<value_t>::infinity();
+	
+	for (auto d: dist.distances) {
+		if (d != std::numeric_limits<value_t>::infinity() ) {
+			min = std::min(min, d);
+			max = std::max(max, d);
+		} else {
+			threshold = std::min(threshold, std::numeric_limits<value_t>::max());
+		}
+	}
+	
+	std::cout << "value range: [" << min << "," << max << "]"
 	          << std::endl;
 
 	if (threshold == std::numeric_limits<value_t>::max())
