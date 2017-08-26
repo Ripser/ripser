@@ -394,6 +394,7 @@ template <typename DistanceMatrix> class ripser {
 	DistanceMatrix dist;
 	index_t n, dim_max;
 	value_t threshold;
+	float ratio;
 	coefficient_t modulus;
 	const binomial_coeff_table binomial_coeff;
 	std::vector<coefficient_t> multiplicative_inverse;
@@ -402,10 +403,10 @@ template <typename DistanceMatrix> class ripser {
 	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> neighbor_end;
 
 public:
-	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, coefficient_t _modulus)
+	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio, coefficient_t _modulus)
 	    : dist(std::move(_dist)), n(dist.size()),
 	      dim_max(std::min(_dim_max, index_t(dist.size() - 2))), threshold(_threshold),
-	      modulus(_modulus), binomial_coeff(n, dim_max + 2),
+	      ratio(_ratio), modulus(_modulus), binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
 	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
@@ -781,7 +782,7 @@ public:
 			found_persistence_pair:
 #ifdef PRINT_PERSISTENCE_PAIRS
 				value_t death = get_diameter(pivot);
-				if (diameter != death) {
+				if ((float)death/diameter > ratio) {
 #ifdef INDICATE_PROGRESS
 					std::cout << "\033[K";
 #endif
@@ -1003,6 +1004,9 @@ int main(int argc, char** argv) {
 
 	index_t dim_max = 1;
 	value_t threshold = std::numeric_limits<value_t>::infinity();
+	
+	float ratio = 1;
+
 
 #ifdef USE_COEFFICIENTS
 	coefficient_t modulus = 2;
@@ -1023,6 +1027,11 @@ int main(int argc, char** argv) {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			threshold = std::stof(parameter, &next_pos);
+			if (next_pos != parameter.size()) print_usage_and_exit(-1);
+		} else if (arg == "--ratio") {
+			std::string parameter = std::string(argv[++i]);
+			size_t next_pos;
+			ratio = std::stof(parameter, &next_pos);
 			if (next_pos != parameter.size()) print_usage_and_exit(-1);
 		} else if (arg == "--format") {
 			std::string parameter = std::string(argv[++i]);
@@ -1080,11 +1089,11 @@ int main(int argc, char** argv) {
 	          << std::endl;
 
 	if (threshold == std::numeric_limits<value_t>::infinity())
-		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
+		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
 		.compute_barcodes();
 	else
 		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
-		                               threshold, modulus)
+		                               threshold, ratio, modulus)
 		.compute_barcodes();
 	
 }
