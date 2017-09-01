@@ -518,22 +518,22 @@ public:
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-		compressed_sparse_matrix<diameter_entry_t> reduction_coefficients;
+		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
 #else
 #ifdef USE_COEFFICIENTS
-		std::vector<diameter_entry_t> reduction_coefficients;
+		std::vector<diameter_entry_t> reduction_matrix;
 #endif
 #endif
 
 		std::vector<diameter_entry_t> coface_entries;
 
-		for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
-			auto column_to_reduce = columns_to_reduce[i];
+		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size(); ++index_column_to_reduce) {
+			auto column_to_reduce = columns_to_reduce[index_column_to_reduce];
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
-			    reduction_column;
+			    working_reduction_column;
 #endif
 
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
@@ -543,60 +543,60 @@ public:
 			value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
-			if ((i + 1) % 1000000 == 0)
+			if ((index_column_to_reduce + 1) % 1000000 == 0)
 				std::cout << "\033[K"
-				          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
+				          << "reducing column " << index_column_to_reduce + 1 << "/" << columns_to_reduce.size()
 				          << " (diameter " << diameter << ")" << std::flush << "\r";
 #endif
 
-			index_t j = i;
+			index_t index_column_to_add = index_column_to_reduce;
 			
 			diameter_entry_t pivot;
 
 
-			// start with coefficient 1 in order to initialize
-			// working_coboundary with the coboundary of the simplex with index column_to_reduce
-			coefficient_t factor = 1;
+			// start with factor 1 in order to initialize working_coboundary
+			// with the coboundary of the simplex with index column_to_reduce
+			coefficient_t factor_column_to_add = 1;
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-			// initialize reduction_coefficients as identity matrix
-			reduction_coefficients.append_column();
+			// initialize reduction_matrix as identity matrix
+			reduction_matrix.append_column();
 #endif
 #ifdef USE_COEFFICIENTS
-			reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, 1));
+			reduction_matrix.push_back(diameter_entry_t(column_to_reduce, 1));
 #endif
 
-			bool might_be_apparent_pair = (i == j);
+			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			do {
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 #ifdef USE_COEFFICIENTS
-				auto coeffs_begin = reduction_coefficients.cbegin(j),
-				     coeffs_end = reduction_coefficients.cend(j);
+				auto reduction_column_begin = reduction_matrix.cbegin(index_column_to_add),
+				     reduction_column_end = reduction_matrix.cend(index_column_to_add);
 #else
 				std::vector<diameter_entry_t> coeffs;
-				coeffs.push_back(columns_to_reduce[j]);
-				for (auto it = reduction_coefficients.cbegin(j);
-				     it != reduction_coefficients.cend(j); ++it)
+				coeffs.push_back(columns_to_reduce[index_column_to_add]);
+				for (auto it = reduction_matrix.cbegin(index_column_to_add);
+				     it != reduction_matrix.cend(index_column_to_add); ++it)
 					coeffs.push_back(*it);
-				auto coeffs_begin = coeffs.begin(), coeffs_end = coeffs.end();
+				auto reduction_column_begin = coeffs.begin(), reduction_column_end = coeffs.end();
 #endif
 #else
 #ifdef USE_COEFFICIENTS
-				auto coeffs_begin = &reduction_coefficients[j],
-				     coeffs_end = &reduction_coefficients[j] + 1;
+				auto reduction_column_begin = &reduction_matrix[index_column_to_add],
+				     reduction_column_end = &reduction_matrix[index_column_to_add] + 1;
 #else
-				auto coeffs_begin = &columns_to_reduce[j], coeffs_end = &columns_to_reduce[j] + 1;
+				auto reduction_column_begin = &columns_to_reduce[index_column_to_add], reduction_column_end = &columns_to_reduce[index_column_to_add] + 1;
 #endif
 #endif
 
-				for (auto it = coeffs_begin; it != coeffs_end; ++it) {
+				for (auto it = reduction_column_begin; it != reduction_column_end; ++it) {
 					diameter_entry_t simplex = *it;
-					set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
+					set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-					reduction_column.push(simplex);
+					working_reduction_column.push(simplex);
 #endif
 
 					coface_entries.clear();
@@ -625,8 +625,8 @@ public:
 					auto pair = pivot_column_index.find(get_index(pivot));
 
 					if (pair != pivot_column_index.end()) {
-						j = pair->second;
-						factor = modulus - get_coefficient(pivot);
+						index_column_to_add = pair->second;
+						factor_column_to_add = modulus - get_coefficient(pivot);
 						continue;
 					}
 				} else {
@@ -650,34 +650,34 @@ public:
 				}
 #endif
 
-				pivot_column_index.insert(std::make_pair(get_index(pivot), i));
+				pivot_column_index.insert(std::make_pair(get_index(pivot), index_column_to_reduce));
 
 #ifdef USE_COEFFICIENTS
 				const coefficient_t inverse = multiplicative_inverse[get_coefficient(pivot)];
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-// replace current column of reduction_coefficients (with a single diagonal 1 entry)
+// replace current column of reduction_matrix (with a single diagonal 1 entry)
 // by reduction_column (possibly with a different entry on the diagonal)
 #ifdef USE_COEFFICIENTS
-				reduction_coefficients.pop_back();
+				reduction_matrix.pop_back();
 #else
-				pop_pivot(reduction_column, modulus);
+				pop_pivot(working_reduction_column, modulus);
 #endif
 
 				while (true) {
-					diameter_entry_t e = pop_pivot(reduction_column, modulus);
+					diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
 					if (get_index(e) == -1) break;
 #ifdef USE_COEFFICIENTS
 					set_coefficient(e, inverse * get_coefficient(e) % modulus);
 					assert(get_coefficient(e) > 0);
 #endif
-					reduction_coefficients.push_back(e);
+					reduction_matrix.push_back(e);
 				}
 #else
 #ifdef USE_COEFFICIENTS
-				reduction_coefficients.pop_back();
-				reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, inverse));
+				reduction_matrix.pop_back();
+				reduction_matrix.push_back(diameter_entry_t(column_to_reduce, inverse));
 #endif
 #endif
 				break;
