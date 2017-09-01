@@ -550,10 +550,13 @@ public:
 #endif
 
 			index_t j = i;
+			
+			diameter_entry_t pivot;
 
-			// start with a dummy pivot entry with coefficient -1 in order to initialize
+
+			// start with coefficient 1 in order to initialize
 			// working_coboundary with the coboundary of the simplex with index column_to_reduce
-			diameter_entry_t pivot(0, -1, -1 + modulus);
+			coefficient_t factor = 1;
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 			// initialize reduction_coefficients as identity matrix
@@ -566,7 +569,6 @@ public:
 			bool might_be_apparent_pair = (i == j);
 
 			do {
-				const coefficient_t factor = modulus - get_coefficient(pivot);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 #ifdef USE_COEFFICIENTS
@@ -624,6 +626,7 @@ public:
 
 					if (pair != pivot_column_index.end()) {
 						j = pair->second;
+						factor = modulus - get_coefficient(pivot);
 						continue;
 					}
 				} else {
