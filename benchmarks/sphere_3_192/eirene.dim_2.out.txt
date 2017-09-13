@@ -1,0 +1,173 @@
+
+
+Eirene Library for Homological Algebra
+Copyright (C) 2016, 2017  Gregory Henselman
+www.gregoryhenselman.org
+
+Eirene is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Eirene is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Eirene.  If not, see <http://www.gnu.org/licenses/>.
+
+			
+WELCOME TO EIRENE! 
+v0.3.5                 	
+				
+Please help us document Eirene's recent work! Bibtex entries and 
+contact information for teaching and outreach can be found at the 
+Eirene homepage, http://gregoryhenselman.org/eirene.
+
+
+Please Note: MultivariateStats.jl may not be installed. This package is required for 
+some operations pertaining to multidimensional scaling, but is not required. 
+To install, enter the following at the Julia prompt:
+
+Pkg.add("MultivariateStats")
+using MultivariateStats 
+
+
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in __persistF2#19__ at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in __persistF2#19__ at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in __persistF2#19__ at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in __persistF2#19__ at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in __persistF2#19__ at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in __persistF2#19__ at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in ezlabel at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in ezlabel at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in ezlabel at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+WARNING: Base.String is deprecated, use AbstractString instead.
+  likely near no file:0
+in ezlabel at /Users/uli/Source/Eirene0_3_5/Eirene0_3_5.jl
+Constructed Morse boundary operator, columns indexed by cells of dimension 1
+elapsed time: 5.023364429 seconds
+Constructed Morse boundary operator, columns indexed by cells of dimension 1
+Constructed Morse boundary operator, columns indexed by cells of dimension 2
+Constructed Morse boundary operator, columns indexed by cells of dimension 3
+elapsed time: 13.676510239 seconds
+       33.14 real        30.90 user         2.37 sys
+1508073472  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+    810601  page reclaims
+         0  page faults
+         0  swaps
+         0  block input operations
+         0  block output operations
+         0  messages sent
+         0  messages received
+         5  signals received
+        46  voluntary context switches
+    195015  involuntary context switches
