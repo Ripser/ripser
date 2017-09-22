@@ -919,8 +919,6 @@ int main(int argc, char** argv) {
 
 	std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
 
-	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
-	
 	value_t min = std::numeric_limits<value_t>::infinity(), max = -std::numeric_limits<value_t>::infinity();
 	
 	for (auto d: dist.distances) {
