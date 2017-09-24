@@ -462,6 +462,42 @@ public:
 									std::vector<diameter_index_t>& columns_to_reduce,
 									hash_map<index_t, index_t>& pivot_column_index,
 									index_t dim);
+	
+	void compute_dim_0_pairs(std::vector<diameter_index_t>& edges,
+							 std::vector<diameter_index_t>& columns_to_reduce) {
+		union_find dset(n);
+		
+		edges = get_edges();
+		
+		std::sort(edges.rbegin(), edges.rend(),
+				  greater_diameter_or_smaller_index<diameter_index_t>());
+		
+#ifdef PRINT_PERSISTENCE_PAIRS
+		std::cout << "persistence intervals in dim 0:" << std::endl;
+#endif
+		
+		std::vector<index_t> vertices_of_edge(2);
+		for (auto e : edges) {
+			vertices_of_edge.clear();
+			get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
+			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
+			
+			if (u != v) {
+#ifdef PRINT_PERSISTENCE_PAIRS
+				if (get_diameter(e) != 0)
+					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+#endif
+				dset.link(u, v);
+			} else
+				columns_to_reduce.push_back(e);
+		}
+		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
+		
+#ifdef PRINT_PERSISTENCE_PAIRS
+		for (index_t i = 0; i < n; ++i)
+			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+#endif
+	}
 
 	template <typename BoundaryEnumerator>
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
@@ -644,56 +680,20 @@ public:
 	
 	void compute_barcodes() {
 		
-		std::vector<diameter_index_t> columns_to_reduce;
+		std::vector<diameter_index_t> simplices, columns_to_reduce;
 		
-		std::vector<diameter_index_t> simplices;
-		
-		{
-			union_find dset(n);
-			std::vector<diameter_index_t>& edges = simplices;
-			
-			edges = get_edges();
-			
-			std::sort(edges.rbegin(), edges.rend(),
-					  greater_diameter_or_smaller_index<diameter_index_t>());
-			
-#ifdef PRINT_PERSISTENCE_PAIRS
-			std::cout << "persistence intervals in dim 0:" << std::endl;
-#endif
-			
-			std::vector<index_t> vertices_of_edge(2);
-			for (auto e : edges) {
-				vertices_of_edge.clear();
-				get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
-				index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
-				
-				if (u != v) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-					if (get_diameter(e) != 0)
-						std::cout << " [0," << get_diameter(e) << ")" << std::endl;
-#endif
-					dset.link(u, v);
-				} else
-					columns_to_reduce.push_back(e);
-			}
-			std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
-			
-#ifdef PRINT_PERSISTENCE_PAIRS
-			for (index_t i = 0; i < n; ++i)
-				if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
-#endif
-		}
+		compute_dim_0_pairs(simplices, columns_to_reduce);
 		
 		for (index_t dim = 1; dim <= dim_max; ++dim) {
 			hash_map<index_t, index_t> pivot_column_index;
 			pivot_column_index.reserve(columns_to_reduce.size());
 			
 			compute_pairs<simplex_coboundary_enumerator>(columns_to_reduce, pivot_column_index,
-																dim);
+														 dim);
 			
 			if (dim < dim_max) {
 				assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index,
-												  dim + 1);
+										   dim + 1);
 			}
 		}
 	}
