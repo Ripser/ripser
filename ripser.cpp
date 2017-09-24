@@ -1089,10 +1089,9 @@ int main(int argc, char** argv) {
 	file_format format = DISTANCE_MATRIX;
 
 	index_t dim_max = 1;
-	value_t threshold = std::numeric_limits<value_t>::infinity();
-	
-	float ratio = 1;
+	value_t threshold = std::numeric_limits<value_t>::max();
 
+	float ratio = 1;
 
 #ifdef USE_COEFFICIENTS
 	coefficient_t modulus = 2;
@@ -1156,28 +1155,30 @@ int main(int argc, char** argv) {
 
 	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
 
-	std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
+	value_t min = std::numeric_limits<value_t>::infinity(),
+	        max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
+	int num_edges = 0;
 
-	value_t min = std::numeric_limits<value_t>::infinity(), max = -std::numeric_limits<value_t>::infinity();
-	
-	for (auto d: dist.distances) {
-		if (d != std::numeric_limits<value_t>::infinity() ) {
-			min = std::min(min, d);
-			max = std::max(max, d);
-		} else {
-			threshold = std::min(threshold, std::numeric_limits<value_t>::max());
-		}
+	for (auto d : dist.distances) {
+		min = std::min(min, d);
+		max = std::max(max, d);
+		max_finite = d != std::numeric_limits<value_t>::infinity() ? std::max(max, d) : max_finite;
+		if (d <= threshold) ++num_edges;
 	}
-	
-	std::cout << "value range: [" << min << "," << max << "]"
-	          << std::endl;
 
-	if (threshold == std::numeric_limits<value_t>::infinity())
-		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
-		.compute_barcodes();
-	else
+	std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
+
+	if (threshold >= max) {
+		std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
+		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
+		                                         modulus)
+		    .compute_barcodes();
+	} else {
+		std::cout << "sparse distance matrix with " << dist.size() << " points and " << num_edges
+		          << " entries" << std::endl;
+
 		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
 		                               threshold, ratio, modulus)
-		.compute_barcodes();
-	
+		    .compute_barcodes();
+	}
 }
