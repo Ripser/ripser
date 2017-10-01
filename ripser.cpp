@@ -40,6 +40,10 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <mex.h>
 #endif
 
+#ifdef PYTHON_EXTENSION
+#include "ripser.h"
+#endif
+
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/sparse_hash_map>
 template <class Key, class T> class hash_map : public google::sparse_hash_map<Key, T> {
@@ -1101,5 +1105,106 @@ void mexFunction(int nOutArray, mxArray *OutArray[], int nInArray, const mxArray
 
 
 }
+
+#endif
+
+
+#ifdef PYTHON_EXTENSION
+
+
+void storeDGMPython(std::vector<value_t>& births, std::vector<value_t>& deaths, int dim) {
+	for (size_t i = 0; i < births.size(); i++) {
+		std::cout << births[i] << ", ", deaths[i];
+	}
+}
+
+//std::vector<value_t> distances, index_t n, value_t threshold, index_t dim_max, std::vector<std::vector<float>>& dgms
+void pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
+	value_t maxD = D[0];
+	for (size_t i = 1; i < N; i++) {
+		if (D[i] > maxD) {
+			maxD = D[i];
+		}
+	}
+
+	//Setup distance matrix, coefficient tables, etc
+	std::vector<value_t> distances(D, D+N*N);
+	compressed_lower_distance_matrix dist = compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
+	index_t n = dist.size();
+	dim_max = std::min(dim_max, n-2);
+
+	binomial_coeff_table binomial_coeff(n, dim_max + 2);
+	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
+
+	std::vector<value_t> births;
+	std::vector<value_t> deaths;
+
+
+	//Do 0D persistence first
+	std::vector<diameter_index_t> columns_to_reduce;
+
+	{
+		union_find dset(n);
+		std::vector<diameter_index_t> edges;
+		rips_filtration_comparator<decltype(dist)> comp(dist, 1, binomial_coeff);
+		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
+			value_t diameter = comp.diameter(index);
+			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
+		}
+		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
+
+		std::vector<index_t> vertices_of_edge(2);
+		for (auto e : edges) {
+			vertices_of_edge.clear();
+			get_simplex_vertices(get_index(e), 1, n, binomial_coeff, std::back_inserter(vertices_of_edge));
+			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
+
+			if (u != v) {
+				if (get_diameter(e) > 0) {
+					births.push_back(0);
+					deaths.push_back(get_diameter(e));
+				}
+				dset.link(u, v);
+			} else
+				columns_to_reduce.push_back(e);
+		}
+		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
+
+		for (index_t i = 0; i < n; ++i)
+			if (dset.find(i) == i) {
+				births.push_back(0);
+				deaths.push_back(maxD);
+			}
+
+		storeDGMPython(births, deaths, 0);
+	}
+
+	for (index_t dim = 1; dim <= dim_max; ++dim) {
+		births.clear();
+		deaths.clear();
+		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
+		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
+
+		hash_map<index_t, index_t> pivot_column_index;
+		pivot_column_index.reserve(columns_to_reduce.size());
+
+		compute_pairs(columns_to_reduce, pivot_column_index, births, deaths, maxD, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
+
+		storeDGMPython(births, deaths, dim);
+
+
+		if (dim < dim_max) {
+			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
+		}
+	}
+
+
+}
+
+
+
+
+
+
 
 #endif
