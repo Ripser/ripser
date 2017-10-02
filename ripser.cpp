@@ -1116,6 +1116,7 @@ void mexFunction(int nOutArray, mxArray *OutArray[], int nInArray, const mxArray
 
 //std::vector<value_t> distances, index_t n, value_t threshold, index_t dim_max, std::vector<std::vector<float>>& dgms
 void* pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
+	import_array();
 	value_t maxD = D[0];
 	std::vector<int> NPerClass;
 	for (size_t i = 1; i < N; i++) {
