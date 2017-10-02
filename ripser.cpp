@@ -1130,7 +1130,7 @@ void pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
 	//Setup distance matrix, coefficient tables, etc
 	std::vector<value_t> distances(D, D+N*N);
 	compressed_lower_distance_matrix dist = compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
-	index_t n = dist.size();
+	int n = dist.size();
 	dim_max = std::min(dim_max, n-2);
 
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
@@ -1188,7 +1188,7 @@ void pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs(columns_to_reduce, pivot_column_index, births, deaths, maxD, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
+		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
 
 		storeDGMPython(births, deaths, dim);
 
