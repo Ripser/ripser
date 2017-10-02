@@ -77,14 +77,12 @@ static PyObject *ripser_entry(PyObject *self, PyObject *args)
     double* D    = (double*)PyArray_DATA(D_array);
 
     /* Perform ripser */
-    pythondm(D, N, modulus, dim_max, threshold);
-
-    double score = 0.0;
+    PyArrayObject* ret = (PyArrayObject*)pythondm(D, N, modulus, dim_max, threshold);
 
     /* Clean up. */
     Py_DECREF(D_array);
 
-    /* Build the output tuple */
-    PyObject *ret = Py_BuildValue("d", score);
-    return ret;
+    PyArray_Return(ret);
+    /*PyObject *ret2 = Py_BuildValue("d", 0.0);
+    return ret2;*/
 }

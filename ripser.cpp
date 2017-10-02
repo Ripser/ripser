@@ -42,6 +42,8 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #ifdef PYTHON_EXTENSION
 #include "ripser.h"
+#include <Python.h>
+#include <numpy/arrayobject.h>
 #endif
 
 #ifdef USE_GOOGLE_HASHMAP
@@ -1077,6 +1079,7 @@ void mexFunction(int nOutArray, mxArray *OutArray[], int nInArray, const mxArray
 
 		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) {
+				//Have one element representing the infinite class
 				births.push_back(0);
 				deaths.push_back(maxD);
 			}
@@ -1111,16 +1114,10 @@ void mexFunction(int nOutArray, mxArray *OutArray[], int nInArray, const mxArray
 
 #ifdef PYTHON_EXTENSION
 
-
-void storeDGMPython(std::vector<value_t>& births, std::vector<value_t>& deaths, int dim) {
-	for (size_t i = 0; i < births.size(); i++) {
-		std::cout << births[i] << ", ", deaths[i];
-	}
-}
-
 //std::vector<value_t> distances, index_t n, value_t threshold, index_t dim_max, std::vector<std::vector<float>>& dgms
-void pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
+void* pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
 	value_t maxD = D[0];
+	std::vector<int> NPerClass;
 	for (size_t i = 1; i < N; i++) {
 		if (D[i] > maxD) {
 			maxD = D[i];
@@ -1172,16 +1169,14 @@ void pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
 
 		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) {
+				//Have one element representing the infinite class
 				births.push_back(0);
 				deaths.push_back(maxD);
 			}
-
-		storeDGMPython(births, deaths, 0);
+		NPerClass.push_back(births.size());
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
-		births.clear();
-		deaths.clear();
 		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
 		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
 
@@ -1190,15 +1185,32 @@ void pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
 
 		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
 
-		storeDGMPython(births, deaths, dim);
-
+		NPerClass.push_back(births.size());
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
 		}
 	}
-
-
+	//Now create a numpy array to hold the resulting persistence diagrams
+	npy_intp dims[1];
+	dims[0] = births.size()+deaths.size()+NPerClass.size();
+	for (int i = 0; i < births.size(); i++) {
+		std::cout << births[i] << ", " << deaths[i] << "\n";
+	}
+	std::cout << "births.size() = " << births.size() << "\n";
+	std::cout << "NPerClass.size() = " << NPerClass.size() << "\n";
+	std::cout << "Size : " << dims[0] << "\n";
+	PyArrayObject* ret = (PyArrayObject*)PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+	// fill the data
+	double *buffer = (double*)ret->data;
+	for (int i = 0; i < births.size(); i++) {
+		buffer[i*2] = births[i];
+		buffer[i*2+1] = deaths[i];
+	}
+	for (int i = 0; i < NPerClass.size(); i++) {
+		buffer[births.size()+deaths.size()+i] = NPerClass[i];
+	}
+	return ret;
 }
 
 
