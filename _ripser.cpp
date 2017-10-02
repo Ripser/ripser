@@ -33,7 +33,7 @@ static struct PyModuleDef RipserMod =
     module_methods
 };
 /* Initialize the module */
-PyMODINIT_FUNC PyInit__Ripser(void)
+PyMODINIT_FUNC PyInit_ripser(void)
 {
     /* Load `numpy` functionality. */
     import_array();
