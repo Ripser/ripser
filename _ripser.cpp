@@ -33,7 +33,7 @@ static struct PyModuleDef RipserMod =
     module_methods
 };
 /* Initialize the module */
-PyMODINIT_FUNC PyInit_ripser(void)
+PyMODINIT_FUNC PyInit__ripser(void)
 {
     /* Load `numpy` functionality. */
     import_array();
@@ -41,9 +41,9 @@ PyMODINIT_FUNC PyInit_ripser(void)
 }
 #else
 /* Initialize the module */
-PyMODINIT_FUNC initripser(void)
+PyMODINIT_FUNC init_ripser(void)
 {
-    PyObject *m = Py_InitModule3("ripser", module_methods, module_docstring);
+    PyObject *m = Py_InitModule3("_ripser", module_methods, module_docstring);
     if (m == NULL)
         return;
 
@@ -77,12 +77,12 @@ static PyObject *ripser_entry(PyObject *self, PyObject *args)
     double* D    = (double*)PyArray_DATA(D_array);
 
     /* Perform ripser */
-    PyArrayObject* ret = (PyArrayObject*)pythondm(D, N, modulus, dim_max, threshold);
+    PyArrayObject* ret = pythondm(D, N, modulus, dim_max, threshold);
 
     /* Clean up. */
     Py_DECREF(D_array);
 
-    PyArray_Return(ret);
+    return PyArray_Return(ret);
     /*PyObject *ret2 = Py_BuildValue("d", 0.0);
     return ret2;*/
 }

@@ -2,14 +2,15 @@ from distutils.core import setup, Extension
 import numpy
 import sys
 
-options = ["-std=c++11"]
+#c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D PRINT_PERSISTENCE_PAIRS
+options = ["-std=c++11", '-Ofast']
 
 if sys.version_info[0] == 2:
 	options.append("-fpermissive")
 
-c_ext = Extension("ripser", 
+c_ext = Extension("_ripser",
 sources = ["ripser.cpp", "_ripser.cpp"],
-define_macros=[("USE_COEFFICIENTS", 1), ("ASSEMBLE_REDUCTION_MATRIX", 1), ("PYTHON_EXTENSION", 1)],
+define_macros=[("USE_COEFFICIENTS", 1), ("ASSEMBLE_REDUCTION_MATRIX", 1), ("PYTHON_EXTENSION", 1), ("NDEBUG", 1)],
 extra_compile_args = options,
 )
 

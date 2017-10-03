@@ -535,7 +535,7 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 
 template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
-					#ifdef MATLAB_MEX_FILE
+					#if defined(MATLAB_MEX_FILE) || defined(PYTHON_EXTENSION)
 					std::vector<value_t>& births, std::vector<value_t>& deaths, value_t maxD,
 					#endif
 				   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
@@ -651,7 +651,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
 #endif
-#ifdef MATLAB_MEX_FILE
+#if defined(MATLAB_MEX_FILE) || defined(PYTHON_EXTENSION)
 				births.push_back(diameter);
 				deaths.push_back(maxD);
 #endif
@@ -668,8 +668,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
 			}
 #endif
-
-#ifdef MATLAB_MEX_FILE
+#if defined(MATLAB_MEX_FILE) || defined(PYTHON_EXTENSION)
 			if (diameter != death) {
 				births.push_back(diameter);
 				deaths.push_back(death);
@@ -850,7 +849,7 @@ void print_usage_and_exit(int exit_code) {
 	exit(exit_code);
 }
 
-#ifndef MATLAB_MEX_FILE
+#if !(defined(MATLAB_MEX_FILE) || defined(PYTHON_EXTENSION))
 int main(int argc, char** argv) {
 
 	const char* filename = nullptr;
@@ -1115,7 +1114,7 @@ void mexFunction(int nOutArray, mxArray *OutArray[], int nInArray, const mxArray
 #ifdef PYTHON_EXTENSION
 
 //std::vector<value_t> distances, index_t n, value_t threshold, index_t dim_max, std::vector<std::vector<float>>& dgms
-void* pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
+PyArrayObject* pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
 	import_array();
 	value_t maxD = D[0];
 	std::vector<int> NPerClass;
@@ -1184,7 +1183,7 @@ void* pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
+		compute_pairs(columns_to_reduce, pivot_column_index, births, deaths, maxD, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
 
 		NPerClass.push_back(births.size());
 
@@ -1195,12 +1194,6 @@ void* pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
 	//Now create a numpy array to hold the resulting persistence diagrams
 	npy_intp dims[1];
 	dims[0] = births.size()+deaths.size()+NPerClass.size();
-	for (int i = 0; i < births.size(); i++) {
-		std::cout << births[i] << ", " << deaths[i] << "\n";
-	}
-	std::cout << "births.size() = " << births.size() << "\n";
-	std::cout << "NPerClass.size() = " << NPerClass.size() << "\n";
-	std::cout << "Size : " << dims[0] << "\n";
 	PyArrayObject* ret = (PyArrayObject*)PyArray_SimpleNew(1, dims, NPY_DOUBLE);
 	// fill the data
 	double *buffer = (double*)ret->data;
@@ -1209,6 +1202,7 @@ void* pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
 		buffer[i*2+1] = deaths[i];
 	}
 	for (int i = 0; i < NPerClass.size(); i++) {
+	    std::cout << "NPerClass[" << i << "] = " << NPerClass[i] << "\n";
 		buffer[births.size()+deaths.size()+i] = NPerClass[i];
 	}
 	return ret;
