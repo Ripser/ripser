@@ -851,7 +851,6 @@ void print_usage_and_exit(int exit_code) {
 
 #if !(defined(MATLAB_MEX_FILE) || defined(PYTHON_EXTENSION))
 int main(int argc, char** argv) {
-
 	const char* filename = nullptr;
 
 	file_format format = DISTANCE_MATRIX;
@@ -1114,10 +1113,10 @@ void mexFunction(int nOutArray, mxArray *OutArray[], int nInArray, const mxArray
 #ifdef PYTHON_EXTENSION
 
 //std::vector<value_t> distances, index_t n, value_t threshold, index_t dim_max, std::vector<std::vector<float>>& dgms
-PyArrayObject* pythondm(double* D, int N, int modulus, int dim_max, double threshold) {
+PyArrayObject* pythondm(float* D, int N, int modulus, int dim_max, float threshold) {
 	import_array();
+
 	value_t maxD = D[0];
-	std::vector<int> NPerClass;
 	for (size_t i = 1; i < N; i++) {
 		if (D[i] > maxD) {
 			maxD = D[i];
@@ -1125,16 +1124,17 @@ PyArrayObject* pythondm(double* D, int N, int modulus, int dim_max, double thres
 	}
 
 	//Setup distance matrix, coefficient tables, etc
-	std::vector<value_t> distances(D, D+N*N);
+	std::vector<value_t> distances(D, D+N);
 	compressed_lower_distance_matrix dist = compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
-	int n = dist.size();
-	dim_max = std::min(dim_max, n-2);
+	index_t n = dist.size();
+	dim_max = std::min((index_t)(dim_max), n-2);
 
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
 
 	std::vector<value_t> births;
 	std::vector<value_t> deaths;
+	std::vector<int> NPerClass;
 
 
 	//Do 0D persistence first
@@ -1176,6 +1176,7 @@ PyArrayObject* pythondm(double* D, int N, int modulus, int dim_max, double thres
 		NPerClass.push_back(births.size());
 	}
 
+
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
 		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
 		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
@@ -1187,31 +1188,27 @@ PyArrayObject* pythondm(double* D, int N, int modulus, int dim_max, double thres
 
 		NPerClass.push_back(births.size());
 
+
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
 		}
 	}
+
 	//Now create a numpy array to hold the resulting persistence diagrams
 	npy_intp dims[1];
 	dims[0] = births.size()+deaths.size()+NPerClass.size();
-	PyArrayObject* ret = (PyArrayObject*)PyArray_SimpleNew(1, dims, NPY_DOUBLE);
+	PyArrayObject* ret = (PyArrayObject*)PyArray_SimpleNew(1, dims, NPY_FLOAT);
 	// fill the data
-	double *buffer = (double*)ret->data;
+	float *buffer = (float*)ret->data;
 	for (int i = 0; i < births.size(); i++) {
 		buffer[i*2] = births[i];
 		buffer[i*2+1] = deaths[i];
 	}
 	for (int i = 0; i < NPerClass.size(); i++) {
-	    std::cout << "NPerClass[" << i << "] = " << NPerClass[i] << "\n";
 		buffer[births.size()+deaths.size()+i] = NPerClass[i];
 	}
 	return ret;
 }
-
-
-
-
-
 
 
 #endif

@@ -63,7 +63,7 @@ static PyObject *ripser_entry(PyObject *self, PyObject *args)
         return NULL;
 
     /* Interpret the input objects as numpy arrays. */
-    PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_FLOAT, NPY_IN_ARRAY);
 
     /* If that didn't work, throw an exception. */
     if (D_array == NULL) {
@@ -74,7 +74,7 @@ static PyObject *ripser_entry(PyObject *self, PyObject *args)
     int N = (int)PyArray_DIM(D_array, 0);
 
     /* Get pointers to the data as C-types. */
-    double* D    = (double*)PyArray_DATA(D_array);
+    float* D    = (float*)PyArray_DATA(D_array);
 
     /* Perform ripser */
     PyArrayObject* ret = pythondm(D, N, modulus, dim_max, threshold);
