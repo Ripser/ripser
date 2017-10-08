@@ -184,12 +184,12 @@ if __name__ == '__main__':
     X = X / np.sqrt(np.sum(X**2, 1)[:, None])
     D = getSSM(X)
 
-    #tic = time.time()
-    #PDs1 = doRipsFiltrationDMTextfile(D, 2, coeff=3)
-    #print("Elapsed Time Text File: %g"%(time.time() - tic))
-    #tic = time.time()
+    tic = time.time()
+    PDs1 = doRipsFiltrationDMTextfile(D, 2, coeff=3)
+    print("Elapsed Time Text File: %g"%(time.time() - tic))
+    tic = time.time()
     PDs2 = doRipsFiltrationDM(D, 2, coeff=3)
-    """print("Elapsed Time Numpy Wrapper: %g"%(time.time() - tic))
+    print("Elapsed Time Numpy Wrapper: %g"%(time.time() - tic))
     plt.subplot(141)
     plt.plot(X[:, 0], X[:, 1], '.')
     plt.subplot(142)
@@ -204,4 +204,4 @@ if __name__ == '__main__':
     plotDGM(PDs1[2])
     plotDGM(PDs2[2], color = 'r', marker = '*')
     plt.title("H2")
-    plt.show()"""
+    plt.show()

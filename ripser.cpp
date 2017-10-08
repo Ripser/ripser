@@ -40,12 +40,6 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <mex.h>
 #endif
 
-#ifdef PYTHON_EXTENSION
-#include "ripser.h"
-#include <Python.h>
-#include <numpy/arrayobject.h>
-#endif
-
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/sparse_hash_map>
 template <class Key, class T> class hash_map : public google::sparse_hash_map<Key, T> {
