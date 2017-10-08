@@ -535,8 +535,11 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 
 template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
-					#if defined(MATLAB_MEX_FILE) || defined(PYTHON_EXTENSION)
+					#ifdef MATLAB_MEX_FILE
 					std::vector<value_t>& births, std::vector<value_t>& deaths, value_t maxD,
+					#endif
+					#ifdef PYTHON_EXTENSION
+					std::vector<value_t>& birthsanddeaths, value_t maxD,
 					#endif
 				   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                    const std::vector<coefficient_t>& multiplicative_inverse, const DistanceMatrix& dist,
@@ -651,7 +654,11 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
 #endif
-#if defined(MATLAB_MEX_FILE) || defined(PYTHON_EXTENSION)
+#ifdef PYTHON_EXTENSION
+				birthsanddeaths.push_back(diameter);
+				birthsanddeaths.push_back(maxD);
+#endif
+#ifdef MATLAB_MEX_FILE
 				births.push_back(diameter);
 				deaths.push_back(maxD);
 #endif
@@ -668,13 +675,18 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
 			}
 #endif
-#if defined(MATLAB_MEX_FILE) || defined(PYTHON_EXTENSION)
+#ifdef PYTHON_EXTENSION
+			if (diameter != death) {
+				birthsanddeaths.push_back(diameter);
+				birthsanddeaths.push_back(death);
+			}
+#endif
+#ifdef MATLAB_MEX_FILE
 			if (diameter != death) {
 				births.push_back(diameter);
 				deaths.push_back(death);
 			}
 #endif
-
 			pivot_column_index.insert(std::make_pair(get_index(pivot), i));
 
 #ifdef USE_COEFFICIENTS
@@ -1113,8 +1125,7 @@ void mexFunction(int nOutArray, mxArray *OutArray[], int nInArray, const mxArray
 #ifdef PYTHON_EXTENSION
 
 //std::vector<value_t> distances, index_t n, value_t threshold, index_t dim_max, std::vector<std::vector<float>>& dgms
-PyArrayObject* pythondm(float* D, int N, int modulus, int dim_max, float threshold) {
-	import_array();
+std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float threshold) {
 
 	value_t maxD = D[0];
 	for (size_t i = 1; i < N; i++) {
@@ -1132,10 +1143,8 @@ PyArrayObject* pythondm(float* D, int N, int modulus, int dim_max, float thresho
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
 
-	std::vector<value_t> births;
-	std::vector<value_t> deaths;
+	std::vector<value_t> birthsanddeaths;
 	std::vector<int> NPerClass;
-
 
 	//Do 0D persistence first
 	std::vector<diameter_index_t> columns_to_reduce;
@@ -1158,8 +1167,8 @@ PyArrayObject* pythondm(float* D, int N, int modulus, int dim_max, float thresho
 
 			if (u != v) {
 				if (get_diameter(e) > 0) {
-					births.push_back(0);
-					deaths.push_back(get_diameter(e));
+					birthsanddeaths.push_back(0);
+					birthsanddeaths.push_back(get_diameter(e));
 				}
 				dset.link(u, v);
 			} else
@@ -1170,10 +1179,10 @@ PyArrayObject* pythondm(float* D, int N, int modulus, int dim_max, float thresho
 		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) {
 				//Have one element representing the infinite class
-				births.push_back(0);
-				deaths.push_back(maxD);
+				birthsanddeaths.push_back(0);
+				birthsanddeaths.push_back(maxD);
 			}
-		NPerClass.push_back(births.size());
+		NPerClass.push_back(birthsanddeaths.size()/2);
 	}
 
 
@@ -1184,30 +1193,19 @@ PyArrayObject* pythondm(float* D, int N, int modulus, int dim_max, float thresho
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs(columns_to_reduce, pivot_column_index, births, deaths, maxD, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
+		compute_pairs(columns_to_reduce, pivot_column_index, birthsanddeaths, maxD, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
 
-		NPerClass.push_back(births.size());
-
+		NPerClass.push_back(birthsanddeaths.size()/2);
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
 		}
 	}
 
-	//Now create a numpy array to hold the resulting persistence diagrams
-	npy_intp dims[1];
-	dims[0] = births.size()+deaths.size()+NPerClass.size();
-	PyArrayObject* ret = (PyArrayObject*)PyArray_SimpleNew(1, dims, NPY_FLOAT);
-	// fill the data
-	float *buffer = (float*)ret->data;
-	for (int i = 0; i < births.size(); i++) {
-		buffer[i*2] = births[i];
-		buffer[i*2+1] = deaths[i];
-	}
 	for (int i = 0; i < NPerClass.size(); i++) {
-		buffer[births.size()+deaths.size()+i] = NPerClass[i];
+		birthsanddeaths.push_back(NPerClass[i]);
 	}
-	return ret;
+	return birthsanddeaths;
 }
 
 
