@@ -1043,26 +1043,28 @@ void ripser::compute_barcodes() {
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
-
+		
 		compute_pairs<simplex_coboundary_enumerator, greater_diameter_or_smaller_index<diameter_entry_t>>(columns_to_reduce, pivot_column_index, dim);
-
+		
 		std::vector<diameter_index_t> boundary_columns_to_reduce;
-
+		
 		for (auto it = pivot_column_index.begin(); it != pivot_column_index.end(); ++it) {
 			auto pair = *it;
 			
-			index_t primal_death = pair.first;
-			boundary_columns_to_reduce.push_back(std::make_pair(compute_diameter(primal_death, dim + 1), primal_death));
+			index_t pivot_row_index = pair.first;
+			boundary_columns_to_reduce.push_back(std::make_pair(compute_diameter(pivot_row_index, dim + 1), pivot_row_index));
+			
+			//TODO: essential indices missing
 		}
 		
 		std::sort(boundary_columns_to_reduce.rbegin(), boundary_columns_to_reduce.rend(),
-	          greater_diameter_or_smaller_index<diameter_index_t>());
+				  greater_diameter_or_smaller_index<diameter_index_t>());
 		
 		hash_map<index_t, index_t> boundary_pivot_column_index;
 		boundary_pivot_column_index.reserve(boundary_columns_to_reduce.size());
-
+		
 		compute_pairs<simplex_boundary_enumerator, smaller_diameter_or_greater_index<diameter_entry_t>, false>(boundary_columns_to_reduce, boundary_pivot_column_index, dim + 1);
-
+		
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, dim + 1);
 		}
