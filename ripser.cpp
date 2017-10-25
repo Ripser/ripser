@@ -363,19 +363,14 @@ public:
 
 			// initialize reduction_matrix as identity matrix
 			reduction_matrix.append_column();
-
+			reduction_matrix.push_back(diameter_index_t(column_to_reduce));
+			
 			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			do {
 
-				std::vector<diameter_index_t> coeffs;
-				coeffs.push_back(columns_to_reduce[index_column_to_add]);
 				for (auto it = reduction_matrix.cbegin(index_column_to_add);
-				     it != reduction_matrix.cend(index_column_to_add); ++it)
-					coeffs.push_back(*it);
-				auto reduction_column_begin = coeffs.begin(), reduction_column_end = coeffs.end();
-
-				for (auto it = reduction_column_begin; it != reduction_column_end; ++it) {
+				     it != reduction_matrix.cend(index_column_to_add); ++it) {
 					diameter_index_t simplex = *it;
 
 					working_reduction_column.push(simplex);
@@ -429,8 +424,9 @@ public:
 
 // replace current column of reduction_matrix (with a single diagonal 1 entry)
 // by reduction_column (possibly with a different entry on the diagonal)
-				pop_pivot(working_reduction_column);
 
+				reduction_matrix.pop_back();
+				
 				while (true) {
 					diameter_index_t e = pop_pivot(working_reduction_column);
 					if (get_index(e) == -1) break;
