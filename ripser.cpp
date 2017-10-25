@@ -232,6 +232,7 @@ class ripser {
 	value_t threshold;
 	const binomial_coeff_table binomial_coeff;
 	mutable std::vector<index_t> vertices;
+	mutable std::vector<diameter_index_t> coface_entries;
 
 public:
 	ripser(compressed_lower_distance_matrix&& _dist, index_t _dim_max, value_t _threshold)
@@ -336,6 +337,44 @@ public:
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
 	}
+	
+	template <typename Column, typename Iterator>
+	diameter_index_t add_coboundary_and_get_pivot(Iterator column_begin,
+												  Iterator column_end,
+												  Column& working_reduction_column,
+												  Column& working_coboundary,
+												  const index_t& dim,
+												  hash_map<index_t, index_t>& pivot_column_index,
+												  bool& might_be_apparent_pair)
+	{
+		for (auto it = column_begin;
+		it != column_end; ++it) {
+			diameter_index_t simplex = *it;
+			
+			working_reduction_column.push(simplex);
+			
+			coface_entries.clear();
+			simplex_coboundary_enumerator cofaces(simplex, dim, *this);
+			while (cofaces.has_next()) {
+				diameter_index_t coface = cofaces.next();
+				if (get_diameter(coface) <= threshold) {
+					coface_entries.push_back(coface);
+					if (might_be_apparent_pair &&
+						(get_diameter(simplex) == get_diameter(coface))) {
+						if (pivot_column_index.find(get_index(coface)) ==
+							pivot_column_index.end()) {
+							return coface;
+						}
+						might_be_apparent_pair = false;
+					}
+				}
+			}
+			for (auto coface : coface_entries) working_coboundary.push(coface);
+		}
+		
+		return get_pivot(working_coboundary);
+	}
+	
 
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 	                   hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
@@ -345,8 +384,6 @@ public:
 #endif
 
 		compressed_sparse_matrix<diameter_index_t> reduction_matrix;
-
-		std::vector<diameter_index_t> coface_entries;
 
 		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size(); ++index_column_to_reduce) {
 			auto column_to_reduce = columns_to_reduce[index_column_to_reduce];
@@ -367,35 +404,14 @@ public:
 			
 			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
-			do {
+			while (true) {
 
-				for (auto it = reduction_matrix.cbegin(index_column_to_add);
-				     it != reduction_matrix.cend(index_column_to_add); ++it) {
-					diameter_index_t simplex = *it;
-
-					working_reduction_column.push(simplex);
-
-					coface_entries.clear();
-					simplex_coboundary_enumerator cofaces(simplex, dim, *this);
-					while (cofaces.has_next()) {
-						diameter_index_t coface = cofaces.next();
-						if (get_diameter(coface) <= threshold) {
-							coface_entries.push_back(coface);
-							if (might_be_apparent_pair &&
-							    (get_diameter(simplex) == get_diameter(coface))) {
-								if (pivot_column_index.find(get_index(coface)) ==
-								    pivot_column_index.end()) {
-									pivot = coface;
-									goto found_persistence_pair;
-								}
-								might_be_apparent_pair = false;
-							}
-						}
-					}
-					for (auto coface : coface_entries) working_coboundary.push(coface);
-				}
-
-				pivot = get_pivot(working_coboundary);
+				pivot = add_coboundary_and_get_pivot(reduction_matrix.cbegin(index_column_to_add),
+													 reduction_matrix.cend(index_column_to_add),
+													 working_reduction_column,
+													 working_coboundary,
+													 dim, pivot_column_index,
+													 might_be_apparent_pair);
 
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_index(pivot));
@@ -411,7 +427,6 @@ public:
 					break;
 				}
 
-			found_persistence_pair:
 #ifdef PRINT_PERSISTENCE_PAIRS
 				value_t death = get_diameter(pivot);
 				if (diameter != death) {
@@ -433,7 +448,7 @@ public:
 					reduction_matrix.push_back(e);
 				}
 				break;
-			} while (true);
+			}
 		}
 
 	}
