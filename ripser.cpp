@@ -128,19 +128,14 @@ void set_coefficient(entry_t& e, const coefficient_t c) {}
 
 const entry_t& get_entry(const entry_t& e) { return e; }
 
-class diameter_index_t : public std::pair<value_t, index_t> {
-public:
-	diameter_index_t() : std::pair<value_t, index_t>() {}
-	diameter_index_t(std::pair<value_t, index_t>&& p) : std::pair<value_t, index_t>(std::move(p)) {}
-};
+typedef std::pair<value_t, index_t> diameter_index_t;
 value_t get_diameter(const diameter_index_t& i) { return i.first; }
 index_t get_index(const diameter_index_t& i) { return i.second; }
 
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
-	diameter_entry_t(std::pair<value_t, entry_t> p) : std::pair<value_t, entry_t>(p) {}
-	diameter_entry_t(entry_t&& e) : std::pair<value_t, entry_t>(0, std::move(e)) {}
-	diameter_entry_t() : diameter_entry_t(entry_t()) {}
+	diameter_entry_t() {}
+	diameter_entry_t(const entry_t& e) : std::pair<value_t, entry_t>(0, e) {}
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
 	    : std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
 	diameter_entry_t(const diameter_index_t& _diameter_index, coefficient_t _coefficient)
@@ -365,12 +360,6 @@ public:
 		append_column(collection.cbegin(), collection.cend());
 	}
 };
-
-template <typename Heap>
-void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
-	entry_t e = make_entry(i, c);
-	column.push(std::make_pair(diameter, e));
-}
 
 class ripser {
 	compressed_lower_distance_matrix dist;
