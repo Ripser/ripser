@@ -27,7 +27,7 @@ Input formats currently supported by Ripser:
   - point cloud data
 
 Ripser's efficiency is based on a few important concepts and principles:
-  
+
   - Compute persistent *co*homology
   - Don't compute information that is never needed
     (for the experts: employ the *clearing* optimization, aka *persistence with a twist*)
@@ -80,7 +80,7 @@ The input is given either in a file whose name is passed as an argument, or thro
   - `--dim k`: compute persistent homology up to dimension *k*
   - `--threshold t`: compute Rips complexes up to diameter *t*
   - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when built with the option `USE_COEFFICIENTS`)
-
+  - `--output f`:  output persistence pairs to file *f*
 
 
 
@@ -96,7 +96,7 @@ Prototype implementations are already avaliable; please contact the author if on
 
 ### License
 
-Ripser is licensed under the [LGPL] 3.0. Please contact the author if you want to use Ripser in your software under a different license. 
+Ripser is licensed under the [LGPL] 3.0. Please contact the author if you want to use Ripser in your software under a different license.
 
 [Ulrich Bauer]: <http://ulrich-bauer.org>
 [live.ripser.org]: <http://live.ripser.org>
