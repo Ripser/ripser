@@ -528,7 +528,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
                    index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                    const std::vector<coefficient_t>& multiplicative_inverse, const DistanceMatrix& dist,
                    const ComparatorCofaces& comp, const Comparator& comp_prev,
-                   const binomial_coeff_table& binomial_coeff) {
+                   const binomial_coeff_table& binomial_coeff, std::ostream& outf) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 	std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
@@ -637,6 +637,8 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				std::cout << "\033[K";
 #endif
 				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+                //! adapted to print to file
+                outf << dim << " " << diameter << " -1" << std::endl;
 #endif
 				break;
 			}
@@ -649,6 +651,8 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				std::cout << "\033[K";
 #endif
 				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
+                //! adapted to print to file
+                outf << dim << " " << diameter << " " << death << std::endl;
 			}
 #endif
 
@@ -827,6 +831,9 @@ void print_usage_and_exit(int exit_code) {
 }
 
 int main(int argc, char** argv) {
+    
+    //! adapted to print to file
+    std::ofstream outf("output-ripser.dat");
 
 	const char* filename = nullptr;
 
@@ -926,7 +933,11 @@ int main(int argc, char** argv) {
 
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) > 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+				if (get_diameter(e) > 0){
+                    std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+                    //! adapted to print to file 
+                    outf << "0 0 " << get_diameter(e) << std::endl;
+                }
 #endif
 				dset.link(u, v);
 			} else
@@ -935,8 +946,13 @@ int main(int argc, char** argv) {
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
 #ifdef PRINT_PERSISTENCE_PAIRS
-		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+		for (index_t i = 0; i < n; ++i){
+			if (dset.find(i) == i){
+                std::cout << " [0, )" << std::endl << std::flush;
+                //! adapted to print to file 
+                outf << "0 0 -1" << std::endl;
+            }
+        }
 #endif
 	}
 
@@ -948,7 +964,7 @@ int main(int argc, char** argv) {
 		pivot_column_index.reserve(columns_to_reduce.size());
 
 		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, dist,
-		              comp, comp_prev, binomial_coeff);
+		              comp, comp_prev, binomial_coeff, outf);
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
