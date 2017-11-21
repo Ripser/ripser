@@ -637,8 +637,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				std::cout << "\033[K";
 #endif
 				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
-                //! adapted to print to file
-                outf << dim << " " << diameter << " -1" << std::endl;
+        outf << dim << " " << diameter << " -1" << std::endl;
 #endif
 				break;
 			}
@@ -651,8 +650,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 				std::cout << "\033[K";
 #endif
 				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
-                //! adapted to print to file
-                outf << dim << " " << diameter << " " << death << std::endl;
+        outf << dim << " " << diameter << " " << death << std::endl;
 			}
 #endif
 
@@ -822,6 +820,7 @@ void print_usage_and_exit(int exit_code) {
 	          << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
 	          << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
 	          << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
+	          << "  --output <f>     output persistence pairs to file <f>" << std::endl
 #ifdef USE_COEFFICIENTS
 	          << "  --modulus <p>    compute homology with coefficients in the prime field Z/<p>Z"
 #endif
@@ -831,11 +830,10 @@ void print_usage_and_exit(int exit_code) {
 }
 
 int main(int argc, char** argv) {
-    
-    //! adapted to print to file
-    std::ofstream outf("output-ripser.dat");
 
 	const char* filename = nullptr;
+	const char* outfile = nullptr;
+	// bool PRINTFILE = false;
 
 	file_format format = DISTANCE_MATRIX;
 
@@ -883,10 +881,21 @@ int main(int argc, char** argv) {
 			modulus = std::stol(parameter, &next_pos);
 			if (next_pos != parameter.size() || !is_prime(modulus)) print_usage_and_exit(-1);
 #endif
+		} else if (arg == "--output") {
+			outfile = argv[++i];
 		} else {
 			if (filename) { print_usage_and_exit(-1); }
 			filename = argv[i];
 		}
+	}
+
+	// Setup for print to file
+	std::ofstream outf(outfile);
+	if (outfile && outf.fail()){
+		std::cerr << "couldn't open output file " << outfile << std::endl;
+		exit(-1);
+	} else {
+		std::cerr << "Print persistence pairs to " << outfile << std::endl;
 	}
 
 	std::ifstream file_stream(filename);
@@ -934,10 +943,9 @@ int main(int argc, char** argv) {
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 				if (get_diameter(e) > 0){
-                    std::cout << " [0," << get_diameter(e) << ")" << std::endl;
-                    //! adapted to print to file 
-                    outf << "0 0 " << get_diameter(e) << std::endl;
-                }
+            std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+            outf << "0 0 " << get_diameter(e) << std::endl;
+        }
 #endif
 				dset.link(u, v);
 			} else
@@ -948,11 +956,10 @@ int main(int argc, char** argv) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i){
 			if (dset.find(i) == i){
-                std::cout << " [0, )" << std::endl << std::flush;
-                //! adapted to print to file 
-                outf << "0 0 -1" << std::endl;
-            }
-        }
+          std::cout << " [0, )" << std::endl << std::flush;
+          outf << "0 0 -1" << std::endl;
+      }
+    }
 #endif
 	}
 
