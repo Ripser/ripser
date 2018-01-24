@@ -405,7 +405,6 @@ public:
 			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			while (true) {
-
 				pivot = add_coboundary_and_get_pivot(reduction_matrix.cbegin(index_column_to_add),
 													 reduction_matrix.cend(index_column_to_add),
 													 working_reduction_column,
@@ -418,7 +417,26 @@ public:
 
 					if (pair != pivot_column_index.end()) {
 						index_column_to_add = pair->second;
-						continue;
+					} else {
+#ifdef PRINT_PERSISTENCE_PAIRS
+						value_t death = get_diameter(pivot);
+						if (diameter != death) {
+							std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
+						}
+#endif
+						pivot_column_index.insert(std::make_pair(get_index(pivot), index_column_to_reduce));
+						
+						// replace current column of reduction_matrix (with a single diagonal 1 entry)
+						// by reduction_column (possibly with a different entry on the diagonal)
+						
+						reduction_matrix.pop_back();
+						
+						while (true) {
+							diameter_index_t e = pop_pivot(working_reduction_column);
+							if (get_index(e) == -1) break;
+							reduction_matrix.push_back(e);
+						}
+						break;
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
@@ -426,28 +444,6 @@ public:
 #endif
 					break;
 				}
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-				value_t death = get_diameter(pivot);
-				if (diameter != death) {
-					std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
-				}
-#endif
-
-				pivot_column_index.insert(std::make_pair(get_index(pivot), index_column_to_reduce));
-
-
-// replace current column of reduction_matrix (with a single diagonal 1 entry)
-// by reduction_column (possibly with a different entry on the diagonal)
-
-				reduction_matrix.pop_back();
-				
-				while (true) {
-					diameter_index_t e = pop_pivot(working_reduction_column);
-					if (get_index(e) == -1) break;
-					reduction_matrix.push_back(e);
-				}
-				break;
 			}
 		}
 
