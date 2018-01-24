@@ -619,13 +619,12 @@ public:
 #endif
 #endif
 
-				pivot = add_coboundary_and_get_pivot(reduction_column_begin, reduction_column_end,
-				                                     factor_column_to_add,
+				pivot = add_coboundary_and_get_pivot(
+				    reduction_column_begin, reduction_column_end, factor_column_to_add,
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-				                                     working_reduction_column,
+				    working_reduction_column,
 #endif
-				                                     working_coboundary, dim, pivot_column_index,
-				                                     might_be_apparent_pair);
+				    working_coboundary, dim, pivot_column_index, might_be_apparent_pair);
 
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_index(pivot));
@@ -633,59 +632,58 @@ public:
 					if (pair != pivot_column_index.end()) {
 						index_column_to_add = pair->second;
 						factor_column_to_add = modulus - get_coefficient(pivot);
-						continue;
+					} else {
+#ifdef PRINT_PERSISTENCE_PAIRS
+						value_t death = get_diameter(pivot);
+						if (diameter != death) {
+#ifdef INDICATE_PROGRESS
+							std::cout << "\033[K";
+#endif
+							std::cout << " [" << diameter << "," << death << ")" << std::endl
+							          << std::flush;
+						}
+#endif
+						pivot_column_index.insert(
+						    std::make_pair(get_index(pivot), index_column_to_reduce));
+
+#ifdef USE_COEFFICIENTS
+						const coefficient_t inverse =
+						    multiplicative_inverse[get_coefficient(pivot)];
+#endif
+
+#ifdef ASSEMBLE_REDUCTION_MATRIX
+						// replace current column of reduction_matrix (with a single diagonal 1
+						// entry) by reduction_column (possibly with a different entry on the
+						// diagonal)
+#ifdef USE_COEFFICIENTS
+						reduction_matrix.pop_back();
+#else
+						pop_pivot(working_reduction_column, modulus);
+#endif
+
+						while (true) {
+							diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
+							if (get_index(e) == -1) break;
+#ifdef USE_COEFFICIENTS
+							set_coefficient(e, inverse * get_coefficient(e) % modulus);
+							assert(get_coefficient(e) > 0);
+#endif
+							reduction_matrix.push_back(e);
+						}
+#else
+#ifdef USE_COEFFICIENTS
+						reduction_matrix.pop_back();
+						reduction_matrix.push_back(diameter_entry_t(column_to_reduce, inverse));
+#endif
+#endif
+						break;
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-					std::cout << "\033[K";
-#endif
 					std::cout << " [" << diameter << ", )" << std::endl << std::flush;
 #endif
 					break;
 				}
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-				value_t death = get_diameter(pivot);
-				if (diameter != death) {
-#ifdef INDICATE_PROGRESS
-					std::cout << "\033[K";
-#endif
-					std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
-				}
-#endif
-
-				pivot_column_index.insert(std::make_pair(get_index(pivot), index_column_to_reduce));
-
-#ifdef USE_COEFFICIENTS
-				const coefficient_t inverse = multiplicative_inverse[get_coefficient(pivot)];
-#endif
-
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-// replace current column of reduction_matrix (with a single diagonal 1 entry)
-// by reduction_column (possibly with a different entry on the diagonal)
-#ifdef USE_COEFFICIENTS
-				reduction_matrix.pop_back();
-#else
-				pop_pivot(working_reduction_column, modulus);
-#endif
-
-				while (true) {
-					diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
-					if (get_index(e) == -1) break;
-#ifdef USE_COEFFICIENTS
-					set_coefficient(e, inverse * get_coefficient(e) % modulus);
-					assert(get_coefficient(e) > 0);
-#endif
-					reduction_matrix.push_back(e);
-				}
-#else
-#ifdef USE_COEFFICIENTS
-				reduction_matrix.pop_back();
-				reduction_matrix.push_back(diameter_entry_t(column_to_reduce, inverse));
-#endif
-#endif
-				break;
 			}
 		}
 
