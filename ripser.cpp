@@ -785,9 +785,8 @@ public:
 				else
 					x = std::max(x, y);
 			}
-			return all_cofaces ||
-			       !(k > 0 &&
-			         parent.get_next_vertex(max_vertex_below, idx_below, k) > get_index(x));
+			return all_cofaces || !(k > 0 && parent.get_next_vertex(max_vertex_below, idx_below,
+			                                                        k) > get_index(x));
 		continue_outer:;
 		}
 		return false;
@@ -1150,6 +1149,15 @@ int main(int argc, char** argv) {
 	value_t min = std::numeric_limits<value_t>::infinity(),
 	        max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
 	int num_edges = 0;
+
+	value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
+	for (index_t i = 0; i < dist.size(); ++i) {
+		value_t r_i = -std::numeric_limits<value_t>::infinity();
+		for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
+		enclosing_radius = std::min(enclosing_radius, r_i);
+	}
+
+	if (threshold == std::numeric_limits<value_t>::max()) threshold = enclosing_radius;
 
 	for (auto d : dist.distances) {
 		min = std::min(min, d);
