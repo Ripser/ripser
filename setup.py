@@ -17,5 +17,11 @@ setup(ext_modules = cythonize(
 		extra_compile_args = options,
 		language="c++",
 	)),
+	name="ripser",
+	description="Python wrapper around Uli Bauer's ripser code",
+	author="Chris Tralie",
+	author_email="chris.tralie@gmail.com",
+	version='0.1',
+	py_modules=['ripser'],
 	include_dirs=numpy.get_include()
 )
