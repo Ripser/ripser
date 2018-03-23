@@ -80,6 +80,10 @@ bool is_prime(const coefficient_t n) {
 	return true;
 }
 
+coefficient_t normalize(const coefficient_t n, const coefficient_t modulus) {
+	return n > modulus / 2 ? n - modulus : n;
+}
+
 std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) {
 	std::vector<coefficient_t> inverse(m);
 	inverse[1] = 1;
@@ -409,6 +413,12 @@ public:
 		return out;
 	}
 
+	std::vector<index_t> vertices_of_simplex(const index_t simplex_index, const index_t dim) {
+		std::vector<index_t> vertices(dim + 1);
+		get_simplex_vertices(simplex_index, dim, n, vertices.begin());
+		return vertices;
+	}
+
 	value_t compute_diameter(const index_t index, index_t dim) const {
 		value_t diam = -std::numeric_limits<value_t>::infinity();
 
@@ -636,27 +646,30 @@ public:
 						factor_column_to_add = modulus - get_coefficient(pivot);
 					} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
-                        value_t death = get_diameter(pivot);
-                        if (diameter != death) {
+						value_t death = get_diameter(pivot);
+						if (diameter != death) {
 #ifdef INDICATE_PROGRESS
-                            std::cout << "\033[K";
+							std::cout << "\033[K";
 #endif
-                            //				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
-                            std::cout << " [" << diameter << "," << death << "): {";
-                            auto cocycle = working_reduction_column;
-                            diameter_entry_t e;
-                            while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-                                vertices.clear();
-                                get_simplex_vertices(get_index(e), dim, n, std::back_inserter(vertices));
-                                std::cout << vertices;
+							//				std::cout << " [" << diameter << "," << death << ")" <<
+							// std::endl << std::flush;
+							std::cout << " [" << diameter << "," << death << "): {";
+							auto cocycle = working_reduction_column;
+							diameter_entry_t e;
+							while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+								vertices.resize(dim + 1);
+								get_simplex_vertices(get_index(e), dim, n, vertices.rbegin());
+								std::cout << vertices;
 #ifdef USE_COEFFICIENTS
-                                std::cout << ":" << get_coefficient(pivot);
+								std::cout << ":" << normalize(get_coefficient(e), modulus);
+								;
 #endif
-                                cocycle.pop();
-                                if (get_index(e = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
-                            }
-                            std::cout << "}" << std::endl;
-                        }
+								cocycle.pop();
+								if (get_index(e = get_pivot(cocycle, modulus)) != -1)
+									std::cout << ", ";
+							}
+							std::cout << "}" << std::endl;
+						}
 #endif
 						pivot_column_index.insert(
 						    std::make_pair(get_index(pivot), index_column_to_reduce));
@@ -696,22 +709,26 @@ public:
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 #ifdef INDICATE_PROGRESS
-                    std::cout << "\033[K";
+					std::cout << "\033[K";
 #endif
-                    //				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
-                    std::cout << " [" << diameter << ", ): {";
-                    auto cocycle = working_reduction_column;
-                    while (get_index(pivot = get_pivot(cocycle, modulus)) != -1) {
-                        vertices.clear();
-                        get_simplex_vertices(get_index(pivot), dim, n, std::back_inserter(vertices));
-                        std::cout << vertices;
+					//				std::cout << " [" << diameter << ", )" << std::endl <<
+					//std::flush;
+					std::cout << " [" << diameter << ", ): {";
+					auto cocycle = working_reduction_column;
+					diameter_entry_t e;
+					while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+						vertices.resize(dim + 1);
+						get_simplex_vertices(get_index(e), dim, n, vertices.rbegin());
+						std::cout << vertices;
 #ifdef USE_COEFFICIENTS
-                        std::cout << ":" << get_coefficient(pivot);
+						std::cout << ":" << normalize(get_coefficient(e), modulus);
+						;
 #endif
-                        cocycle.pop();
-                        if (get_index(pivot = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
-                    }
-                    std::cout << "}" << std::endl;
+						cocycle.pop();
+						if (get_index(e = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
+					}
+					std::cout << "}" << std::endl << std::flush;
+
 #endif
 					break;
 				}
