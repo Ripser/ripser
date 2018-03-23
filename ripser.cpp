@@ -78,6 +78,10 @@ bool is_prime(const coefficient_t n) {
 	return true;
 }
 
+coefficient_t normalize(const coefficient_t n, const coefficient_t modulus) {
+	return n > modulus / 2 ? n - modulus : n;
+}
+
 std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) {
 	std::vector<coefficient_t> inverse(m);
 	inverse[1] = 1;
@@ -587,6 +591,34 @@ public:
 
 		return get_pivot(working_coboundary, modulus);
 	}
+	
+	template<typename Chain>
+	void print_chain(Chain& cycle, index_t dim) {
+		diameter_entry_t e;
+		
+		std::cout << "{";
+		while (get_index(e = get_pivot(cycle, modulus)) != -1) {
+			vertices.resize(dim + 1);
+			get_simplex_vertices(get_index(e), dim, n,
+								 vertices.rbegin());
+			
+			std::cout << "[";
+			auto it = vertices.begin();
+			if (it != vertices.end()) {
+				std::cout << *it++;
+				while (it != vertices.end()) std::cout << "," << *it++;
+			}
+			std::cout << "]";
+#ifdef USE_COEFFICIENTS
+			std::cout << ":" << normalize(get_coefficient(e), modulus);
+#endif
+			cycle.pop();
+			if (get_index(e = get_pivot(cycle, modulus)) != -1)
+				std::cout << ", ";
+		}
+		std::cout << "}" << std::endl;
+		
+	}
 
 	template <typename BoundaryEnumerator, typename Sorter, bool cohomology = true>
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
@@ -691,73 +723,15 @@ public:
 							std::cout << "\033[K";
 #endif
 							auto cycle = working_coboundary;
-							diameter_entry_t e;
 
 							if (cohomology || might_be_apparent_pair)
 								;
-							//					std::cout << " [" << diameter << "," << death << ")" <<
-							//"
-							//"
-							//<< get_index(column_to_reduce) << ":" << get_index(pivot) << std::endl
-							//<< std::flush;
 							else {
-								std::cout << " [" << death << "," << diameter << "):  {";
-								while (get_index(e = get_pivot(cycle, modulus)) != -1) {
-									vertices.clear();
-									get_simplex_vertices(get_index(e), dim - 1, n,
-									                     std::back_inserter(vertices));
-
-									std::cout << "{";
-									auto it = vertices.begin();
-									if (it != vertices.end()) {
-										std::cout << *it++;
-										while (it != vertices.end()) std::cout << "," << *it++;
-									}
-									std::cout << "}";
-#ifdef USE_COEFFICIENTS
-									std::cout << ":" << get_coefficient(e);
-#endif
-									cycle.pop();
-									if (get_index(e = get_pivot(cycle, modulus)) != -1)
-										std::cout << ", ";
-								}
-								std::cout << "}" << std::endl;
+								std::cout << " [" << death << "," << diameter << "):  ";
+								print_chain(cycle, dim - 1);
 							}
 						}
 #endif
-						auto cycle = working_coboundary;
-						diameter_entry_t e;
-
-						if (cohomology || might_be_apparent_pair)
-							;
-						//					std::cout << " [" << diameter << "," << death << ")" << "
-						//"
-						//<<  get_index(column_to_reduce) << ":" << get_index(pivot) << std::endl <<
-						// std::flush;
-						else {
-							std::cout << " [" << death << "," << diameter << "):  {";
-							while (get_index(e = get_pivot(cycle, modulus)) != -1) {
-								vertices.clear();
-								get_simplex_vertices(get_index(e), dim - 1, n,
-								                     std::back_inserter(vertices));
-
-								std::cout << "{";
-								auto it = vertices.begin();
-								if (it != vertices.end()) {
-									std::cout << *it++;
-									while (it != vertices.end()) std::cout << "," << *it++;
-								}
-								std::cout << "}";
-#ifdef USE_COEFFICIENTS
-								std::cout << ":" << get_coefficient(e);
-#endif
-								cycle.pop();
-								if (get_index(e = get_pivot(cycle, modulus)) != -1)
-									std::cout << ", ";
-							}
-							std::cout << "}" << std::endl;
-						}
-
 						pivot_column_index.insert(
 						    std::make_pair(get_index(pivot), index_column_to_reduce));
 
@@ -795,7 +769,15 @@ public:
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
-					std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+						auto cycle = working_reduction_column;
+
+						if (cohomology || might_be_apparent_pair)
+							;
+						else {
+							std::cout << " [" << diameter << ", ):  ";
+							print_chain(cycle, dim);
+						}
+
 #endif
 					break;
 				}
@@ -993,11 +975,11 @@ int main(int argc, char** argv) {
 			size_t next_pos;
 			dim_max = std::stol(parameter, &next_pos);
 			if (next_pos != parameter.size()) print_usage_and_exit(-1);
-		} else if (arg == "--threshold") {
-			std::string parameter = std::string(argv[++i]);
-			size_t next_pos;
-			threshold = std::stof(parameter, &next_pos);
-			if (next_pos != parameter.size()) print_usage_and_exit(-1);
+//		} else if (arg == "--threshold") {
+//			std::string parameter = std::string(argv[++i]);
+//			size_t next_pos;
+//			threshold = std::stof(parameter, &next_pos);
+//			if (next_pos != parameter.size()) print_usage_and_exit(-1);
 		} else if (arg == "--format") {
 			std::string parameter = std::string(argv[++i]);
 			if (parameter == "lower-distance")
@@ -1081,7 +1063,16 @@ void ripser::compute_barcodes() {
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 				if (get_diameter(e) != 0)
-					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+					std::cout << " [0," << get_diameter(e) << "):  {[" << u << "]"
+#ifdef USE_COEFFICIENTS
+					<< ":1"
+#endif
+					<< ", [" << v << "]"
+#ifdef USE_COEFFICIENTS
+					<< ":-1"
+#endif
+					<< "}" << std::endl;
+
 #endif
 				dset.link(u, v);
 			} else
@@ -1091,7 +1082,11 @@ void ripser::compute_barcodes() {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+			if (dset.find(i) == i) std::cout << " [0, ):  {[" << i << "]"
+#ifdef USE_COEFFICIENTS
+				<< ":1"
+#endif
+				<< "}" << std::endl;
 #endif
 	}
 
@@ -1099,9 +1094,7 @@ void ripser::compute_barcodes() {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs<simplex_coboundary_enumerator,
-		              greater_diameter_or_smaller_index<diameter_entry_t>>(columns_to_reduce,
-		                                                                   pivot_column_index, dim);
+		compute_pairs<simplex_coboundary_enumerator, greater_diameter_or_smaller_index<diameter_entry_t>>(columns_to_reduce, pivot_column_index, dim);
 
 		std::vector<diameter_index_t> boundary_columns_to_reduce;
 
@@ -1112,7 +1105,7 @@ void ripser::compute_barcodes() {
 			boundary_columns_to_reduce.push_back(
 			    std::make_pair(compute_diameter(pivot_row_index, dim + 1), pivot_row_index));
 
-			// TODO: essential indices missing
+			// TODO: essential indices missing (required for thresholding)
 		}
 
 		std::sort(boundary_columns_to_reduce.rbegin(), boundary_columns_to_reduce.rend(),
