@@ -548,6 +548,34 @@ public:
 
 		return get_pivot(working_coboundary, modulus);
 	}
+	
+	template<typename Chain>
+	void print_chain(Chain& cycle, index_t dim) {
+		diameter_entry_t e;
+		
+		std::cout << "{";
+		while (get_index(e = get_pivot(cycle, modulus)) != -1) {
+			vertices.resize(dim + 1);
+			get_simplex_vertices(get_index(e), dim, n,
+								 vertices.rbegin());
+			
+			std::cout << "[";
+			auto it = vertices.begin();
+			if (it != vertices.end()) {
+				std::cout << *it++;
+				while (it != vertices.end()) std::cout << "," << *it++;
+			}
+			std::cout << "]";
+#ifdef USE_COEFFICIENTS
+			std::cout << ":" << normalize(get_coefficient(e), modulus);
+#endif
+			cycle.pop();
+			if (get_index(e = get_pivot(cycle, modulus)) != -1)
+				std::cout << ", ";
+		}
+		std::cout << "}" << std::endl;
+		
+	}
 
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 	                   hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
@@ -651,24 +679,9 @@ public:
 #ifdef INDICATE_PROGRESS
 							std::cout << "\033[K";
 #endif
-							//				std::cout << " [" << diameter << "," << death << ")" <<
-							// std::endl << std::flush;
-							std::cout << " [" << diameter << "," << death << "): {";
-							auto cocycle = working_reduction_column;
-							diameter_entry_t e;
-							while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-								vertices.resize(dim + 1);
-								get_simplex_vertices(get_index(e), dim, n, vertices.rbegin());
-								std::cout << vertices;
-#ifdef USE_COEFFICIENTS
-								std::cout << ":" << normalize(get_coefficient(e), modulus);
-								;
-#endif
-								cocycle.pop();
-								if (get_index(e = get_pivot(cocycle, modulus)) != -1)
-									std::cout << ", ";
-							}
-							std::cout << "}" << std::endl;
+//							std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
+							std::cout << " [" << diameter << "," << death << "):  ";
+							print_chain(working_reduction_column, dim);
 						}
 #endif
 						pivot_column_index.insert(
@@ -711,23 +724,9 @@ public:
 #ifdef INDICATE_PROGRESS
 					std::cout << "\033[K";
 #endif
-					//				std::cout << " [" << diameter << ", )" << std::endl <<
-					//std::flush;
-					std::cout << " [" << diameter << ", ): {";
-					auto cocycle = working_reduction_column;
-					diameter_entry_t e;
-					while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-						vertices.resize(dim + 1);
-						get_simplex_vertices(get_index(e), dim, n, vertices.rbegin());
-						std::cout << vertices;
-#ifdef USE_COEFFICIENTS
-						std::cout << ":" << normalize(get_coefficient(e), modulus);
-						;
-#endif
-						cocycle.pop();
-						if (get_index(e = get_pivot(cocycle, modulus)) != -1) std::cout << ", ";
-					}
-					std::cout << "}" << std::endl << std::flush;
+//					std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+					std::cout << " [" << diameter << ", ):  ";
+					print_chain(working_reduction_column, dim);
 
 #endif
 					break;
