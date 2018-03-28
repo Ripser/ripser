@@ -1015,6 +1015,19 @@ void ripser::compute_barcodes() {
 				if (get_diameter(e) != 0)
 					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
+				std::cout << "{";
+				bool nonempty = false;
+				for (index_t w = 0; w < n; ++w)
+					if (dset.find(w) == u) {
+						if (nonempty) std::cout << ", "; nonempty = true;
+						std::cout << "[" << w << "]";
+#ifdef USE_COEFFICIENTS
+						std::cout << ":" << 1;
+#endif
+					}
+				std::cout << "}" << std::endl;
+
+				
 				dset.link(u, v);
 			} else
 				columns_to_reduce.push_back(e);
@@ -1023,10 +1036,21 @@ void ripser::compute_barcodes() {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+			if (dset.find(i) == i) {
+				std::cout << " [0, )" << std::endl << std::flush;
+				std::cout << "{";
+				for (index_t w = 0; w < n; ++w) {
+					if (w > 0) std::cout << ", ";
+					std::cout << "[" << w << "]";
+#ifdef USE_COEFFICIENTS
+					std::cout << ":" << 1;
 #endif
-	}
-
+				}
+				std::cout << "}" << std::endl;
+#endif
+			}
+		}
+		
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
