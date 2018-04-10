@@ -2,3 +2,10 @@ DerivedData
 ripser.dSYM
 ripser
 ripser-coeff
+.DS_Store
+build/
+__pycache__
+*.egg-info
+venv/
+.pytest_cache/
+pyRipser.cpython-36m-darwin.so
