@@ -26,6 +26,8 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 //#define USE_GOOGLE_HASHMAP
 
+// #define PYTHON_EXTENSION
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -876,11 +878,11 @@ int main(int argc, char** argv) {
 	index_t dim_max = 1;
 	value_t threshold = std::numeric_limits<value_t>::max();
 
-#ifdef USE_COEFFICIENTS
-	coefficient_t modulus = 2;
-#else
-	const coefficient_t modulus = 2;
-#endif
+	// #ifdef USE_COEFFICIENTS
+	// 	coefficient_t modulus = 2;
+	// #else
+	// 	const coefficient_t modulus = 2;
+	// #endif
 
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
