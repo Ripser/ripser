@@ -3,6 +3,8 @@ build: ripser
 
 all: ripser ripser-coeff ripser-reduction ripser-debug
 
+python: ripser.cpp
+	c++ -std=c++11 ripser.cpp -c -o ripser -Ofast -D NDEBUG -D PYTHON_EXTENSION
 
 ripser: ripser.cpp
 	c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D PRINT_PERSISTENCE_PAIRS

@@ -536,9 +536,16 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 					std::vector<value_t>& birthsanddeaths, value_t maxD,
 					#endif
 				   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
-                   const std::vector<coefficient_t>& multiplicative_inverse, const DistanceMatrix& dist,
-                   const ComparatorCofaces& comp, const Comparator& comp_prev,
-                   const binomial_coeff_table& binomial_coeff, std::ostream& outf) {
+                   const std::vector<coefficient_t>& multiplicative_inverse, 
+				   const DistanceMatrix& dist,
+                   const ComparatorCofaces& comp, 
+				   const Comparator& comp_prev,
+                   const binomial_coeff_table& binomial_coeff
+				//    #ifdef PRINT_PERSISTENCE_PAIRS
+				//    , std::ostream& outf
+				//    #endif
+				   ) {
+
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 	std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
@@ -642,13 +649,13 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 					continue;
 				}
 			} else {
-#ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-				std::cout << "\033[K";
-#endif
-				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
-        outf << dim << " " << diameter << " -1" << std::endl;
-#endif
+// #ifdef PRINT_PERSISTENCE_PAIRS
+// #ifdef INDICATE_PROGRESS
+// 				std::cout << "\033[K";
+// #endif
+// 				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+//         		outf << dim << " " << diameter << " -1" << std::endl;
+// #endif
 #ifdef PYTHON_EXTENSION
 				birthsanddeaths.push_back(diameter);
 				birthsanddeaths.push_back(maxD);
@@ -662,15 +669,15 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 
 		found_persistence_pair:
 		value_t death = get_diameter(pivot);
-#ifdef PRINT_PERSISTENCE_PAIRS
-			if (diameter != death) {
-#ifdef INDICATE_PROGRESS
-				std::cout << "\033[K";
-#endif
-				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
-        outf << dim << " " << diameter << " " << death << std::endl;
-			}
-#endif
+// #ifdef PRINT_PERSISTENCE_PAIRS
+// 			if (diameter != death) {
+// #ifdef INDICATE_PROGRESS
+// 				std::cout << "\033[K";
+// #endif
+// 				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
+//         outf << dim << " " << diameter << " " << death << std::endl;
+// 			}
+// #endif
 #ifdef PYTHON_EXTENSION
 			if (diameter != death) {
 				birthsanddeaths.push_back(diameter);
@@ -903,13 +910,13 @@ int main(int argc, char** argv) {
 				format = DIPHA;
 			else
 				print_usage_and_exit(-1);
-#ifdef USE_COEFFICIENTS
+	#ifdef USE_COEFFICIENTS
 		} else if (arg == "--modulus") {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			modulus = std::stol(parameter, &next_pos);
 			if (next_pos != parameter.size() || !is_prime(modulus)) print_usage_and_exit(-1);
-#endif
+	#endif
 		} else if (arg == "--output") {
 			outfile = argv[++i];
 		} else {
@@ -918,14 +925,14 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	// Setup for print to file
-	std::ofstream outf(outfile);
-	if (outfile && outf.fail()){
-		std::cerr << "couldn't open output file " << outfile << std::endl;
-		exit(-1);
-	} else {
-		std::cerr << "Print persistence pairs to " << outfile << std::endl;
-	}
+	// // Setup for print to file
+	// std::ofstream outf(outfile);
+	// if (outfile && outf.fail()){
+	// 	std::cerr << "couldn't open output file " << outfile << std::endl;
+	// 	exit(-1);
+	// } else {
+	// 	std::cerr << "Print persistence pairs to " << outfile << std::endl;
+	// }
 
 	std::ifstream file_stream(filename);
 	if (filename && file_stream.fail()) {
@@ -959,9 +966,9 @@ int main(int argc, char** argv) {
 		}
 		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
 
-#ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim 0:" << std::endl;
-#endif
+	// #ifdef PRINT_PERSISTENCE_PAIRS
+	// 		std::cout << "persistence intervals in dim 0:" << std::endl;
+	// #endif
 
 		std::vector<index_t> vertices_of_edge(2);
 		for (auto e : edges) {
@@ -970,26 +977,26 @@ int main(int argc, char** argv) {
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 
 			if (u != v) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) > 0){
-            std::cout << " [0," << get_diameter(e) << ")" << std::endl;
-            outf << "0 0 " << get_diameter(e) << std::endl;
-        }
-#endif
+	// #ifdef PRINT_PERSISTENCE_PAIRS
+	// 				if (get_diameter(e) > 0){
+	//             std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+	//             outf << "0 0 " << get_diameter(e) << std::endl;
+	//         }
+	// #endif
 				dset.link(u, v);
 			} else
 				columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-#ifdef PRINT_PERSISTENCE_PAIRS
-		for (index_t i = 0; i < n; ++i){
-			if (dset.find(i) == i){
-          std::cout << " [0, )" << std::endl << std::flush;
-          outf << "0 0 -1" << std::endl;
-      }
-    }
-#endif
+	// #ifdef PRINT_PERSISTENCE_PAIRS
+	// 		for (index_t i = 0; i < n; ++i){
+	// 			if (dset.find(i) == i){
+	//           std::cout << " [0, )" << std::endl << std::flush;
+	//           outf << "0 0 -1" << std::endl;
+	//       }
+	//     }
+	// #endif
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
@@ -1000,7 +1007,7 @@ int main(int argc, char** argv) {
 		pivot_column_index.reserve(columns_to_reduce.size());
 
 		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, dist,
-		              comp, comp_prev, binomial_coeff, outf);
+		              comp, comp_prev, binomial_coeff);//, outf);
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
