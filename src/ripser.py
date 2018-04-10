@@ -1,7 +1,3 @@
-"""
-Programmer: Chris Tralie (ctralie@alumni.princeton.edu)
-Purpose: To wrap around Ripser to compute persistence diagrams
-"""
 import subprocess
 import os
 
