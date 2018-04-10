@@ -1,7 +1,7 @@
 # distutils: language = c++
 
 cimport numpy as np
-cimport pyRips
+cimport src.pyRips as pyRips
 import cython
 
 @cython.boundscheck(False)

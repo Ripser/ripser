@@ -12,13 +12,15 @@ if sys.version_info[0] == 2:
 
 setup(ext_modules = cythonize(
 	Extension("pyRipser",
-		sources = ["pyRipser.pyx"],
+		sources = ["src/pyRipser.pyx"],
 		define_macros=[("USE_COEFFICIENTS", 1), ("PYTHON_EXTENSION", 1), ("NDEBUG", 1), ("ASSEMBLE_REDUCTION_MATRIX", 1)],
 		extra_compile_args = options,
 		language="c++",
         include_dirs=[numpy.get_include()]
 	)),
 	install_requires=[
+		'Cython',
+		'numpy',
         'matplotlib'
       ],
 	name="ripser",
@@ -26,6 +28,7 @@ setup(ext_modules = cythonize(
 	author="Chris Tralie",
 	author_email="chris.tralie@gmail.com",
 	version='0.1',
+	package_dir = {'': 'src'},
 	py_modules=['ripser'],
 	# include_dirs=numpy.get_include()
 )
