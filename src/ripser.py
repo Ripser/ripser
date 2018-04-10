@@ -8,7 +8,39 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-def plotDGM(dgm, color = 'b', sz = 20, label = 'dgm', axcolor = np.array([0.0, 0.0, 0.0]), marker = None):
+
+class Rips:
+    def __init__(self):
+        pass
+
+    def plot(self, diagram=None, color='b', sz=20, label='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None):
+        if diagram.size == 0:
+            return
+
+        # Create Lists
+        # set axis values
+        axMin = np.min(diagram)
+        axMax = np.max(diagram)
+        axRange = axMax-axMin
+        a = max(axMin - axRange/5, 0)
+        b = axMax+axRange/5
+        # plot line
+        plt.plot([a, b], [a, b], c=axcolor, label='none')
+        plt.hold(True)
+        # plot points
+        if marker:
+            H = plt.scatter(diagram[:, 0], diagram[:, 1], sz,
+                            color, marker, label=label, edgecolor='none')
+        else:
+            H = plt.scatter(diagram[:, 0], diagram[:, 1],
+                            sz, color, label=label, edgecolor='none')
+        # add labels
+        plt.xlabel('Time of Birth')
+        plt.ylabel('Time of Death')
+        return H
+
+
+def plotDGM(dgm, color='b', sz=20, label='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None):
     if dgm.size == 0:
         return
     # Create Lists
@@ -19,17 +51,20 @@ def plotDGM(dgm, color = 'b', sz = 20, label = 'dgm', axcolor = np.array([0.0, 0
     a = max(axMin - axRange/5, 0)
     b = axMax+axRange/5
     # plot line
-    plt.plot([a, b], [a, b], c = axcolor, label = 'none')
+    plt.plot([a, b], [a, b], c=axcolor, label='none')
     plt.hold(True)
     # plot points
     if marker:
-        H = plt.scatter(dgm[:, 0], dgm[:, 1], sz, color, marker, label=label, edgecolor = 'none')
+        H = plt.scatter(dgm[:, 0], dgm[:, 1], sz, color,
+                        marker, label=label, edgecolor='none')
     else:
-        H = plt.scatter(dgm[:, 0], dgm[:, 1], sz, color, label=label, edgecolor = 'none')
+        H = plt.scatter(dgm[:, 0], dgm[:, 1], sz, color,
+                        label=label, edgecolor='none')
     # add labels
     plt.xlabel('Time of Birth')
     plt.ylabel('Time of Death')
     return H
+
 
 def doRipsFiltrationDM(D, maxHomDim, thresh=-1, coeff=2):
     """
@@ -64,6 +99,7 @@ def doRipsFiltrationDM(D, maxHomDim, thresh=-1, coeff=2):
         istart += N
     return PDs
 
+
 def doRipsFiltrationDMTextfile(D, maxHomDim, thresh=-1, coeff=2, getCocycles=False):
     """
     FOR DEBUGGING: Wrapper around the ripser executable with a
@@ -81,30 +117,33 @@ def doRipsFiltrationDMTextfile(D, maxHomDim, thresh=-1, coeff=2, getCocycles=Fal
         tuple (PDs, Cocycles) if returning cocycles
     """
     N = D.shape[0]
-    #Step 1: Extract and output distance matrix
+    # Step 1: Extract and output distance matrix
     fout = open("D.txt", "w")
     for i in range(0, N):
         for j in range(0, N):
-            fout.write("%g "%D[i, j])
+            fout.write("%g " % D[i, j])
         if i < N-1:
             fout.write("\n")
     fout.close()
 
-    #Step 2: Call ripser
+    # Step 2: Call ripser
     callThresh = 2*np.max(D)
     if thresh > 0:
         callThresh = thresh
     if getCocycles:
-        proc = subprocess.Popen(["./ripser-representatives", "--format", "distance", "--dim", "%i"%maxHomDim, "--threshold", "%g"%callThresh, "--modulus", "%i"%coeff, "D.txt"], stdout=subprocess.PIPE)
+        proc = subprocess.Popen(["./ripser-representatives", "--format", "distance", "--dim", "%i" % maxHomDim,
+                                 "--threshold", "%g" % callThresh, "--modulus", "%i" % coeff, "D.txt"], stdout=subprocess.PIPE)
     elif coeff > 2:
-        proc = subprocess.Popen(["./ripser-coeff", "--format", "distance", "--dim", "%i"%maxHomDim, "--threshold", "%g"%callThresh, "--modulus", "%i"%coeff, "D.txt"], stdout=subprocess.PIPE)
+        proc = subprocess.Popen(["./ripser-coeff", "--format", "distance", "--dim", "%i" % maxHomDim,
+                                 "--threshold", "%g" % callThresh, "--modulus", "%i" % coeff, "D.txt"], stdout=subprocess.PIPE)
     else:
-        proc = subprocess.Popen(["./ripser", "--format", "distance", "--dim", "%i"%maxHomDim, "--threshold", "%g"%callThresh, "D.txt"], stdout=subprocess.PIPE)
+        proc = subprocess.Popen(["./ripser", "--format", "distance", "--dim", "%i" %
+                                 maxHomDim, "--threshold", "%g" % callThresh, "D.txt"], stdout=subprocess.PIPE)
     #stdout = proc.communicate()[0]
     PDs = []
     AllCocycles = []
     while True:
-        output=proc.stdout.readline()
+        output = proc.stdout.readline()
         if (output == b'' or output == '') and proc.poll() is not None:
             break
         if output:
@@ -186,22 +225,22 @@ if __name__ == '__main__':
 
     tic = time.time()
     PDs1 = doRipsFiltrationDMTextfile(D, 2, coeff=3)
-    print("Elapsed Time Text File: %g"%(time.time() - tic))
+    print("Elapsed Time Text File: %g" % (time.time() - tic))
     tic = time.time()
     PDs2 = doRipsFiltrationDM(D, 2, coeff=3)
-    print("Elapsed Time Numpy Wrapper: %g"%(time.time() - tic))
+    print("Elapsed Time Numpy Wrapper: %g" % (time.time() - tic))
     plt.subplot(141)
     plt.plot(X[:, 0], X[:, 1], '.')
     plt.subplot(142)
     plotDGM(PDs1[0][0:-1, :])
-    plotDGM(PDs2[0][0:-1, :], color = 'r', marker = 'x')
+    plotDGM(PDs2[0][0:-1, :], color='r', marker='x')
     plt.title("H0")
     plt.subplot(143)
     plotDGM(PDs1[1])
-    plotDGM(PDs2[1], color = 'r', marker = 'x')
+    plotDGM(PDs2[1], color='r', marker='x')
     plt.title("H1")
     plt.subplot(144)
     plotDGM(PDs1[2])
-    plotDGM(PDs2[2], color = 'r', marker = '*')
+    plotDGM(PDs2[2], color='r', marker='*')
     plt.title("H2")
     plt.show()
