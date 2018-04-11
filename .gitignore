@@ -8,4 +8,5 @@ __pycache__
 *.egg-info
 venv/
 .pytest_cache/
-pyRipser.cpython-36m-darwin.so
+src/pyRipser.cpython-36m-darwin.so
+

@@ -80,9 +80,7 @@ class Rips(BaseEstimator):
             istart += N
         return PDs
 
-    # def to_pers_image(self, diagram):
-
-    def plot(self, diagram=None, sz=20, label='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None):
+    def plot(self, diagram=None, diagonal=True, sz=20, label='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None):
         """ Plot each diagram on the same plot.
         """
         if diagram is None:
@@ -91,19 +89,21 @@ class Rips(BaseEstimator):
         if type(diagram) is not list:
             diagram = [diagram]
     
-        colors = ['b','r', 'g'] # TODO: convert this to a cylic generator so we can zip as many as required.
+        colors = ['r','g', 'b'] # TODO: convert this to a cylic generator so we can zip as many as required.
         for dgm, color in zip(diagram, colors):
             
             if dgm.size is not 0:
                 # build diagonal line
-                axMin, axMax = np.min(dgm), np.max(dgm)
-                axRange = axMax - axMin
 
-                a = max(axMin - axRange / 5, 0)
-                b = axMax + axRange / 5
+                if diagonal:
+                    axMin, axMax = np.min(dgm), np.max(dgm)
+                    axRange = axMax - axMin
 
-                # plot diagonal line
-                plt.plot([a, b], [a, b], '--', c=axcolor, label='none')
+                    a = max(axMin - axRange / 5, 0)
+                    b = axMax + axRange / 5
+
+                    # plot diagonal line
+                    plt.plot([a, b], [a, b], '--', c=axcolor, label='none')
                 
                 # plot points
                 plt.scatter(dgm[:, 0], dgm[:, 1], sz, 
