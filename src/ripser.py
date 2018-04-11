@@ -29,7 +29,6 @@ class Rips(BaseEstimator):
 
     """
 
-
     def __init__(self, maxdim=1, thres=-1, coeff=2):
         self.maxdim = maxdim
         self.thres = thres
@@ -81,6 +80,7 @@ class Rips(BaseEstimator):
             istart += N
         return PDs
 
+    # def to_pers_image(self, diagram):
 
     def plot(self, diagram=None, sz=20, label='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None):
         """ Plot each diagram on the same plot.
@@ -113,3 +113,6 @@ class Rips(BaseEstimator):
                 plt.ylabel('Death')
 
         plt.show()
+
+
+
