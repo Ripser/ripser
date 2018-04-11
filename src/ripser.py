@@ -29,9 +29,9 @@ class Rips(BaseEstimator):
 
     """
 
-    def __init__(self, maxdim=1, thres=-1, coeff=2):
+    def __init__(self, maxdim=1, thresh=-1, coeff=2):
         self.maxdim = maxdim
-        self.thres = thres
+        self.thresh = thresh
         self.coeff = coeff
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
@@ -39,7 +39,7 @@ class Rips(BaseEstimator):
         if not distance_matrix:
             X = pairwise_distances(X, metric=metric)
 
-        dgm = self.compute_rips(X, self.maxdim)
+        dgm = self.compute_rips(X)
         self._dgm = dgm
     
     def fit_transform(self, X, distance_matrix=False, metric='euclidean'):
@@ -49,7 +49,7 @@ class Rips(BaseEstimator):
         self.transform(X, distance_matrix, metric)
         return self._dgm
 
-    def compute_rips(self, dm, maxdim, thresh=-1, coeff=2):
+    def compute_rips(self, dm):
         """ Compute the persistence diagram
        
         :param D: An NxN pairwise distance matrix
@@ -63,12 +63,12 @@ class Rips(BaseEstimator):
         """
         
         N = dm.shape[0]
-        if thresh == -1:
+        if self.thresh == -1:
             thresh = np.max(dm)*2
         [I, J] = np.meshgrid(np.arange(N), np.arange(N))
         DParam = np.array(dm[I > J], dtype=np.float32)
 
-        res = DRFDM(DParam, self.maxdim, thresh, coeff)
+        res = DRFDM(DParam, self.maxdim, thresh, self.coeff)
         PDs = []
         istart = 0
         for dim in range(self.maxdim + 1):
@@ -80,7 +80,7 @@ class Rips(BaseEstimator):
             istart += N
         return PDs
 
-    def plot(self, diagram=None, diagonal=True, sz=20, label='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None):
+    def plot(self, diagram=None, diagonal=True, sz=20, label='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None, show=True):
         """ Plot each diagram on the same plot.
         """
         if diagram is None:
@@ -111,8 +111,10 @@ class Rips(BaseEstimator):
                 # add labels
                 plt.xlabel('Birth')
                 plt.ylabel('Death')
+                plt.axis('equal')
 
-        plt.show()
+        if show:
+            plt.show()
 
 
 
