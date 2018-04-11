@@ -35,12 +35,14 @@ setup(ext_modules = cythonize(
 	install_requires=[
 		'Cython',
 		'numpy',
-        'matplotlib'
+		'scipy',
+        'matplotlib',
+		'scikit-learn'
     ],
 	cmdclass = {'build_ext': CustomBuildExtCommand},
 	name="ripser",
 	description="Persistent homology for people",
-	long_description="A Python wrapper of Ripser meant to integrate into your workflow."
+	long_description="A Python wrapper of Ripser meant to integrate into your workflow.",
 	author="Chris Tralie, Nathaniel Saul",
 	author_email="chris.tralie@gmail.com, nathaniel.saul@wsu.edu",
 	version='0.1.1',
