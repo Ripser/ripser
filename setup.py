@@ -46,6 +46,7 @@ setup(ext_modules = cythonize(
 	author="Chris Tralie, Nathaniel Saul",
 	author_email="chris.tralie@gmail.com, nathaniel.saul@wsu.edu",
 	version='0.1.1',
+	license='LGPL',
 	package_dir = {'': 'src'},
 	py_modules=['ripser']
 )

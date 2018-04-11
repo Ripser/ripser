@@ -30,7 +30,11 @@ diagram = r.fit_transform(data)
 r.plot(diagram)
 ```
 
+---
 
+---
+
+---
 
 ## Old README
 ### Description
