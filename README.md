@@ -1,8 +1,38 @@
 # Ripser
 
-Copyright © 2015–2016 [Ulrich Bauer].
+
+Ripser is now a Python class implemented in the Scikit-learn style. It is easy to install, only requires that you have Cython installed first. It is even easier to use.
+
+## Setup
+
+Installation requires Cython, and currently must be installed from source. An example of how to install is
+```
+git clone https://github.com/sauln/ripser
+cd ripser
+python -m venv venv
+source venv/bin/activate
+pip install Cython
+pip install -e .
+```
+
+We use matplotlib for generating persistence diagrams
 
 
+## Usage
+
+```
+import numpy as np
+from ripser import Rips
+r = Rips()
+
+data = np.random.random((100,2))
+diagram = r.fit_transform(data)
+r.plot(diagram)
+```
+
+
+
+## Old README
 ### Description
 
 Ripser is a lean C++ code for the computation of Vietoris–Rips persistence barcodes. It can do just this one thing, but does it extremely well.
@@ -97,6 +127,9 @@ Prototype implementations are already avaliable; please contact the author if on
 ### License
 
 Ripser is licensed under the [LGPL] 3.0. Please contact the author if you want to use Ripser in your software under a different license.
+
+Copyright © 2015–2016 [Ulrich Bauer].
+
 
 [Ulrich Bauer]: <http://ulrich-bauer.org>
 [live.ripser.org]: <http://live.ripser.org>
