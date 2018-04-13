@@ -5,6 +5,7 @@ Ripser is now a Python class implemented in the Scikit-learn style. It is easy t
 
 For the C++ library, see [Ripser/ripser](https://github.com/Ripser/ripser/releases/latest).
 
+Details from the old readme can be found [here](docs/README.md).
 
 ## Setup
 
@@ -28,3 +29,4 @@ data = np.random.random((100,2))
 diagram = r.fit_transform(data)
 r.plot(diagram)
 ```
+
