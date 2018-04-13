@@ -10,12 +10,8 @@ For the C++ library, see [Ripser/ripser](https://github.com/Ripser/ripser/releas
 
 Installation requires Cython, and currently must be installed from source. An example of how to install is
 ```
-git clone https://github.com/sauln/ripser
-cd ripser
-python -m venv venv
-source venv/bin/activate
 pip install Cython
-pip install -e .
+pip install Ripser
 ```
 
 We use matplotlib for generating persistence diagrams

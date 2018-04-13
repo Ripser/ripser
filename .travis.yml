@@ -1,0 +1,16 @@
+language: python
+python:
+  - "3.4"
+  - "3.5"
+  - "3.6"
+
+install:
+  - pip install Cython
+  - pip install .
+  - pip install pytest-cov
+
+script:
+  - pytest --cov src
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

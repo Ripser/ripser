@@ -111,7 +111,7 @@ class Rips(BaseEstimator):
                 # add labels
                 plt.xlabel('Birth')
                 plt.ylabel('Death')
-                plt.axis('equal')
+                # plt.axis('equal')
 
         if show:
             plt.show()

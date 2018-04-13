@@ -9,7 +9,13 @@ To install the python bindings (on a mac)
 
 
 import pytest
+import ripser
+
 
 def test_import():
     import ripser
 
+def test_instantiate():
+    rip = ripser.Rips()
+
+    assert rip is not None
