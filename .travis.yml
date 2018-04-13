@@ -10,7 +10,7 @@ install:
   - pip install pytest-cov
 
 script:
-  - pytest --cov src
+  - pytest --cov ripser
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
