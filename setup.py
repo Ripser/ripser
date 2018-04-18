@@ -32,14 +32,10 @@ class CustomBuildExtCommand(build_ext):
 		# Call original build_ext command
 		build_ext.run(self)
 
-
-
-
-
 setup(
 	name="ripser",
-	version='0.1.4',	
-	description="Persistent homology for people",
+	version='0.1.5',	
+	description="A Lean Persistent Homology Library for Python",
 	long_description=long_description,
 	long_description_content_type="text/markdown",
 	author="Chris Tralie, Nathaniel Saul",
