@@ -39,7 +39,7 @@ class Rips(BaseEstimator):
         if not distance_matrix:
             X = pairwise_distances(X, metric=metric)
 
-        dgm = self.compute_rips(X)
+        dgm = self._compute_rips(X)
         self._dgm = dgm
     
     def fit_transform(self, X, distance_matrix=False, metric='euclidean'):
@@ -49,7 +49,7 @@ class Rips(BaseEstimator):
         self.transform(X, distance_matrix, metric)
         return self._dgm
 
-    def compute_rips(self, dm):
+    def _compute_rips(self, dm):
         """ Compute the persistence diagram
        
         :param D: An NxN pairwise distance matrix
@@ -65,6 +65,8 @@ class Rips(BaseEstimator):
         N = dm.shape[0]
         if self.thresh == -1:
             thresh = np.max(dm)*2
+        else:
+            thresh = self.thresh
         [I, J] = np.meshgrid(np.arange(N), np.arange(N))
         DParam = np.array(dm[I > J], dtype=np.float32)
 
