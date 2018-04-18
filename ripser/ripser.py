@@ -82,7 +82,7 @@ class Rips(BaseEstimator):
             istart += N
         return PDs
 
-    def plot(self, diagram=None, diagonal=True, sz=20, label='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None, show=True):
+    def plot(self, diagram=None, diagonal=True, sz=20, labels='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None, show=True):
         """ Plot each diagram on the same plot.
         """
         if diagram is None:
@@ -90,9 +90,13 @@ class Rips(BaseEstimator):
         
         if type(diagram) is not list:
             diagram = [diagram]
+
+        
+        if type(labels) is not list:
+            labels = [labels] * len(diagram)
     
         colors = ['r','g', 'b'] # TODO: convert this to a cylic generator so we can zip as many as required.
-        for dgm, color in zip(diagram, colors):
+        for dgm, color, label in zip(diagram, colors, labels):
             
             if dgm.size is not 0:
                 # build diagonal line
@@ -105,7 +109,7 @@ class Rips(BaseEstimator):
                     b = axMax + axRange / 5
 
                     # plot diagonal line
-                    plt.plot([a, b], [a, b], '--', c=axcolor, label='none')
+                    plt.plot([a, b], [a, b], '--', c=axcolor)
                 
                 # plot points
                 plt.scatter(dgm[:, 0], dgm[:, 1], sz, 
