@@ -40,7 +40,7 @@ setup(
 	long_description_content_type="text/markdown",
 	author="Chris Tralie, Nathaniel Saul",
 	author_email="chris.tralie@gmail.com, nathaniel.saul@wsu.edu",
-	url="https://github.com/sauln/ripser",
+	url="https://github.com/ctralie/ripser",
 	license='LGPL',
 	packages=['ripser'],
 
