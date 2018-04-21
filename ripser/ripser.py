@@ -15,32 +15,72 @@ from pyRipser import doRipsFiltrationDM as DRFDM
 class Rips(BaseEstimator):
     """Wrapper around Uli Bauer's Ripser code 
 
-    Example usage:
+
+    Parameters
+    ----------
+    maxdim : int, optional, default 1
+        Maximum homology dimension computed. Will compute all dimensions lower than
+        and equal to this value. For 1, H_0 and H_1 will be computed.
+    thresh : float, default -1
+        Maximum distances considered when constructing filtration. If -1, compute 
+        the entire filtration.
+    coeff : int prime, default 2
+        Compute homology with coefficients in the prime field Z/pZ for p=coeff.
+    
+    
+    Attributes
+    ----------
+    _dgm : list of ndarray, each shape (n_pairs, 2)
+        After `transform`, _dgm contains computed persistence diagrams in
+        each dimension
+
+    Examples
+    --------
 
     ```
-        from ripser import Rips
-        from sklearn import datasets
+    from ripser import Rips
+    from sklearn import datasets
 
-        data = datasets.make_circles(n_samples=110)[0]
-        rips = Rips()
-        rips.transform(data)
-        rips.plot()
+    data = datasets.make_circles(n_samples=110)[0]
+    rips = Rips()
+    rips.transform(data)
+    rips.plot()
     ```
 
-    """
+    """ 
+
+
 
     def __init__(self, maxdim=1, thresh=-1, coeff=2):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
+        self._dgm = None
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
+        """Compute persistence diagrams for X data array.
 
+        Parameters
+        ----------
+        X: ndarray (n_samples, n_features)
+            A numpy array of either data or distance matrix.
+        distance_matrix: bool
+            Indicator that X is a distance matrix, if not we compute a 
+            distance matrix from X using the chosen metric.
+        metric: string or callable
+            The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including “euclidean”, “manhattan”, or “cosine”. Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
+
+        """
+
+
+        # Default is to input point cloud data
         if not distance_matrix:
             X = pairwise_distances(X, metric=metric)
 
         dgm = self._compute_rips(X)
         self._dgm = dgm
+
+        return dgm
     
     def fit_transform(self, X, distance_matrix=False, metric='euclidean'):
         """ Run transform and return results
