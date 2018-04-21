@@ -49,7 +49,7 @@ setup(name="ripser",
       packages=['ripser'],
       ext_modules=cythonize(Extension("pyRipser",
                                       sources=["ripser/pyRipser.pyx"],
-                                      define_macros=[("USE_COEFFICIENTS", 1), ("PYTHON_EXTENSION", 1),
+                                      define_macros=[("USE_COEFFICIENTS", 1),
                                                      ("NDEBUG", 1), ("ASSEMBLE_REDUCTION_MATRIX", 1)],
                                       extra_compile_args=options,
                                       language="c++"

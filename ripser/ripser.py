@@ -15,39 +15,101 @@ from pyRipser import doRipsFiltrationDM as DRFDM
 class Rips(BaseEstimator):
     """Wrapper around Uli Bauer's Ripser code 
 
-    Example usage:
+
+    Parameters
+    ----------
+    maxdim : int, optional, default 1
+        Maximum homology dimension computed. Will compute all dimensions lower than
+        and equal to this value. For 1, H_0 and H_1 will be computed.
+    thresh : float, default -1
+        Maximum distances considered when constructing filtration. If -1, compute 
+        the entire filtration.
+    coeff : int prime, default 2
+        Compute homology with coefficients in the prime field Z/pZ for p=coeff.
+    
+    
+    Attributes
+    ----------
+    dgm_ : list of ndarray, each shape (n_pairs, 2)
+        After `transform`, dgm_ contains computed persistence diagrams in
+        each dimension
+
+    Examples
+    --------
 
     ```
-        from ripser import Rips
-        from sklearn import datasets
+    from ripser import Rips
+    from sklearn import datasets
 
-        data = datasets.make_circles(n_samples=110)[0]
-        rips = Rips()
-        rips.transform(data)
-        rips.plot()
+    data = datasets.make_circles(n_samples=110)[0]
+    rips = Rips()
+    rips.transform(data)
+    rips.plot()
     ```
 
-    """
+    """ 
 
-    def __init__(self, maxdim=1, thresh=-1, coeff=2):
+    def __init__(self, maxdim=1, thresh=-1, coeff=2, verbose=True):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
+        self.verbose = verbose
+
+        self.dgm_ = None
+        self.distance_matrix_ = None # indicator
+        self.metric_ = None
+
+        if self.verbose:
+            print("Rips(maxdim={}, thres={}, coef={}, verbose={})".format(
+                maxdim, thresh, coeff, verbose))
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
+        """Compute persistence diagrams for X data array.
+
+        Parameters
+        ----------
+        X: ndarray (n_samples, n_features)
+            A numpy array of either data or distance matrix.
+        
+        distance_matrix: bool
+            Indicator that X is a distance matrix, if not we compute a 
+            distance matrix from X using the chosen metric.
+        
+        metric: string or callable
+            The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including “euclidean”, “manhattan”, or “cosine”. Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
+
+        """
 
         if not distance_matrix:
             X = pairwise_distances(X, metric=metric)
 
         dgm = self._compute_rips(X)
-        self._dgm = dgm
+        self.dgm_ = dgm
     
     def fit_transform(self, X, distance_matrix=False, metric='euclidean'):
-        """ Run transform and return results
+        """Compute persistence diagrams for X data array and return the diagrams.
+
+        Parameters
+        ----------
+        X: ndarray (n_samples, n_features)
+            A numpy array of either data or distance matrix.
+        
+        distance_matrix: bool
+            Indicator that X is a distance matrix, if not we compute a 
+            distance matrix from X using the chosen metric.
+        
+        metric: string or callable
+            The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including “euclidean”, “manhattan”, or “cosine”. Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
+        
+        Return
+        ------
+        dgms: list (size maxdim) of ndarray (n_pairs, 2)
+            A list of persistence diagrams, one for each dimension less than maxdim. Each diagram is an ndarray of size (n_pairs, 2) with the first column representing the birth time and the second column representing the death time of each pair.
 
         """
         self.transform(X, distance_matrix, metric)
-        return self._dgm
+        return self.dgm_
+
 
     def _compute_rips(self, dm):
         """ Compute the persistence diagram
@@ -82,17 +144,21 @@ class Rips(BaseEstimator):
             istart += N
         return PDs
 
-    def plot(self, diagram=None, diagonal=True, sz=20, label='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None, show=True):
+    def plot(self, diagram=None, diagonal=True, sz=20, labels='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None, show=True):
         """ Plot each diagram on the same plot.
         """
         if diagram is None:
-            diagram = self._dgm
+            diagram = self.dgm_
         
         if type(diagram) is not list:
             diagram = [diagram]
+
+        
+        if type(labels) is not list:
+            labels = [labels] * len(diagram)
     
         colors = ['r','g', 'b'] # TODO: convert this to a cylic generator so we can zip as many as required.
-        for dgm, color in zip(diagram, colors):
+        for dgm, color, label in zip(diagram, colors, labels):
             
             if dgm.size is not 0:
                 # build diagonal line
@@ -105,7 +171,7 @@ class Rips(BaseEstimator):
                     b = axMax + axRange / 5
 
                     # plot diagonal line
-                    plt.plot([a, b], [a, b], '--', c=axcolor, label='none')
+                    plt.plot([a, b], [a, b], '--', c=axcolor)
                 
                 # plot points
                 plt.scatter(dgm[:, 0], dgm[:, 1], sz, 
