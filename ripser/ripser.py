@@ -144,44 +144,78 @@ class Rips(BaseEstimator):
             istart += N
         return PDs
 
-    def plot(self, diagram=None, diagonal=True, sz=20, labels='dgm', axcolor=np.array([0.0, 0.0, 0.0]), marker=None, show=True):
-        """ Plot each diagram on the same plot.
+    def plot(self, diagrams=None, diagonal=True, sz=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, title=None, legend=True, show=True):
+        """A helper function to plot persistence diagrams.
+
+        Parameters
+        ----------
+        diagrams: ndarray (n_pairs, 2) or list of diagrams
+            A diagram or list of diagrams as returned from self.fit. If diagram is None, we use self.dgm_ for plotting. If diagram is a list of diagrams, then plot all on the same plot using different colors.
+        
+        diagonal: bool, default is True
+            Plot the diagonal line
+        
+        labels: string or list of strings
+            Legend labels for each diagram. If none are specified, assume the first diagram is H_0 and we move up from there.
+        
+        title: string, default is None
+            If title is defined, add it as title of the plot.
+
+        legend: bool, default is True
+            If true, show the legend.
+
+        show: bool, default is True
+            Call plt.show() after plotting. If you are using self.plot() as part of a subplot, set show=False and call plt.show() only once at the end.
+        
         """
-        if diagram is None:
-            diagram = self.dgm_
-        
-        if type(diagram) is not list:
-            diagram = [diagram]
 
-        
+        ##  Note:  This method is a bit overloaded to accomodate a 
+        #          single diagram or a list of diagrams. Please keep this 
+        #          in mind when making changes. 
+        #          Refactors are welcome.
+
+        if labels is None:
+            # Provide default labels for diagrams if using self.dgm_
+            labels = ["H0", "H1", "H2", "H3", "H4", "H5", "H6", "H8"]
+        if diagrams is None:
+            # Allow using transformed diagrams as default
+            diagrams = self.dgm_
+        if type(diagrams) is not list:
+            # Must have diagrams as a list
+            diagrams = [diagrams]
         if type(labels) is not list:
-            labels = [labels] * len(diagram)
-    
-        colors = ['r','g', 'b'] # TODO: convert this to a cylic generator so we can zip as many as required.
-        for dgm, color, label in zip(diagram, colors, labels):
-            
+            labels = [labels] * len(diagrams)
+        if colors is None:
+            # TODO: convert this to a cylic generator so we can zip as many as required.
+            colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'] 
+
+
+        # find min and max of all diagrams, plot diagonal only once
+        if diagonal:
+            axMin, axMax = np.min(np.concatenate(diagrams)), np.max(np.concatenate(diagrams))
+            axRange = axMax - axMin
+
+            a = max(axMin - axRange / 5, 0)
+            b = axMax + axRange / 5
+            plt.plot([a, b], [a, b], '--', c=axcolor)
+
+        # Plot each diagram
+        for dgm, color, label in zip(diagrams, colors, labels):
             if dgm.size is not 0:
-                # build diagonal line
-
-                if diagonal:
-                    axMin, axMax = np.min(dgm), np.max(dgm)
-                    axRange = axMax - axMin
-
-                    a = max(axMin - axRange / 5, 0)
-                    b = axMax + axRange / 5
-
-                    # plot diagonal line
-                    plt.plot([a, b], [a, b], '--', c=axcolor)
-                
-                # plot points
+                # plot persistence pairs
                 plt.scatter(dgm[:, 0], dgm[:, 1], sz, 
                                 color, label=label, edgecolor='none')
-                # add labels
+                
                 plt.xlabel('Birth')
                 plt.ylabel('Death')
-                # plt.axis('equal')
 
-        if show:
+        if title is not None:
+            plt.title(title)
+
+        if legend is True:
+            plt.legend(loc='lower right')
+
+        if show is True:
             plt.show()
 
 
