@@ -49,13 +49,19 @@ class Rips(BaseEstimator):
 
     """ 
 
-
-
-    def __init__(self, maxdim=1, thresh=-1, coeff=2):
+    def __init__(self, maxdim=1, thresh=-1, coeff=2, verbose=True):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
+        self.verbose = verbose
+
         self.dgm_ = None
+        self.distance_matrix_ = None # indicator
+        self.metric_ = None
+
+        if self.verbose:
+            print("Rips(maxdim={}, thres={}, coef={}, verbose={})".format(
+                maxdim, thresh, coeff, verbose))
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
         """Compute persistence diagrams for X data array.
@@ -64,30 +70,46 @@ class Rips(BaseEstimator):
         ----------
         X: ndarray (n_samples, n_features)
             A numpy array of either data or distance matrix.
+        
         distance_matrix: bool
             Indicator that X is a distance matrix, if not we compute a 
             distance matrix from X using the chosen metric.
+        
         metric: string or callable
             The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including “euclidean”, “manhattan”, or “cosine”. Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
 
         """
 
-
-        # Default is to input point cloud data
         if not distance_matrix:
             X = pairwise_distances(X, metric=metric)
 
         dgm = self._compute_rips(X)
         self.dgm_ = dgm
-
-        return dgm
     
     def fit_transform(self, X, distance_matrix=False, metric='euclidean'):
-        """ Run transform and return results
+        """Compute persistence diagrams for X data array and return the diagrams.
+
+        Parameters
+        ----------
+        X: ndarray (n_samples, n_features)
+            A numpy array of either data or distance matrix.
+        
+        distance_matrix: bool
+            Indicator that X is a distance matrix, if not we compute a 
+            distance matrix from X using the chosen metric.
+        
+        metric: string or callable
+            The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including “euclidean”, “manhattan”, or “cosine”. Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
+        
+        Return
+        ------
+        dgms: list (size maxdim) of ndarray (n_pairs, 2)
+            A list of persistence diagrams, one for each dimension less than maxdim. Each diagram is an ndarray of size (n_pairs, 2) with the first column representing the birth time and the second column representing the death time of each pair.
 
         """
         self.transform(X, distance_matrix, metric)
         return self.dgm_
+
 
     def _compute_rips(self, dm):
         """ Compute the persistence diagram
