@@ -30,8 +30,8 @@ class Rips(BaseEstimator):
     
     Attributes
     ----------
-    _dgm : list of ndarray, each shape (n_pairs, 2)
-        After `transform`, _dgm contains computed persistence diagrams in
+    dgm_ : list of ndarray, each shape (n_pairs, 2)
+        After `transform`, dgm_ contains computed persistence diagrams in
         each dimension
 
     Examples
@@ -55,7 +55,7 @@ class Rips(BaseEstimator):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
-        self._dgm = None
+        self.dgm_ = None
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
         """Compute persistence diagrams for X data array.
@@ -78,7 +78,7 @@ class Rips(BaseEstimator):
             X = pairwise_distances(X, metric=metric)
 
         dgm = self._compute_rips(X)
-        self._dgm = dgm
+        self.dgm_ = dgm
 
         return dgm
     
@@ -87,7 +87,7 @@ class Rips(BaseEstimator):
 
         """
         self.transform(X, distance_matrix, metric)
-        return self._dgm
+        return self.dgm_
 
     def _compute_rips(self, dm):
         """ Compute the persistence diagram
@@ -126,7 +126,7 @@ class Rips(BaseEstimator):
         """ Plot each diagram on the same plot.
         """
         if diagram is None:
-            diagram = self._dgm
+            diagram = self.dgm_
         
         if type(diagram) is not list:
             diagram = [diagram]
