@@ -508,7 +508,7 @@ template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparat
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, 
 				   hash_map<index_t, index_t>& pivot_column_index,
 				   std::vector<value_t>& birthsanddeaths, value_t maxD,
-				   index_t do_cocycles, std::vector<value_t>& allcocycles,
+				   int do_cocycles, std::vector<value_t>& allcocycles,
 				   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                    const std::vector<coefficient_t>& multiplicative_inverse, 
 				   const DistanceMatrix& dist,
@@ -622,7 +622,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 					std::vector<value_t> thiscocycle;
 					index_t lencocycle = 0;
 					while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-						simplex = vertices_of_simplex(get_index(pivot), dim, n, binomial_coeff);
+						simplex = vertices_of_simplex(get_index(e), dim, n, binomial_coeff);
 						for (size_t k = 0; k < simplex.size(); k++) {
 							thiscocycle.push_back((value_t)simplex[k]);
 						}
@@ -643,6 +643,27 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 			if (diameter != death) {
 				birthsanddeaths.push_back(diameter);
 				birthsanddeaths.push_back(death);
+#ifdef ASSEMBLE_REDUCTION_MATRIX
+				if (do_cocycles) {
+					//Representative cocycle
+					auto cocycle = reduction_column;
+					diameter_entry_t e;
+					std::vector<index_t> simplex;
+					std::vector<value_t> thiscocycle;
+					index_t lencocycle = 0;
+					while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+						simplex = vertices_of_simplex(get_index(e), dim, n, binomial_coeff);
+						for (size_t k = 0; k < simplex.size(); k++) {
+							thiscocycle.push_back((value_t)simplex[k]);
+						}
+						thiscocycle.push_back(normalize(get_coefficient(e), modulus));
+						cocycle.pop();
+						lencocycle++;
+					}
+					allcocycles.push_back(lencocycle);
+					allcocycles.insert(allcocycles.end(), thiscocycle.begin(), thiscocycle.end());
+				}
+#endif
 			}
 
 			pivot_column_index.insert(std::make_pair(get_index(pivot), i));
@@ -817,8 +838,7 @@ void print_usage_and_exit(int exit_code) {
 	exit(exit_code);
 }
 
-std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float threshold) {
-
+std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float threshold, int do_cocycles) {
 	value_t maxD = D[0];
 	for (size_t i = 1; i < N; i++) {
 		if (D[i] > maxD) {
@@ -888,7 +908,6 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 		retvec.insert(retvec.end(), birthsanddeaths.begin(), birthsanddeaths.end());
 	}
 
-	index_t do_cocycles = 0;
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
 		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
 		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
@@ -913,7 +932,6 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
 		}
 	}
-
 	return retvec;
 }
 

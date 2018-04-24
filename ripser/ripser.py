@@ -119,24 +119,36 @@ class Rips(BaseEstimator):
         """ Compute the persistence diagram
         """
         
-        N = dm.shape[0]
+        npts = dm.shape[0]
         if self.thresh == -1:
             thresh = np.max(dm)*2
         else:
             thresh = self.thresh
-        [I, J] = np.meshgrid(np.arange(N), np.arange(N))
+        [I, J] = np.meshgrid(np.arange(npts), np.arange(npts))
         DParam = np.array(dm[I > J], dtype=np.float32)
 
-        res = DRFDM(DParam, self.maxdim, thresh, self.coeff)
-        print(res)
-        PDs = []
+        res = DRFDM(DParam, self.maxdim, thresh, self.coeff, int(self.do_cocycles))
+        pds = []
         for dim in range(self.maxdim + 1):
-            N = int(res[0])
+            nclasses = int(res[0]) #Number of homology classes in this dimension
+            #First extract the persistence diagram
             res = res[1::]
-            I = np.array(res[0:N*2])
-            PDs.append(np.reshape(I, (N, 2)))
-            res = res[N*2::]
-        return PDs
+            pd = np.array(res[0:nclasses*2])
+            pds.append(np.reshape(pd, (nclasses, 2)))
+            res = res[nclasses*2::]
+            #Now extract the representative cocycles if they were computed
+            if self.do_cocycles and dim > 0:
+                self.cocycles_[dim] = []
+                for n in range(nclasses):
+                    clen = int(res[0])
+                    res = res[1::]
+                    cocycle = res[0:clen*(dim+2)]
+                    cocycle = np.reshape(cocycle, (clen, dim+2))
+                    cocycle = np.array(cocycle, dtype=np.int64)
+                    cocycle[:, -1] = np.mod(cocycle[:, -1], self.coeff)
+                    self.cocycles_[dim].append(cocycle)
+                    res = res[clen*(dim+2)::]
+        return pds
 
     def plot(self, diagrams=None, diagonal=True, sz=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, title=None, legend=True, show=True):
         """A helper function to plot persistence diagrams.
