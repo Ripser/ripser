@@ -78,6 +78,10 @@ bool is_prime(const coefficient_t n) {
 	return true;
 }
 
+coefficient_t normalize(const coefficient_t n, const coefficient_t modulus) {
+    return n > modulus/2 ? n - modulus : n;
+}
+
 std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) {
 	std::vector<coefficient_t> inverse(m);
 	inverse[1] = 1;
@@ -504,6 +508,7 @@ template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparat
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, 
 				   hash_map<index_t, index_t>& pivot_column_index,
 				   std::vector<value_t>& birthsanddeaths, value_t maxD,
+				   index_t do_cocycles, std::vector<value_t>& allcocycles,
 				   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                    const std::vector<coefficient_t>& multiplicative_inverse, 
 				   const DistanceMatrix& dist,
@@ -604,8 +609,31 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 					continue;
 				}
 			} else {
+				//Infinite class; make the death time the diameter of the point cloud
 				birthsanddeaths.push_back(diameter);
 				birthsanddeaths.push_back(maxD);
+
+#ifdef ASSEMBLE_REDUCTION_MATRIX
+				if (do_cocycles) {
+					//Representative cocycle
+					auto cocycle = reduction_column;
+					diameter_entry_t e;
+					std::vector<index_t> simplex;
+					std::vector<value_t> thiscocycle;
+					index_t lencocycle = 0;
+					while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+						simplex = vertices_of_simplex(get_index(pivot), dim, n, binomial_coeff);
+						for (size_t k = 0; k < simplex.size(); k++) {
+							thiscocycle.push_back((value_t)simplex[k]);
+						}
+						thiscocycle.push_back(normalize(get_coefficient(e), modulus));
+						cocycle.pop();
+						lencocycle++;
+					}
+					allcocycles.push_back(lencocycle);
+					allcocycles.insert(allcocycles.end(), thiscocycle.begin(), thiscocycle.end());
+				}
+#endif
 				break;
 			}
 
@@ -806,9 +834,19 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
-
 	std::vector<value_t> birthsanddeaths;
-	std::vector<int> NPerClass;
+	std::vector<value_t> retvec;
+	/*Copy everything into a return array with the following format
+	 [NumperClass0, PD0, 
+	  NumPerClass1, PD1, Cocycle1_0Len, Cocycle1_0, Cocycle1_1Len, Cocycle1_1, ..., Cocycle1_NumPerClass1Len, Cocycle1_NumPerClass1
+	  NumPerClass2, PD2, Cocycle1_0Len, Cocycle1_0, Cocycle1_1Len, Cocycle1_1, ..., Cocycle2_NumPerClass1Len, Cocycle2_NumPerClass1
+	  ...
+	  ]
+	
+	where PD0 is b0, d0, b1, d1, ...
+	and each cocycle is simplexidx0, simplexidx1, ..., simplexidxd, val mod p
+	*/
+
 
 	//Do 0D persistence first
 	std::vector<diameter_index_t> columns_to_reduce;
@@ -846,10 +884,11 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 				birthsanddeaths.push_back(0);
 				birthsanddeaths.push_back(maxD);
 			}
-		NPerClass.push_back(birthsanddeaths.size()/2);
+		retvec.push_back(birthsanddeaths.size()/2);
+		retvec.insert(retvec.end(), birthsanddeaths.begin(), birthsanddeaths.end());
 	}
 
-
+	index_t do_cocycles = 0;
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
 		rips_filtration_comparator<decltype(dist)> comp(dist, dim + 1, binomial_coeff);
 		rips_filtration_comparator<decltype(dist)> comp_prev(dist, dim, binomial_coeff);
@@ -857,18 +896,24 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs(columns_to_reduce, pivot_column_index, birthsanddeaths, maxD, dim, n, threshold, modulus, multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
-
-		NPerClass.push_back(birthsanddeaths.size()/2);
+		std::vector<value_t> allcocycles;
+		birthsanddeaths.clear();
+		
+		compute_pairs(columns_to_reduce, pivot_column_index, birthsanddeaths, maxD, 
+						do_cocycles, allcocycles, dim, n, threshold, modulus, 
+						multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
+		
+		//Copy over persistence diagram
+		retvec.push_back(birthsanddeaths.size()/2);
+		retvec.insert(retvec.end(), birthsanddeaths.begin(), birthsanddeaths.end());
+		//Copy over cocycles
+		retvec.insert(retvec.end(), allcocycles.begin(), allcocycles.end());
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
 		}
 	}
 
-	for (int i = 0; i < NPerClass.size(); i++) {
-		birthsanddeaths.push_back(NPerClass[i]);
-	}
-	return birthsanddeaths;
+	return retvec;
 }
 

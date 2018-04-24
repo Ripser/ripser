@@ -26,7 +26,9 @@ class Rips(BaseEstimator):
         the entire filtration.
     coeff : int prime, default 2
         Compute homology with coefficients in the prime field Z/pZ for p=coeff.
-    
+    do_cocycles: bool
+        Indicator of whether to compute cocycles, if so, we compute and store
+        cocycles in the cocycles_ dictionary Rips member variable
     
     Attributes
     ----------
@@ -49,13 +51,15 @@ class Rips(BaseEstimator):
 
     """ 
 
-    def __init__(self, maxdim=1, thresh=-1, coeff=2, verbose=True):
+    def __init__(self, maxdim=1, thresh=-1, coeff=2, do_cocycles=False, verbose=True):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
+        self.do_cocycles = do_cocycles
         self.verbose = verbose
 
         self.dgm_ = None
+        self.cocycles_ = {}
         self.distance_matrix_ = None # indicator
         self.metric_ = None
 
@@ -74,7 +78,7 @@ class Rips(BaseEstimator):
         distance_matrix: bool
             Indicator that X is a distance matrix, if not we compute a 
             distance matrix from X using the chosen metric.
-        
+
         metric: string or callable
             The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including “euclidean”, “manhattan”, or “cosine”. Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
 
@@ -113,15 +117,6 @@ class Rips(BaseEstimator):
 
     def _compute_rips(self, dm):
         """ Compute the persistence diagram
-       
-        :param D: An NxN pairwise distance matrix
-        :param maxHomDim: The dimension up to which to compute persistent homology
-        :param thresh: Threshold up to which to add edges.  If not specified, add all
-            edges up to the full clique
-        :param coeff: A prime to use as the field coefficients for the PH computation
-
-        :return: PDs (array of all persistence diagrams from 0D up to maxHomDim).
-            Each persistence diagram is a numpy array
         """
         
         N = dm.shape[0]
@@ -133,15 +128,14 @@ class Rips(BaseEstimator):
         DParam = np.array(dm[I > J], dtype=np.float32)
 
         res = DRFDM(DParam, self.maxdim, thresh, self.coeff)
+        print(res)
         PDs = []
-        istart = 0
         for dim in range(self.maxdim + 1):
-            N = int(res[-1 - (self.maxdim - dim)])
-            if dim > 0:
-                N -= int(res[-2 - (self.maxdim - dim)])
-            I = np.array(res[istart * 2:(istart + N) * 2])
+            N = int(res[0])
+            res = res[1::]
+            I = np.array(res[0:N*2])
             PDs.append(np.reshape(I, (N, 2)))
-            istart += N
+            res = res[N*2::]
         return PDs
 
     def plot(self, diagrams=None, diagonal=True, sz=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, title=None, legend=True, show=True):
