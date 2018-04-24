@@ -60,7 +60,7 @@ class Rips(BaseEstimator):
 
         self.dgm_ = None
         self.cocycles_ = {}
-        self.distance_matrix_ = None # indicator
+        self.dm_ = None #Distance matrix
         self.metric_ = None
 
         if self.verbose:
@@ -86,7 +86,8 @@ class Rips(BaseEstimator):
 
         if not distance_matrix:
             X = pairwise_distances(X, metric=metric)
-
+        X = np.array(X, dtype=np.float32)
+        self.dm_ = X
         dgm = self._compute_rips(X)
         self.dgm_ = dgm
     
