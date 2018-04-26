@@ -507,7 +507,7 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, 
 				   hash_map<index_t, index_t>& pivot_column_index,
-				   std::vector<value_t>& birthsanddeaths, value_t maxD,
+				   std::vector<value_t>& birthsanddeaths,
 				   int do_cocycles, std::vector<value_t>& allcocycles,
 				   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                    const std::vector<coefficient_t>& multiplicative_inverse, 
@@ -611,7 +611,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 			} else {
 				//Infinite class; make the death time the diameter of the point cloud
 				birthsanddeaths.push_back(diameter);
-				birthsanddeaths.push_back(maxD);
+				birthsanddeaths.push_back(INFINITY);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 				if (do_cocycles) {
@@ -839,13 +839,6 @@ void print_usage_and_exit(int exit_code) {
 }
 
 std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float threshold, int do_cocycles) {
-	value_t maxD = D[0];
-	for (size_t i = 1; i < N; i++) {
-		if (D[i] > maxD) {
-			maxD = D[i];
-		}
-	}
-
 	//Setup distance matrix, coefficient tables, etc
 	std::vector<value_t> distances(D, D+N);
 	compressed_lower_distance_matrix dist = compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
@@ -902,7 +895,7 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 			if (dset.find(i) == i) {
 				//Have one element representing the infinite class
 				birthsanddeaths.push_back(0);
-				birthsanddeaths.push_back(maxD);
+				birthsanddeaths.push_back(INFINITY);
 			}
 		retvec.push_back(birthsanddeaths.size()/2);
 		retvec.insert(retvec.end(), birthsanddeaths.begin(), birthsanddeaths.end());
@@ -918,7 +911,7 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 		std::vector<value_t> allcocycles;
 		birthsanddeaths.clear();
 		
-		compute_pairs(columns_to_reduce, pivot_column_index, birthsanddeaths, maxD, 
+		compute_pairs(columns_to_reduce, pivot_column_index, birthsanddeaths, 
 						do_cocycles, allcocycles, dim, n, threshold, modulus, 
 						multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
 		

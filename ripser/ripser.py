@@ -151,7 +151,7 @@ class Rips(BaseEstimator):
                     res = res[clen*(dim+2)::]
         return pds
 
-    def plot(self, diagrams=None, diagonal=True, sz=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, title=None, legend=True, show=True):
+    def plot(self, diagrams=None, plotonly=None, diagonal=True, sz=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, title=None, legend=True, show=True):
         """A helper function to plot persistence diagrams.
 
         Parameters
@@ -159,6 +159,8 @@ class Rips(BaseEstimator):
         diagrams: ndarray (n_pairs, 2) or list of diagrams
             A diagram or list of diagrams as returned from self.fit. If diagram is None, we use self.dgm_ for plotting. If diagram is a list of diagrams, then plot all on the same plot using different colors.
         
+        plotonly: If specified, an array of only the diagrams that should be plotted
+
         diagonal: bool, default is True
             Plot the diagonal line
         
@@ -197,24 +199,47 @@ class Rips(BaseEstimator):
             colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'] 
 
 
-        # find min and max of all diagrams, plot diagonal only once
-        if diagonal:
-            axMin, axMax = np.min(np.concatenate(diagrams)), np.max(np.concatenate(diagrams))
-            axRange = axMax - axMin
+        # find min and max of all visible diagrams, plot diagonal only once
+        concatdgms = np.array([])
+        if not plotonly:
+            plotonly = range(len(diagrams))
+        concatdgms = np.concatenate([diagrams[i] for i in plotonly]).flatten()
+        numinf = np.sum(np.isinf(concatdgms))
+        concatdgms[np.isinf(concatdgms)] = np.min(concatdgms)
+        axMin, axMax = np.min(concatdgms), np.max(concatdgms)
+        axRange = axMax - axMin
+        a = max(axMin - axRange / 5, 0)
+        b = axMax + axRange / 5
+        if a == b:
+            a = 0
+            b = 1
+        fuzz = 0.05*(b-a)
+        a -= fuzz
 
-            a = max(axMin - axRange / 5, 0)
-            b = axMax + axRange / 5
+        if diagonal:
             plt.plot([a, b], [a, b], '--', c=axcolor)
+        
+        if numinf > 0:
+            plt.plot([a-fuzz, b+fuzz], [b*1.05]*2, c='k')
+            plt.text(a-fuzz, b+fuzz, '$\infty$', size=14)
 
         # Plot each diagram
-        for dgm, color, label in zip(diagrams, colors, labels):
-            if dgm.size is not 0:
+        for i, (dgm, color, label) in enumerate(zip(diagrams, colors, labels)):
+            if dgm.size is not 0 and i in plotonly:
                 # plot persistence pairs
-                plt.scatter(dgm[:, 0], dgm[:, 1], sz, 
+                finitedgm = dgm[np.isfinite(dgm[:, 1]), :]
+                plt.scatter(finitedgm[:, 0], finitedgm[:, 1], sz, 
                                 color, label=label, edgecolor='none')
-                
+                infdgm = np.array(dgm[np.isinf(dgm[:, 1]), :])
+                infdgm[:, 1] = b*1.1
+                plt.scatter(infdgm[:, 0], infdgm[:, 1], sz, 
+                                color, edgecolor='none')
                 plt.xlabel('Birth')
                 plt.ylabel('Death')
+
+        
+        plt.xlim([a-fuzz, b+fuzz])
+        plt.ylim([a-fuzz, b*1.1+fuzz])
 
         if title is not None:
             plt.title(title)
