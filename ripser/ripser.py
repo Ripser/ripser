@@ -151,7 +151,7 @@ class Rips(BaseEstimator):
                     res = res[clen*(dim+2)::]
         return pds
 
-    def plot(self, diagrams=None, plotonly=None, diagonal=True, sz=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, title=None, legend=True, show=True):
+    def plot(self, diagrams=None, plotonly=None, diagonal=True, size=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, title=None, legend=True, show=True):
         """A helper function to plot persistence diagrams.
 
         Parameters
@@ -200,31 +200,17 @@ class Rips(BaseEstimator):
             # TODO: convert this to a cylic generator so we can zip as many as required.
             colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'] 
 
+        # find min and max of all visible diagrams
+        concat_dgms = np.concatenate(diagrams).flatten()
+        has_inf = np.any(np.isinf(concat_dgms))
+        finite_dgms = concat_dgms[np.isfinite(concat_dgms)]
 
-# <<<<<<< HEAD
-#         # find min and max of all diagrams, plot diagonal only once
-#         if diagonal:
-#             axMin, axMax = np.min(np.concatenate(diagrams)), np.max(np.concatenate(diagrams))
-#             axRange = axMax - axMin
-#             # import pdb; pdb.set_trace()
-
-#             buffer = axRange / 5
-#             a = axMin - buffer/2
-#             b = axMax + buffer
-#             # a = max(axMin - axRange / 5)
-#             # b = axMax + axRange / 5
-# =======
-        # find min and max of all visible diagrams, plot diagonal only once
-        # import pdb; pdb.set_trace()
-        import pdb; pdb.set_trace()
-        concatdgms = np.concatenate(diagrams).flatten()
-        has_inf = np.isinf(np.isinf(concatdgms))
-        concatdgms[np.isinf(concatdgms)] = np.min(concatdgms)
-
-        axMin, axMax = np.min(concatdgms), np.max(concatdgms)
+        axMin, axMax = np.min(finite_dgms), np.max(finite_dgms)
         axRange = axMax - axMin
         
-        buffer = axRange / 5
+        # Give plot a nice buffer on all sides.  axRange=0 when only one point,
+        buffer = 1 if axRange == 0 else axRange / 5
+
         a = axMin - buffer/2
         b = axMax + buffer
 
@@ -246,19 +232,11 @@ class Rips(BaseEstimator):
 
         # Plot each diagram
         for i, (dgm, color, label) in enumerate(zip(diagrams, colors, labels)):
-            # if dgm.size is not 0 and i in plotonly:
-            # plot persistence pairs
-            # finitedgm = dgm[np.isfinite(dgm[:, 1]), :]
 
-            plt.scatter(dgm[:, 0], dgm[:, 1], sz, 
+            # plot persistence pairs
+            plt.scatter(dgm[:, 0], dgm[:, 1], size, 
                             color, label=label, edgecolor='none')
 
-            # plt.scatter(finitedgm[:, 0], finitedgm[:, 1], sz, 
-            #   /              color, label=label, edgecolor='none')
-            # infdgm = np.array(dgm[np.isinf(dgm[:, 1]), :])
-            # infdgm[:, 1] = b*1.1
-            # plt.scatter(infdgm[:, 0], infdgm[:, 1], sz, 
-                            # color, edgecolor='none')
             plt.xlabel('Birth')
             plt.ylabel('Death')
 
