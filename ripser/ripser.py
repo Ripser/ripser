@@ -168,7 +168,8 @@ class Rips(BaseEstimator):
         labels: string or list of strings
             Legend labels for each diagram. If none are specified, assume the first diagram is H_0 and we move up from there.
 
-        xyrange: list of numeric [xymin, xymax]
+        # TODO: is order of this list standard w/ matplotlib?
+        xyrange: list of numeric [xmin, xmax, ymin, ymax]
             User provided range of axes. This is useful for comparing multiple persistence diagrams.
             Currently only square is supported.
 
@@ -215,42 +216,47 @@ class Rips(BaseEstimator):
         has_inf = np.any(np.isinf(concat_dgms))
         finite_dgms = concat_dgms[np.isfinite(concat_dgms)]
 
-        # define bounds of diagram
-        axMin, axMax = xyrange if xyrange else (np.min(finite_dgms), np.max(finite_dgms))
-        axRange = axMax - axMin
-        
-        if landscape:
-            axMin = 0
+        if not xyrange:
+            # define bounds of diagram
+            axMin, axMax = np.min(finite_dgms), np.max(finite_dgms)
+            axRange = axMax - axMin
+            
+            # Give plot a nice buffer on all sides.  axRange=0 when only one point,
+            buffer = 1 if axRange == 0 else axRange / 5
 
-        # Give plot a nice buffer on all sides.  axRange=0 when only one point,
-        buffer = 1 if axRange == 0 else axRange / 5
+            ax = axMin - buffer/2
+            bx = axMax + buffer
 
-        a = axMin - buffer/2
-        b = axMax + buffer
+            ay, by = ax, bx
+
+            if landscape:
+                ay = - buffer/2
+        else:
+            ax, bx, ay, by = xyrange
+
 
         # have inf line slightly below top
-        b_inf = b * 0.95
+        b_inf = bx * 0.95
 
         # Plot diagonal
         if diagonal:
-            plt.plot([a, b], [a, b], '--', c=axcolor)
+            plt.plot([ax, bx], [ax, bx], '--', c=axcolor)
 
         if landscape:
-            plt.plot([a, b], [0, 0], '--', c=axcolor)
+            plt.plot([ax, bx], [0, 0], '--', c=axcolor)
 
         # Plot inf line
         if has_inf:
-            plt.plot([a, b], [b_inf, b_inf], c='k', label='$\infty$')
+            plt.plot([ax, bx], [b_inf, b_inf], c='k', label='$\infty$')
 
             # convert each inf in each diagram with b_inf
             for dgm in diagrams:
                 dgm[np.isinf(dgm)] = b_inf
 
         # Plot each diagram
-        for i, (dgm, color, label) in enumerate(zip(diagrams, colors, labels)):
+        for dgm, color, label in zip(diagrams, colors, labels):
             if landscape:
                 dgm[:, 1] -= dgm[:, 0]
-
 
             # plot persistence pairs
             plt.scatter(dgm[:, 0], dgm[:, 1], size,
@@ -259,8 +265,8 @@ class Rips(BaseEstimator):
             plt.xlabel('Birth')
             plt.ylabel('Death')
 
-        plt.xlim([a, b])
-        plt.ylim([a, b])
+        plt.xlim([ax, bx])
+        plt.ylim([ay, by])
 
         if title is not None:
             plt.title(title)
