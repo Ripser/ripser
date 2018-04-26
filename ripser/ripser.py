@@ -152,7 +152,7 @@ class Rips(BaseEstimator):
                     res = res[clen*(dim+2)::]
         return pds
 
-    def plot(self, diagrams=None, plotonly=None, diagonal=True, size=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, xyrange=None, title=None, legend=True, show=True):
+    def plot(self, diagrams=None, plotonly=None, diagonal=True, size=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, xyrange=None, title=None, legend=True, show=True, landscape=False):
         """A helper function to plot persistence diagrams.
 
         Parameters
@@ -171,6 +171,9 @@ class Rips(BaseEstimator):
         xyrange: list of numeric [xymin, xymax]
             User provided range of axes. This is useful for comparing multiple persistence diagrams.
             Currently only square is supported.
+
+        landscape: bool, default is False. If True, diagonal is turned to False.
+            Plot (x, y-x) for each diagram instead of the normal diagram.
 
         title: string, default is None
             If title is defined, add it as title of the plot.
@@ -199,19 +202,25 @@ class Rips(BaseEstimator):
         if colors is None:
             # TODO: convert this to a cylic generator so we can zip as many as required.
             colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+        
+        if landscape:
+            # Don't plot landscape and diagonal at the same time.
+            diagonal = False
+
+        # Construct copies of each diagram so we can freely edit them.
+        diagrams = [np.copy(dgm) for dgm in diagrams]
 
         # find min and max of all visible diagrams
         concat_dgms = np.concatenate(diagrams).flatten()
         has_inf = np.any(np.isinf(concat_dgms))
         finite_dgms = concat_dgms[np.isfinite(concat_dgms)]
 
-        if xyrange:
-            axMin, axMax = xyrange
-        else:
-            axMin, axMax = np.min(finite_dgms), np.max(finite_dgms)
-        
+        # define bounds of diagram
+        axMin, axMax = xyrange if xyrange else (np.min(finite_dgms), np.max(finite_dgms))
         axRange = axMax - axMin
         
+        if landscape:
+            axMin = 0
 
         # Give plot a nice buffer on all sides.  axRange=0 when only one point,
         buffer = 1 if axRange == 0 else axRange / 5
@@ -226,6 +235,9 @@ class Rips(BaseEstimator):
         if diagonal:
             plt.plot([a, b], [a, b], '--', c=axcolor)
 
+        if landscape:
+            plt.plot([a, b], [0, 0], '--', c=axcolor)
+
         # Plot inf line
         if has_inf:
             plt.plot([a, b], [b_inf, b_inf], c='k', label='$\infty$')
@@ -236,6 +248,9 @@ class Rips(BaseEstimator):
 
         # Plot each diagram
         for i, (dgm, color, label) in enumerate(zip(diagrams, colors, labels)):
+            if landscape:
+                dgm[:, 1] -= dgm[:, 0]
+
 
             # plot persistence pairs
             plt.scatter(dgm[:, 0], dgm[:, 1], size,
