@@ -185,7 +185,8 @@ class Rips(BaseEstimator):
 
         if labels is None:
             # Provide default labels for diagrams if using self.dgm_
-            labels = ["H0", "H1", "H2", "H3", "H4", "H5", "H6", "H8"]
+            labels = ["$H_0$", "$H_1$", "$H_2$", "$H_3$", "$H_4$", "$H_5$", "$H_6$","$H_7$", "$H_8$"]
+
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgm_
@@ -194,6 +195,7 @@ class Rips(BaseEstimator):
             diagrams = [diagrams]
         if plotonly:
             diagrams = [diagrams[i] for i in plotonly]
+            labels = [labels[i] for i in plotonly]
         if type(labels) is not list:
             labels = [labels] * len(diagrams)
         if colors is None:
