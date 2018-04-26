@@ -29,7 +29,7 @@ class Rips(BaseEstimator):
     do_cocycles: bool
         Indicator of whether to compute cocycles, if so, we compute and store
         cocycles in the cocycles_ dictionary Rips member variable
-    
+
     Attributes
     ----------
     dgm_ : list of ndarray, each shape (n_pairs, 2)
@@ -49,7 +49,7 @@ class Rips(BaseEstimator):
     rips.plot()
     ```
 
-    """ 
+    """
 
     def __init__(self, maxdim=1, thresh=-1, coeff=2, do_cocycles=False, verbose=True):
         self.maxdim = maxdim
@@ -60,7 +60,7 @@ class Rips(BaseEstimator):
 
         self.dgm_ = None
         self.cocycles_ = {}
-        self.dm_ = None #Distance matrix
+        self.dm_ = None  # Distance matrix
         self.metric_ = None
 
         if self.verbose:
@@ -74,7 +74,7 @@ class Rips(BaseEstimator):
         ----------
         X: ndarray (n_samples, n_features)
             A numpy array of either data or distance matrix.
-        
+
         distance_matrix: bool
             Indicator that X is a distance matrix, if not we compute a 
             distance matrix from X using the chosen metric.
@@ -90,7 +90,7 @@ class Rips(BaseEstimator):
         self.dm_ = X
         dgm = self._compute_rips(X)
         self.dgm_ = dgm
-    
+
     def fit_transform(self, X, distance_matrix=False, metric='euclidean'):
         """Compute persistence diagrams for X data array and return the diagrams.
 
@@ -98,14 +98,14 @@ class Rips(BaseEstimator):
         ----------
         X: ndarray (n_samples, n_features)
             A numpy array of either data or distance matrix.
-        
+
         distance_matrix: bool
             Indicator that X is a distance matrix, if not we compute a 
             distance matrix from X using the chosen metric.
-        
+
         metric: string or callable
             The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including “euclidean”, “manhattan”, or “cosine”. Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
-        
+
         Return
         ------
         dgms: list (size maxdim) of ndarray (n_pairs, 2)
@@ -115,11 +115,10 @@ class Rips(BaseEstimator):
         self.transform(X, distance_matrix, metric)
         return self.dgm_
 
-
     def _compute_rips(self, dm):
         """ Compute the persistence diagram
         """
-        
+
         npts = dm.shape[0]
         if self.thresh == -1:
             thresh = np.max(dm)*2
@@ -128,16 +127,18 @@ class Rips(BaseEstimator):
         [I, J] = np.meshgrid(np.arange(npts), np.arange(npts))
         DParam = np.array(dm[I > J], dtype=np.float32)
 
-        res = DRFDM(DParam, self.maxdim, thresh, self.coeff, int(self.do_cocycles))
+        res = DRFDM(DParam, self.maxdim, thresh,
+                    self.coeff, int(self.do_cocycles))
         pds = []
         for dim in range(self.maxdim + 1):
-            nclasses = int(res[0]) #Number of homology classes in this dimension
-            #First extract the persistence diagram
+            # Number of homology classes in this dimension
+            nclasses = int(res[0])
+            # First extract the persistence diagram
             res = res[1::]
             pd = np.array(res[0:nclasses*2])
             pds.append(np.reshape(pd, (nclasses, 2)))
             res = res[nclasses*2::]
-            #Now extract the representative cocycles if they were computed
+            # Now extract the representative cocycles if they were computed
             if self.do_cocycles and dim > 0:
                 self.cocycles_[dim] = []
                 for n in range(nclasses):
@@ -158,15 +159,15 @@ class Rips(BaseEstimator):
         ----------
         diagrams: ndarray (n_pairs, 2) or list of diagrams
             A diagram or list of diagrams as returned from self.fit. If diagram is None, we use self.dgm_ for plotting. If diagram is a list of diagrams, then plot all on the same plot using different colors.
-        
+
         plotonly: If specified, an array of only the diagrams that should be plotted
 
         diagonal: bool, default is True
             Plot the diagonal line
-        
+
         labels: string or list of strings
             Legend labels for each diagram. If none are specified, assume the first diagram is H_0 and we move up from there.
-        
+
         title: string, default is None
             If title is defined, add it as title of the plot.
 
@@ -175,12 +176,12 @@ class Rips(BaseEstimator):
 
         show: bool, default is True
             Call plt.show() after plotting. If you are using self.plot() as part of a subplot, set show=False and call plt.show() only once at the end.
-        
+
         """
 
-        ##  Note:  This method is a bit overloaded to accomodate a 
-        #          single diagram or a list of diagrams. Please keep this 
-        #          in mind when making changes. 
+        # Note:  This method is a bit overloaded to accomodate a
+        #          single diagram or a list of diagrams. Please keep this
+        #          in mind when making changes.
         #          Refactors are welcome.
 
         if labels is None:
@@ -200,7 +201,7 @@ class Rips(BaseEstimator):
             labels = [labels] * len(diagrams)
         if colors is None:
             # TODO: convert this to a cylic generator so we can zip as many as required.
-            colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'] 
+            colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
 
         # find min and max of all visible diagrams
         concat_dgms = np.concatenate(diagrams).flatten()
@@ -209,7 +210,7 @@ class Rips(BaseEstimator):
 
         axMin, axMax = np.min(finite_dgms), np.max(finite_dgms)
         axRange = axMax - axMin
-        
+
         # Give plot a nice buffer on all sides.  axRange=0 when only one point,
         buffer = 1 if axRange == 0 else axRange / 5
 
@@ -222,7 +223,7 @@ class Rips(BaseEstimator):
         # Plot diagonal
         if diagonal:
             plt.plot([a, b], [a, b], '--', c=axcolor)
-        
+
         # Plot inf line
         if has_inf:
             plt.plot([a, b], [b_inf, b_inf], c='k', label='$\infty$')
@@ -231,18 +232,16 @@ class Rips(BaseEstimator):
             for dgm in diagrams:
                 dgm[np.isinf(dgm)] = b_inf
 
-
         # Plot each diagram
         for i, (dgm, color, label) in enumerate(zip(diagrams, colors, labels)):
 
             # plot persistence pairs
-            plt.scatter(dgm[:, 0], dgm[:, 1], size, 
-                            color, label=label, edgecolor='none')
+            plt.scatter(dgm[:, 0], dgm[:, 1], size,
+                        color, label=label, edgecolor='none')
 
             plt.xlabel('Birth')
             plt.ylabel('Death')
 
-        
         plt.xlim([a, b])
         plt.ylim([a, b])
 
@@ -254,6 +253,3 @@ class Rips(BaseEstimator):
 
         if show is True:
             plt.show()
-
-
-
