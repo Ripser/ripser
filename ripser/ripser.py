@@ -201,9 +201,13 @@ class Rips(BaseEstimator):
         if diagonal:
             axMin, axMax = np.min(np.concatenate(diagrams)), np.max(np.concatenate(diagrams))
             axRange = axMax - axMin
+            # import pdb; pdb.set_trace()
 
-            a = max(axMin - axRange / 5, 0)
-            b = axMax + axRange / 5
+            buffer = axRange / 5
+            a = axMin - buffer/2
+            b = axMax + buffer
+            # a = max(axMin - axRange / 5)
+            # b = axMax + axRange / 5
             plt.plot([a, b], [a, b], '--', c=axcolor)
 
         # Plot each diagram
