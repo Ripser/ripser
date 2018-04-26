@@ -152,7 +152,7 @@ class Rips(BaseEstimator):
                     res = res[clen*(dim+2)::]
         return pds
 
-    def plot(self, diagrams=None, plotonly=None, diagonal=True, size=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, title=None, legend=True, show=True):
+    def plot(self, diagrams=None, plotonly=None, diagonal=True, size=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, xyrange=None, title=None, legend=True, show=True):
         """A helper function to plot persistence diagrams.
 
         Parameters
@@ -168,6 +168,10 @@ class Rips(BaseEstimator):
         labels: string or list of strings
             Legend labels for each diagram. If none are specified, assume the first diagram is H_0 and we move up from there.
 
+        xyrange: list of numeric [xymin, xymax]
+            User provided range of axes. This is useful for comparing multiple persistence diagrams.
+            Currently only square is supported.
+
         title: string, default is None
             If title is defined, add it as title of the plot.
 
@@ -178,16 +182,9 @@ class Rips(BaseEstimator):
             Call plt.show() after plotting. If you are using self.plot() as part of a subplot, set show=False and call plt.show() only once at the end.
 
         """
-
-        # Note:  This method is a bit overloaded to accomodate a
-        #          single diagram or a list of diagrams. Please keep this
-        #          in mind when making changes.
-        #          Refactors are welcome.
-
         if labels is None:
             # Provide default labels for diagrams if using self.dgm_
-            labels = ["$H_0$", "$H_1$", "$H_2$", "$H_3$", "$H_4$", "$H_5$", "$H_6$","$H_7$", "$H_8$"]
-
+            labels = ["$H_0$", "$H_1$", "$H_2$", "$H_3$", "$H_4$", "$H_5$", "$H_6$", "$H_7$", "$H_8$"]
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgm_
@@ -208,8 +205,13 @@ class Rips(BaseEstimator):
         has_inf = np.any(np.isinf(concat_dgms))
         finite_dgms = concat_dgms[np.isfinite(concat_dgms)]
 
-        axMin, axMax = np.min(finite_dgms), np.max(finite_dgms)
+        if xyrange:
+            axMin, axMax = xyrange
+        else:
+            axMin, axMax = np.min(finite_dgms), np.max(finite_dgms)
+        
         axRange = axMax - axMin
+        
 
         # Give plot a nice buffer on all sides.  axRange=0 when only one point,
         buffer = 1 if axRange == 0 else axRange / 5
