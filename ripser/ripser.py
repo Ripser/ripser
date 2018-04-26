@@ -189,11 +189,11 @@ class Rips(BaseEstimator):
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgm_
-        if plotonly:
-            diagrams = [diagrams[i] for i in plotonly]
         if type(diagrams) is not list:
             # Must have diagrams as a list
             diagrams = [diagrams]
+        if plotonly:
+            diagrams = [diagrams[i] for i in plotonly]
         if type(labels) is not list:
             labels = [labels] * len(diagrams)
         if colors is None:
