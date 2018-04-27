@@ -1,9 +1,10 @@
 import subprocess
 import os
-
-import time
+from itertools import cycle
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -152,32 +153,41 @@ class Rips(BaseEstimator):
                     res = res[clen*(dim+2)::]
         return pds
 
-    def plot(self, diagrams=None, plotonly=None, diagonal=True, size=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, xyrange=None, title=None, legend=True, show=True, landscape=False):
-        """A helper function to plot persistence diagrams.
+    def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, diagonal=True, lifetime=False, legend=True, show=True):
+        """A helper function to plot persistence diagrams. 
 
         Parameters
         ----------
+
         diagrams: ndarray (n_pairs, 2) or list of diagrams
             A diagram or list of diagrams as returned from self.fit. If diagram is None, we use self.dgm_ for plotting. If diagram is a list of diagrams, then plot all on the same plot using different colors.
 
-        plotonly: If specified, an array of only the diagrams that should be plotted
-
-        diagonal: bool, default is True
-            Plot the diagonal line
-
-        labels: string or list of strings
-            Legend labels for each diagram. If none are specified, assume the first diagram is H_0 and we move up from there.
-
-        # TODO: is order of this list standard w/ matplotlib?
-        xyrange: list of numeric [xmin, xmax, ymin, ymax]
-            User provided range of axes. This is useful for comparing multiple persistence diagrams.
-            Currently only square is supported.
-
-        landscape: bool, default is False. If True, diagonal is turned to False.
-            Plot (x, y-x) for each diagram instead of the normal diagram.
+        plot_only: list of numeric
+            If specified, an array of only the diagrams that should be plotted.
 
         title: string, default is None
             If title is defined, add it as title of the plot.
+
+        xy_range: list of numeric [xmin, xmax, ymin, ymax]
+            User provided range of axes. This is useful for comparing multiple persistence diagrams.
+            
+        labels: string or list of strings
+            Legend labels for each diagram. If none are specified, we use H_0, H_1, H_2,... by default.
+        
+        colormap: string, default is 'default'
+            Any of matplotlib color palettes. Some options are 'default', 'seaborn', 'sequential'. See more possible colormaps in matplotlibs documentation [https://matplotlib.org/users/colormaps.html](https://matplotlib.org/users/colormaps.html)
+
+        size: numeric, default is 20
+            Pixel size of each point plotted.
+
+        ax_color: any valid matplitlib color type. 
+            See [https://matplotlib.org/api/colors_api.html](https://matplotlib.org/api/colors_api.html) for complete API.
+
+        diagonal: bool, default is True
+            Plot the diagonal x=y line.
+
+        lifetime: bool, default is False. If True, diagonal is turned to False.
+            Plot life time of each point instead of birth and death. Essentially, visualize (x, y-x).
 
         legend: bool, default is True
             If true, show the legend.
@@ -186,25 +196,32 @@ class Rips(BaseEstimator):
             Call plt.show() after plotting. If you are using self.plot() as part of a subplot, set show=False and call plt.show() only once at the end.
 
         """
+
         if labels is None:
             # Provide default labels for diagrams if using self.dgm_
             labels = ["$H_0$", "$H_1$", "$H_2$", "$H_3$", "$H_4$", "$H_5$", "$H_6$", "$H_7$", "$H_8$"]
+
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgm_
+
         if type(diagrams) is not list:
-            # Must have diagrams as a list
+            # Must have diagrams as a list for processing downstream
             diagrams = [diagrams]
-        if plotonly:
-            diagrams = [diagrams[i] for i in plotonly]
-            labels = [labels[i] for i in plotonly]
+
+        if plot_only:
+            diagrams = [diagrams[i] for i in plot_only]
+            labels = [labels[i] for i in plot_only]
+
         if type(labels) is not list:
             labels = [labels] * len(diagrams)
+
         if colors is None:
+            mpl.style.use('default')
             # TODO: convert this to a cylic generator so we can zip as many as required.
-            colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
-        
-        if landscape:
+            colors = cycle(['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9'])
+
+        if lifetime:
             # Don't plot landscape and diagonal at the same time.
             diagonal = False
 
@@ -216,7 +233,7 @@ class Rips(BaseEstimator):
         has_inf = np.any(np.isinf(concat_dgms))
         finite_dgms = concat_dgms[np.isfinite(concat_dgms)]
 
-        if not xyrange:
+        if not xy_range:
             # define bounds of diagram
             axMin, axMax = np.min(finite_dgms), np.max(finite_dgms)
             axRange = axMax - axMin
@@ -229,10 +246,10 @@ class Rips(BaseEstimator):
 
             ay, by = ax, bx
 
-            if landscape:
+            if lifetime:
                 ay = - buffer/2
         else:
-            ax, bx, ay, by = xyrange
+            ax, bx, ay, by = xy_range
 
 
         # have inf line slightly below top
@@ -240,10 +257,10 @@ class Rips(BaseEstimator):
 
         # Plot diagonal
         if diagonal:
-            plt.plot([ax, bx], [ax, bx], '--', c=axcolor)
+            plt.plot([ax, bx], [ax, bx], '--', c=ax_color)
 
-        if landscape:
-            plt.plot([ax, bx], [0, 0], '--', c=axcolor)
+        if lifetime:
+            plt.plot([ax, bx], [0, 0], '--', c=ax_color)
 
         # Plot inf line
         if has_inf:
@@ -255,7 +272,7 @@ class Rips(BaseEstimator):
 
         # Plot each diagram
         for dgm, color, label in zip(diagrams, colors, labels):
-            if landscape:
+            if lifetime:
                 dgm[:, 1] -= dgm[:, 0]
 
             # plot persistence pairs
