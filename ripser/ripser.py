@@ -1,5 +1,8 @@
-import subprocess
-import os
+"""
+    Rips() provides functionality for persistent cohomology calculations, including computing barcodes, cocycles, and visualizations.
+
+"""
+
 from itertools import cycle
 
 import matplotlib.pyplot as plt
@@ -120,12 +123,14 @@ class Rips(BaseEstimator):
         """ Compute the persistence diagram
         """
 
-        npts = dm.shape[0]
+        n_points = dm.shape[0]
+
         if self.thresh == -1:
             thresh = np.max(dm)*2
         else:
             thresh = self.thresh
-        [I, J] = np.meshgrid(np.arange(npts), np.arange(npts))
+
+        [I, J] = np.meshgrid(np.arange(n_points), np.arange(n_points))
         DParam = np.array(dm[I > J], dtype=np.float32)
 
         res = DRFDM(DParam, self.maxdim, thresh,
@@ -133,27 +138,27 @@ class Rips(BaseEstimator):
         pds = []
         for dim in range(self.maxdim + 1):
             # Number of homology classes in this dimension
-            nclasses = int(res[0])
+            n_classes = int(res[0])
             # First extract the persistence diagram
             res = res[1::]
-            pd = np.array(res[0:nclasses*2])
-            pds.append(np.reshape(pd, (nclasses, 2)))
-            res = res[nclasses*2::]
+            pd = np.array(res[0:n_classes*2])
+            pds.append(np.reshape(pd, (n_classes, 2)))
+            res = res[n_classes*2::]
             # Now extract the representative cocycles if they were computed
             if self.do_cocycles and dim > 0:
                 self.cocycles_[dim] = []
-                for n in range(nclasses):
-                    clen = int(res[0])
+                for _ in range(n_classes):
+                    c_length = int(res[0])
                     res = res[1::]
-                    cocycle = res[0:clen*(dim+2)]
-                    cocycle = np.reshape(cocycle, (clen, dim+2))
+                    cocycle = res[0:c_length*(dim+2)]
+                    cocycle = np.reshape(cocycle, (c_length, dim+2))
                     cocycle = np.array(cocycle, dtype=np.int64)
                     cocycle[:, -1] = np.mod(cocycle[:, -1], self.coeff)
                     self.cocycles_[dim].append(cocycle)
-                    res = res[clen*(dim+2)::]
+                    res = res[c_length*(dim+2)::]
         return pds
 
-    def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, diagonal=True, lifetime=False, legend=True, show=True):
+    def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, lifetime=False, legend=True, show=True):
         """A helper function to plot persistence diagrams. 
 
         Parameters
@@ -170,10 +175,10 @@ class Rips(BaseEstimator):
 
         xy_range: list of numeric [xmin, xmax, ymin, ymax]
             User provided range of axes. This is useful for comparing multiple persistence diagrams.
-            
+
         labels: string or list of strings
             Legend labels for each diagram. If none are specified, we use H_0, H_1, H_2,... by default.
-        
+
         colormap: string, default is 'default'
             Any of matplotlib color palettes. Some options are 'default', 'seaborn', 'sequential'. 
             See all availble styles with
@@ -204,13 +209,14 @@ class Rips(BaseEstimator):
 
         if labels is None:
             # Provide default labels for diagrams if using self.dgm_
-            labels = ["$H_0$", "$H_1$", "$H_2$", "$H_3$", "$H_4$", "$H_5$", "$H_6$", "$H_7$", "$H_8$"]
+            labels = ["$H_0$", "$H_1$", "$H_2$", "$H_3$",
+                      "$H_4$", "$H_5$", "$H_6$", "$H_7$", "$H_8$"]
 
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgm_
 
-        if type(diagrams) is not list:
+        if not isinstance(diagrams, list):
             # Must have diagrams as a list for processing downstream
             diagrams = [diagrams]
 
@@ -218,20 +224,15 @@ class Rips(BaseEstimator):
             diagrams = [diagrams[i] for i in plot_only]
             labels = [labels[i] for i in plot_only]
 
-        if type(labels) is not list:
+        if not isinstance(labels, list):
             labels = [labels] * len(diagrams)
 
         if colors is None:
-            mpl.style.use('default')
-            # TODO: convert this to a cylic generator so we can zip as many as required.
-            colors = cycle(['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9'])
-
-        if lifetime:
-            # Don't plot landscape and diagonal at the same time.
-            diagonal = False
+            mpl.style.use(colormap)
+            colors = cycle(['C0', 'C1', 'C2', 'C3', 'C4',
+                            'C5', 'C6', 'C7', 'C8', 'C9'])
 
         # Construct copy with proper type of each diagram so we can freely edit them.
-        #   -- 
         diagrams = [dgm.astype(np.float32, copy=True) for dgm in diagrams]
 
         # find min and max of all visible diagrams
@@ -241,36 +242,48 @@ class Rips(BaseEstimator):
 
         if not xy_range:
             # define bounds of diagram
-            axMin, axMax = np.min(finite_dgms), np.max(finite_dgms)
-            axRange = axMax - axMin
-            
-            # Give plot a nice buffer on all sides.  axRange=0 when only one point,
-            buffer = 1 if axRange == 0 else axRange / 5
+            ax_min, ax_max = np.min(finite_dgms), np.max(finite_dgms)
+            ax_range = ax_max - ax_min
 
-            ax = axMin - buffer/2
-            bx = axMax + buffer
+            # Give plot a nice buffer on all sides.  ax_range=0 when only one point,
+            buffer = 1 if ax_range == 0 else ax_range / 5
+
+            ax = ax_min - buffer/2
+            bx = ax_max + buffer
 
             ay, by = ax, bx
-
-            if lifetime:
-                ay = - buffer/2
         else:
             ax, bx, ay, by = xy_range
 
-
         # have inf line slightly below top
         b_inf = bx * 0.95
+
+        xlabel, ylabel = "Birth", "Death"
+
+        if lifetime:
+            # Don't plot landscape and diagonal at the same time.
+            diagonal = False
+
+            # reset y axis so it doesn't go much below zero
+            ay = - buffer/2
+
+            # set custom ylabel
+            ylabel = "Lifetime"
+
+            # set diagrams to be (x, y-x)
+            for dgm in diagrams:
+                dgm[:, 1] -= dgm[:, 0]
+
+            # plot horizon line
+            plt.plot([ax, bx], [0, 0], '--', c=ax_color)
 
         # Plot diagonal
         if diagonal:
             plt.plot([ax, bx], [ax, bx], '--', c=ax_color)
 
-        if lifetime:
-            plt.plot([ax, bx], [0, 0], '--', c=ax_color)
-
         # Plot inf line
         if has_inf:
-            plt.plot([ax, bx], [b_inf, b_inf], c='k', label='$\infty$')
+            plt.plot([ax, bx], [b_inf, b_inf], c='k', label=r'$\infty$')
 
             # convert each inf in each diagram with b_inf
             for dgm in diagrams:
@@ -278,18 +291,12 @@ class Rips(BaseEstimator):
 
         # Plot each diagram
         for dgm, color, label in zip(diagrams, colors, labels):
-            if lifetime:
-                dgm[:, 1] -= dgm[:, 0]
-
             # plot persistence pairs
             plt.scatter(dgm[:, 0], dgm[:, 1], size,
                         color, label=label, edgecolor='none')
 
-            plt.xlabel('Birth')
-            if lifetime:
-                plt.ylabel('Lifetime')
-            else:
-                plt.ylabel('Death')
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
 
         plt.xlim([ax, bx])
         plt.ylim([ay, by])
