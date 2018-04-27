@@ -1,9 +1,13 @@
-import subprocess
-import os
+"""
+    Rips() provides functionality for persistent cohomology calculations, including computing barcodes, cocycles, and visualizations.
 
-import time
+"""
+
+from itertools import cycle
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -80,7 +84,7 @@ class Rips(BaseEstimator):
             distance matrix from X using the chosen metric.
 
         metric: string or callable
-            The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including “euclidean”, “manhattan”, or “cosine”. Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
+            The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including "euclidean", "manhattan", or "cosine". Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
 
         """
 
@@ -104,7 +108,7 @@ class Rips(BaseEstimator):
             distance matrix from X using the chosen metric.
 
         metric: string or callable
-            The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including “euclidean”, “manhattan”, or “cosine”. Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
+            The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including "euclidean", "manhattan", or "cosine". Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
 
         Return
         ------
@@ -119,12 +123,14 @@ class Rips(BaseEstimator):
         """ Compute the persistence diagram
         """
 
-        npts = dm.shape[0]
+        n_points = dm.shape[0]
+
         if self.thresh == -1:
             thresh = np.max(dm)*2
         else:
             thresh = self.thresh
-        [I, J] = np.meshgrid(np.arange(npts), np.arange(npts))
+
+        [I, J] = np.meshgrid(np.arange(n_points), np.arange(n_points))
         DParam = np.array(dm[I > J], dtype=np.float32)
 
         res = DRFDM(DParam, self.maxdim, thresh,
@@ -132,44 +138,66 @@ class Rips(BaseEstimator):
         pds = []
         for dim in range(self.maxdim + 1):
             # Number of homology classes in this dimension
-            nclasses = int(res[0])
+            n_classes = int(res[0])
             # First extract the persistence diagram
             res = res[1::]
-            pd = np.array(res[0:nclasses*2])
-            pds.append(np.reshape(pd, (nclasses, 2)))
-            res = res[nclasses*2::]
+            pd = np.array(res[0:n_classes*2])
+            pds.append(np.reshape(pd, (n_classes, 2)))
+            res = res[n_classes*2::]
             # Now extract the representative cocycles if they were computed
             if self.do_cocycles and dim > 0:
                 self.cocycles_[dim] = []
-                for n in range(nclasses):
-                    clen = int(res[0])
+                for _ in range(n_classes):
+                    c_length = int(res[0])
                     res = res[1::]
-                    cocycle = res[0:clen*(dim+2)]
-                    cocycle = np.reshape(cocycle, (clen, dim+2))
+                    cocycle = res[0:c_length*(dim+2)]
+                    cocycle = np.reshape(cocycle, (c_length, dim+2))
                     cocycle = np.array(cocycle, dtype=np.int64)
                     cocycle[:, -1] = np.mod(cocycle[:, -1], self.coeff)
                     self.cocycles_[dim].append(cocycle)
-                    res = res[clen*(dim+2)::]
+                    res = res[c_length*(dim+2)::]
         return pds
 
-    def plot(self, diagrams=None, plotonly=None, diagonal=True, size=20, labels=None, axcolor=np.array([0.0, 0.0, 0.0]), colors=None, marker=None, title=None, legend=True, show=True):
-        """A helper function to plot persistence diagrams.
+    def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, lifetime=False, legend=True, show=True):
+        """A helper function to plot persistence diagrams. 
 
         Parameters
         ----------
+
         diagrams: ndarray (n_pairs, 2) or list of diagrams
             A diagram or list of diagrams as returned from self.fit. If diagram is None, we use self.dgm_ for plotting. If diagram is a list of diagrams, then plot all on the same plot using different colors.
 
-        plotonly: If specified, an array of only the diagrams that should be plotted
-
-        diagonal: bool, default is True
-            Plot the diagonal line
-
-        labels: string or list of strings
-            Legend labels for each diagram. If none are specified, assume the first diagram is H_0 and we move up from there.
+        plot_only: list of numeric
+            If specified, an array of only the diagrams that should be plotted.
 
         title: string, default is None
             If title is defined, add it as title of the plot.
+
+        xy_range: list of numeric [xmin, xmax, ymin, ymax]
+            User provided range of axes. This is useful for comparing multiple persistence diagrams.
+
+        labels: string or list of strings
+            Legend labels for each diagram. If none are specified, we use H_0, H_1, H_2,... by default.
+
+        colormap: string, default is 'default'
+            Any of matplotlib color palettes. Some options are 'default', 'seaborn', 'sequential'. 
+            See all availble styles with
+            ```
+                import matplotlib as mpl
+                print(mpl.styles.available)
+            ```
+
+        size: numeric, default is 20
+            Pixel size of each point plotted.
+
+        ax_color: any valid matplitlib color type. 
+            See [https://matplotlib.org/api/colors_api.html](https://matplotlib.org/api/colors_api.html) for complete API.
+
+        diagonal: bool, default is True
+            Plot the diagonal x=y line.
+
+        lifetime: bool, default is False. If True, diagonal is turned to False.
+            Plot life time of each point instead of birth and death. Essentially, visualize (x, y-x).
 
         legend: bool, default is True
             If true, show the legend.
@@ -179,71 +207,99 @@ class Rips(BaseEstimator):
 
         """
 
-        # Note:  This method is a bit overloaded to accomodate a
-        #          single diagram or a list of diagrams. Please keep this
-        #          in mind when making changes.
-        #          Refactors are welcome.
-
         if labels is None:
             # Provide default labels for diagrams if using self.dgm_
-            labels = ["$H_0$", "$H_1$", "$H_2$", "$H_3$", "$H_4$", "$H_5$", "$H_6$","$H_7$", "$H_8$"]
+            labels = ["$H_0$", "$H_1$", "$H_2$", "$H_3$",
+                      "$H_4$", "$H_5$", "$H_6$", "$H_7$", "$H_8$"]
 
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgm_
-        if type(diagrams) is not list:
-            # Must have diagrams as a list
+
+        if not isinstance(diagrams, list):
+            # Must have diagrams as a list for processing downstream
             diagrams = [diagrams]
-        if plotonly:
-            diagrams = [diagrams[i] for i in plotonly]
-            labels = [labels[i] for i in plotonly]
-        if type(labels) is not list:
+
+        if plot_only:
+            diagrams = [diagrams[i] for i in plot_only]
+            labels = [labels[i] for i in plot_only]
+
+        if not isinstance(labels, list):
             labels = [labels] * len(diagrams)
+
         if colors is None:
-            # TODO: convert this to a cylic generator so we can zip as many as required.
-            colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+            mpl.style.use(colormap)
+            colors = cycle(['C0', 'C1', 'C2', 'C3', 'C4',
+                            'C5', 'C6', 'C7', 'C8', 'C9'])
+
+        # Construct copy with proper type of each diagram so we can freely edit them.
+        diagrams = [dgm.astype(np.float32, copy=True) for dgm in diagrams]
 
         # find min and max of all visible diagrams
         concat_dgms = np.concatenate(diagrams).flatten()
         has_inf = np.any(np.isinf(concat_dgms))
         finite_dgms = concat_dgms[np.isfinite(concat_dgms)]
 
-        axMin, axMax = np.min(finite_dgms), np.max(finite_dgms)
-        axRange = axMax - axMin
+        if not xy_range:
+            # define bounds of diagram
+            ax_min, ax_max = np.min(finite_dgms), np.max(finite_dgms)
+            ax_range = ax_max - ax_min
 
-        # Give plot a nice buffer on all sides.  axRange=0 when only one point,
-        buffer = 1 if axRange == 0 else axRange / 5
+            # Give plot a nice buffer on all sides.  ax_range=0 when only one point,
+            buffer = 1 if ax_range == 0 else ax_range / 5
 
-        a = axMin - buffer/2
-        b = axMax + buffer
+            ax = ax_min - buffer/2
+            bx = ax_max + buffer
+
+            ay, by = ax, bx
+        else:
+            ax, bx, ay, by = xy_range
 
         # have inf line slightly below top
-        b_inf = b * 0.95
+        b_inf = bx * 0.95
+
+        xlabel, ylabel = "Birth", "Death"
+
+        if lifetime:
+            # Don't plot landscape and diagonal at the same time.
+            diagonal = False
+
+            # reset y axis so it doesn't go much below zero
+            ay = - buffer/2
+
+            # set custom ylabel
+            ylabel = "Lifetime"
+
+            # set diagrams to be (x, y-x)
+            for dgm in diagrams:
+                dgm[:, 1] -= dgm[:, 0]
+
+            # plot horizon line
+            plt.plot([ax, bx], [0, 0], '--', c=ax_color)
 
         # Plot diagonal
         if diagonal:
-            plt.plot([a, b], [a, b], '--', c=axcolor)
+            plt.plot([ax, bx], [ax, bx], '--', c=ax_color)
 
         # Plot inf line
         if has_inf:
-            plt.plot([a, b], [b_inf, b_inf], c='k', label='$\infty$')
+            plt.plot([ax, bx], [b_inf, b_inf], c='k', label=r'$\infty$')
 
             # convert each inf in each diagram with b_inf
             for dgm in diagrams:
                 dgm[np.isinf(dgm)] = b_inf
 
         # Plot each diagram
-        for i, (dgm, color, label) in enumerate(zip(diagrams, colors, labels)):
-
+        for dgm, color, label in zip(diagrams, colors, labels):
             # plot persistence pairs
             plt.scatter(dgm[:, 0], dgm[:, 1], size,
                         color, label=label, edgecolor='none')
 
-            plt.xlabel('Birth')
-            plt.ylabel('Death')
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
 
-        plt.xlim([a, b])
-        plt.ylim([a, b])
+        plt.xlim([ax, bx])
+        plt.ylim([ay, by])
 
         if title is not None:
             plt.title(title)
