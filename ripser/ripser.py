@@ -225,8 +225,9 @@ class Rips(BaseEstimator):
             # Don't plot landscape and diagonal at the same time.
             diagonal = False
 
-        # Construct copies of each diagram so we can freely edit them.
-        diagrams = [np.copy(dgm) for dgm in diagrams]
+        # Construct copy with proper type of each diagram so we can freely edit them.
+        #   -- 
+        diagrams = [dgm.astype(np.float32, copy=True) for dgm in diagrams]
 
         # find min and max of all visible diagrams
         concat_dgms = np.concatenate(diagrams).flatten()
@@ -280,7 +281,10 @@ class Rips(BaseEstimator):
                         color, label=label, edgecolor='none')
 
             plt.xlabel('Birth')
-            plt.ylabel('Death')
+            if lifetime:
+                plt.ylabel('Lifetime')
+            else:
+                plt.ylabel('Death')
 
         plt.xlim([ax, bx])
         plt.ylim([ay, by])
