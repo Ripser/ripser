@@ -175,7 +175,12 @@ class Rips(BaseEstimator):
             Legend labels for each diagram. If none are specified, we use H_0, H_1, H_2,... by default.
         
         colormap: string, default is 'default'
-            Any of matplotlib color palettes. Some options are 'default', 'seaborn', 'sequential'. See more possible colormaps in matplotlibs documentation [https://matplotlib.org/users/colormaps.html](https://matplotlib.org/users/colormaps.html)
+            Any of matplotlib color palettes. Some options are 'default', 'seaborn', 'sequential'. 
+            See all availble styles with
+            ```
+                import matplotlib as mpl
+                print(mpl.styles.available)
+            ```
 
         size: numeric, default is 20
             Pixel size of each point plotted.
