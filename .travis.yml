@@ -1,5 +1,6 @@
 language: python
 python:
+  - "2.7"
   - "3.4"
   - "3.5"
   - "3.6"
@@ -16,8 +17,17 @@ install:
   - pip install .
   - pip install pytest-cov
 
+
+# Installing matplotlib is long processes. Using a cache allows
+# to fasten the tests by reducing drastically the install time.
+cache:
+    directories:
+        # Cache for pip, mostly to speed up matplotlib install
+        - $HOME/.cache/pip
+
 script:
   - pytest --cov ripser
 
+# Upload the code coverage report
 after_success:
   - bash <(curl -s https://codecov.io/bash)
