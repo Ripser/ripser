@@ -1,0 +1,4 @@
+include ripser/pyRips.pxd
+include ripser/ripser.cpp
+include ripser/pyRipser.pyx
+include README.md

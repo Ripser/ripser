@@ -1,4 +1,15 @@
 DerivedData
 ripser.dSYM
-ripser
 ripser-coeff
+.DS_Store
+build/
+dist/
+__pycache__
+*.egg-info
+venv/
+.pytest_cache/
+*.so
+
+.coverage
+.vscode/
+.ipynb_checkpoints

@@ -22,9 +22,9 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 //#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
-#define PRINT_PERSISTENCE_PAIRS
+//#define PRINT_PERSISTENCE_PAIRS
 
-//#define USE_GOOGLE_HASHMAP
+// #define PYTHON_EXTENSION
 
 #include <algorithm>
 #include <cassert>
@@ -36,18 +36,9 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 #include <unordered_map>
 
-#ifdef USE_GOOGLE_HASHMAP
-#include <sparsehash/sparse_hash_map>
-template <class Key, class T> class hash_map : public google::sparse_hash_map<Key, T> {
-public:
-	inline void reserve(size_t hint) { this->resize(hint); }
-};
-#else
-template <class Key, class T> class hash_map : public std::unordered_map<Key, T> {};
-#endif
 
+template <class Key, class T> class hash_map : public std::unordered_map<Key, T> {};
 typedef float value_t;
-// typedef uint16_t value_t;
 
 typedef int64_t index_t;
 typedef int16_t coefficient_t;
@@ -85,6 +76,10 @@ bool is_prime(const coefficient_t n) {
 	for (coefficient_t p = 3, q = n / p, r = n % p; p <= q; p += 2, q = n / p, r = n % p)
 		if (!r) return false;
 	return true;
+}
+
+coefficient_t normalize(const coefficient_t n, const coefficient_t modulus) {
+    return n > modulus/2 ? n - modulus : n;
 }
 
 std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) {
@@ -144,7 +139,7 @@ struct entry_t {
 	entry_t() : index(0), coefficient(1) {}
 } __attribute__((packed));
 
-static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
+//static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
 
 entry_t make_entry(index_t _index, coefficient_t _coefficient) { return entry_t(_index, _coefficient); }
 index_t get_index(entry_t e) { return e.index; }
@@ -487,52 +482,39 @@ template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t 
 
 template <typename Comparator>
 void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
-                                hash_map<index_t, index_t>& pivot_column_index, const Comparator& comp, index_t dim,
-                                index_t n, value_t threshold, const binomial_coeff_table& binomial_coeff) {
+                                hash_map<index_t, index_t>& pivot_column_index, 
+								const Comparator& comp, 
+								index_t dim,
+                                index_t n, 
+								value_t threshold, 
+								const binomial_coeff_table& binomial_coeff) {
+	
 	index_t num_simplices = binomial_coeff(n, dim + 2);
 
 	columns_to_reduce.clear();
-
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K"
-	          << "assembling " << num_simplices << " columns" << std::flush << "\r";
-#endif
 
 	for (index_t index = 0; index < num_simplices; ++index) {
 		if (pivot_column_index.find(index) == pivot_column_index.end()) {
 			value_t diameter = comp.diameter(index);
 			if (diameter <= threshold) columns_to_reduce.push_back(std::make_pair(diameter, index));
-#ifdef INDICATE_PROGRESS
-			if ((index + 1) % 1000 == 0)
-				std::cout << "\033[K"
-				          << "assembled " << columns_to_reduce.size() << " out of " << (index + 1) << "/"
-				          << num_simplices << " columns" << std::flush << "\r";
-#endif
 		}
 	}
 
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K"
-	          << "sorting " << num_simplices << " columns" << std::flush << "\r";
-#endif
-
 	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 	          greater_diameter_or_smaller_index<diameter_index_t>());
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K";
-#endif
 }
 
 template <typename DistanceMatrix, typename ComparatorCofaces, typename Comparator>
-void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
-                   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
-                   const std::vector<coefficient_t>& multiplicative_inverse, const DistanceMatrix& dist,
-                   const ComparatorCofaces& comp, const Comparator& comp_prev,
+void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, 
+				   hash_map<index_t, index_t>& pivot_column_index,
+				   std::vector<value_t>& birthsanddeaths,
+				   int do_cocycles, std::vector<value_t>& allcocycles,
+				   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
+                   const std::vector<coefficient_t>& multiplicative_inverse, 
+				   const DistanceMatrix& dist,
+                   const ComparatorCofaces& comp, 
+				   const Comparator& comp_prev,
                    const binomial_coeff_table& binomial_coeff) {
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-	std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
-#endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 	compressed_sparse_matrix<diameter_entry_t> reduction_coefficients;
@@ -557,13 +539,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 		    working_coboundary;
 
 		value_t diameter = get_diameter(column_to_reduce);
-
-#ifdef INDICATE_PROGRESS
-		if ((i + 1) % 1000 == 0)
-			std::cout << "\033[K"
-			          << "reducing column " << i + 1 << "/" << columns_to_reduce.size() << " (diameter " << diameter
-			          << ")" << std::flush << "\r";
-#endif
 
 		index_t j = i;
 
@@ -619,7 +594,9 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 						}
 					}
 				}
-				for (auto e : coface_entries) working_coboundary.push(e);
+				for (auto e : coface_entries) {
+					working_coboundary.push(e);
+				}
 			}
 
 			pivot = get_pivot(working_coboundary, modulus);
@@ -632,25 +609,62 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 					continue;
 				}
 			} else {
-#ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-				std::cout << "\033[K";
-#endif
-				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+				//Infinite class; make the death time the diameter of the point cloud
+				birthsanddeaths.push_back(diameter);
+				birthsanddeaths.push_back(INFINITY);
+
+#ifdef ASSEMBLE_REDUCTION_MATRIX
+				if (do_cocycles) {
+					//Representative cocycle
+					auto cocycle = reduction_column;
+					diameter_entry_t e;
+					std::vector<index_t> simplex;
+					std::vector<value_t> thiscocycle;
+					index_t lencocycle = 0;
+					while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+						simplex = vertices_of_simplex(get_index(e), dim, n, binomial_coeff);
+						for (size_t k = 0; k < simplex.size(); k++) {
+							thiscocycle.push_back((value_t)simplex[k]);
+						}
+						thiscocycle.push_back(normalize(get_coefficient(e), modulus));
+						cocycle.pop();
+						lencocycle++;
+					}
+					allcocycles.push_back(lencocycle);
+					allcocycles.insert(allcocycles.end(), thiscocycle.begin(), thiscocycle.end());
+				}
 #endif
 				break;
 			}
 
-		found_persistence_pair:
-#ifdef PRINT_PERSISTENCE_PAIRS
+			found_persistence_pair:
 			value_t death = get_diameter(pivot);
+
 			if (diameter != death) {
-#ifdef INDICATE_PROGRESS
-				std::cout << "\033[K";
+				birthsanddeaths.push_back(diameter);
+				birthsanddeaths.push_back(death);
+#ifdef ASSEMBLE_REDUCTION_MATRIX
+				if (do_cocycles) {
+					//Representative cocycle
+					auto cocycle = reduction_column;
+					diameter_entry_t e;
+					std::vector<index_t> simplex;
+					std::vector<value_t> thiscocycle;
+					index_t lencocycle = 0;
+					while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+						simplex = vertices_of_simplex(get_index(e), dim, n, binomial_coeff);
+						for (size_t k = 0; k < simplex.size(); k++) {
+							thiscocycle.push_back((value_t)simplex[k]);
+						}
+						thiscocycle.push_back(normalize(get_coefficient(e), modulus));
+						cocycle.pop();
+						lencocycle++;
+					}
+					allcocycles.push_back(lencocycle);
+					allcocycles.insert(allcocycles.end(), thiscocycle.begin(), thiscocycle.end());
+				}
 #endif
-				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
 			}
-#endif
 
 			pivot_column_index.insert(std::make_pair(get_index(pivot), i));
 
@@ -681,9 +695,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 		} while (true);
 	}
 
-#ifdef INDICATE_PROGRESS
-	std::cout << "\033[K";
-#endif
 }
 
 enum file_format { LOWER_DISTANCE_MATRIX, UPPER_DISTANCE_MATRIX, DISTANCE_MATRIX, POINT_CLOUD, DIPHA };
@@ -818,6 +829,7 @@ void print_usage_and_exit(int exit_code) {
 	          << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
 	          << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
 	          << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
+	          << "  --output <f>     output persistence pairs to file <f>" << std::endl
 #ifdef USE_COEFFICIENTS
 	          << "  --modulus <p>    compute homology with coefficients in the prime field Z/<p>Z"
 #endif
@@ -826,82 +838,33 @@ void print_usage_and_exit(int exit_code) {
 	exit(exit_code);
 }
 
-int main(int argc, char** argv) {
-
-	const char* filename = nullptr;
-
-	file_format format = DISTANCE_MATRIX;
-
-	index_t dim_max = 1;
-	value_t threshold = std::numeric_limits<value_t>::max();
-
-#ifdef USE_COEFFICIENTS
-	coefficient_t modulus = 2;
-#else
-	const coefficient_t modulus = 2;
-#endif
-
-	for (index_t i = 1; i < argc; ++i) {
-		const std::string arg(argv[i]);
-		if (arg == "--help") {
-			print_usage_and_exit(0);
-		} else if (arg == "--dim") {
-			std::string parameter = std::string(argv[++i]);
-			size_t next_pos;
-			dim_max = std::stol(parameter, &next_pos);
-			if (next_pos != parameter.size()) print_usage_and_exit(-1);
-		} else if (arg == "--threshold") {
-			std::string parameter = std::string(argv[++i]);
-			size_t next_pos;
-			threshold = std::stof(parameter, &next_pos);
-			if (next_pos != parameter.size()) print_usage_and_exit(-1);
-		} else if (arg == "--format") {
-			std::string parameter = std::string(argv[++i]);
-			if (parameter == "lower-distance")
-				format = LOWER_DISTANCE_MATRIX;
-			else if (parameter == "upper-distance")
-				format = UPPER_DISTANCE_MATRIX;
-			else if (parameter == "distance")
-				format = DISTANCE_MATRIX;
-			else if (parameter == "point-cloud")
-				format = POINT_CLOUD;
-			else if (parameter == "dipha")
-				format = DIPHA;
-			else
-				print_usage_and_exit(-1);
-#ifdef USE_COEFFICIENTS
-		} else if (arg == "--modulus") {
-			std::string parameter = std::string(argv[++i]);
-			size_t next_pos;
-			modulus = std::stol(parameter, &next_pos);
-			if (next_pos != parameter.size() || !is_prime(modulus)) print_usage_and_exit(-1);
-#endif
-		} else {
-			if (filename) { print_usage_and_exit(-1); }
-			filename = argv[i];
-		}
-	}
-
-	std::ifstream file_stream(filename);
-	if (filename && file_stream.fail()) {
-		std::cerr << "couldn't open file " << filename << std::endl;
-		exit(-1);
-	}
-
-	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
-
+std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float threshold, int do_cocycles) {
+	//Setup distance matrix, coefficient tables, etc
+	std::vector<value_t> distances(D, D+N);
+	compressed_lower_distance_matrix dist = compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
 	index_t n = dist.size();
-
-	std::cout << "distance matrix with " << n << " points" << std::endl;
-
-	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
-	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]" << std::endl;
-
-	dim_max = std::min(dim_max, n - 2);
+	dim_max = std::min((index_t)(dim_max), n-2);
+	if (threshold == -1) {
+		threshold = INFINITY;
+	}
 
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
+	std::vector<value_t> birthsanddeaths;
+	std::vector<value_t> retvec;
+	/*Copy everything into a return array with the following format
+	 [NumperClass0, PD0, 
+	  NumPerClass1, PD1, Cocycle1_0Len, Cocycle1_0, Cocycle1_1Len, Cocycle1_1, ..., Cocycle1_NumPerClass1Len, Cocycle1_NumPerClass1
+	  NumPerClass2, PD2, Cocycle1_0Len, Cocycle1_0, Cocycle1_1Len, Cocycle1_1, ..., Cocycle2_NumPerClass1Len, Cocycle2_NumPerClass1
+	  ...
+	  ]
+	
+	where PD0 is b0, d0, b1, d1, ...
+	and each cocycle is simplexidx0, simplexidx1, ..., simplexidxd, val mod p
+	*/
 
+
+	//Do 0D persistence first
 	std::vector<diameter_index_t> columns_to_reduce;
 
 	{
@@ -914,10 +877,6 @@ int main(int argc, char** argv) {
 		}
 		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
 
-#ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim 0:" << std::endl;
-#endif
-
 		std::vector<index_t> vertices_of_edge(2);
 		for (auto e : edges) {
 			vertices_of_edge.clear();
@@ -925,19 +884,24 @@ int main(int argc, char** argv) {
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 
 			if (u != v) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) > 0) std::cout << " [0," << get_diameter(e) << ")" << std::endl;
-#endif
+				if (get_diameter(e) > 0) {
+					birthsanddeaths.push_back(0);
+					birthsanddeaths.push_back(get_diameter(e));
+				}
 				dset.link(u, v);
 			} else
 				columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-#ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
-#endif
+			if (dset.find(i) == i) {
+				//Have one element representing the infinite class
+				birthsanddeaths.push_back(0);
+				birthsanddeaths.push_back(INFINITY);
+			}
+		retvec.push_back(birthsanddeaths.size()/2);
+		retvec.insert(retvec.end(), birthsanddeaths.begin(), birthsanddeaths.end());
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
@@ -947,11 +911,23 @@ int main(int argc, char** argv) {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse, dist,
-		              comp, comp_prev, binomial_coeff);
+		std::vector<value_t> allcocycles;
+		birthsanddeaths.clear();
+		
+		compute_pairs(columns_to_reduce, pivot_column_index, birthsanddeaths, 
+						do_cocycles, allcocycles, dim, n, threshold, modulus, 
+						multiplicative_inverse, dist, comp, comp_prev, binomial_coeff);
+		
+		//Copy over persistence diagram
+		retvec.push_back(birthsanddeaths.size()/2);
+		retvec.insert(retvec.end(), birthsanddeaths.begin(), birthsanddeaths.end());
+		//Copy over cocycles
+		retvec.insert(retvec.end(), allcocycles.begin(), allcocycles.end());
 
 		if (dim < dim_max) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, comp, dim, n, threshold, binomial_coeff);
 		}
 	}
+	return retvec;
 }
+
