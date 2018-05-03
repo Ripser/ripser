@@ -844,6 +844,9 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 	compressed_lower_distance_matrix dist = compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
 	index_t n = dist.size();
 	dim_max = std::min((index_t)(dim_max), n-2);
+	if (threshold == -1) {
+		threshold = INFINITY;
+	}
 
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));

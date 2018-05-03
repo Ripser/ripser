@@ -6,7 +6,7 @@ import cython
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def doRipsFiltrationDM(np.ndarray[float,ndim=1,mode="c"] DParam not None, int maxHomDim, int thresh=-1, int coeff=2, int do_cocycles=0):
+def doRipsFiltrationDM(np.ndarray[float,ndim=1,mode="c"] DParam not None, int maxHomDim, float thresh=-1, int coeff=2, int do_cocycles=0):
 
 	cdef int N = DParam.shape[0]
 
