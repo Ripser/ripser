@@ -18,14 +18,6 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-//#define ASSEMBLE_REDUCTION_MATRIX
-//#define USE_COEFFICIENTS
-
-//#define INDICATE_PROGRESS
-//#define PRINT_PERSISTENCE_PAIRS
-
-// #define PYTHON_EXTENSION
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -341,20 +333,6 @@ template <> value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(ind
 typedef compressed_distance_matrix<LOWER_TRIANGULAR> compressed_lower_distance_matrix;
 typedef compressed_distance_matrix<UPPER_TRIANGULAR> compressed_upper_distance_matrix;
 
-class euclidean_distance_matrix {
-public:
-	std::vector<std::vector<value_t>> points;
-
-	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points) : points(_points) {}
-
-	value_t operator()(const index_t i, const index_t j) const {
-		return std::sqrt(std::inner_product(points[i].begin(), points[i].end(), points[j].begin(), value_t(),
-		                                    std::plus<value_t>(),
-		                                    [](value_t u, value_t v) { return (u - v) * (u - v); }));
-	}
-
-	size_t size() const { return points.size(); }
-};
 
 class union_find {
 	std::vector<index_t> parent;
@@ -697,151 +675,10 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 
 }
 
-enum file_format { LOWER_DISTANCE_MATRIX, UPPER_DISTANCE_MATRIX, DISTANCE_MATRIX, POINT_CLOUD, DIPHA };
-
-template <typename T> T read(std::istream& s) {
-	T result;
-	s.read(reinterpret_cast<char*>(&result), sizeof(T));
-	return result; // on little endian: boost::endian::little_to_native(result);
-}
-
-compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
-	std::vector<std::vector<value_t>> points;
-
-	std::string line;
-	value_t value;
-	while (std::getline(input_stream, line)) {
-		std::vector<value_t> point;
-		std::istringstream s(line);
-		while (s >> value) {
-			point.push_back(value);
-			s.ignore();
-		}
-		if (!point.empty()) points.push_back(point);
-		assert(point.size() == points.front().size());
-	}
-
-	euclidean_distance_matrix eucl_dist(std::move(points));
-
-	index_t n = eucl_dist.size();
-
-	std::cout << "point cloud with " << n << " points in dimension " << eucl_dist.points.front().size() << std::endl;
-
-	std::vector<value_t> distances;
-
-	for (int i = 0; i < n; ++i)
-		for (int j = 0; j < i; ++j) distances.push_back(eucl_dist(i, j));
-
-	return compressed_lower_distance_matrix(std::move(distances));
-}
-
-compressed_lower_distance_matrix read_lower_distance_matrix(std::istream& input_stream) {
-	std::vector<value_t> distances;
-	value_t value;
-	while (input_stream >> value) {
-		distances.push_back(value);
-		input_stream.ignore();
-	}
-
-	return compressed_lower_distance_matrix(std::move(distances));
-}
-
-compressed_lower_distance_matrix read_upper_distance_matrix(std::istream& input_stream) {
-	std::vector<value_t> distances;
-	value_t value;
-	while (input_stream >> value) {
-		distances.push_back(value);
-		input_stream.ignore();
-	}
-
-	return compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
-}
-
-compressed_lower_distance_matrix read_distance_matrix(std::istream& input_stream) {
-	std::vector<value_t> distances;
-
-	std::string line;
-	value_t value;
-	for (int i = 0; std::getline(input_stream, line); ++i) {
-		std::istringstream s(line);
-		for (int j = 0; j < i && s >> value; ++j) {
-			distances.push_back(value);
-			s.ignore();
-		}
-	}
-
-	return compressed_lower_distance_matrix(std::move(distances));
-}
-
-compressed_lower_distance_matrix read_dipha(std::istream& input_stream) {
-	if (read<int64_t>(input_stream) != 8067171840) {
-		std::cerr << "input is not a Dipha file (magic number: 8067171840)" << std::endl;
-		exit(-1);
-	}
-
-	if (read<int64_t>(input_stream) != 7) {
-		std::cerr << "input is not a Dipha distance matrix (file type: 7)" << std::endl;
-		exit(-1);
-	}
-
-	index_t n = read<int64_t>(input_stream);
-
-	std::vector<value_t> distances;
-
-	for (int i = 0; i < n; ++i)
-		for (int j = 0; j < n; ++j)
-			if (i > j)
-				distances.push_back(read<double>(input_stream));
-			else
-				read<double>(input_stream);
-
-	return compressed_lower_distance_matrix(std::move(distances));
-}
-
-compressed_lower_distance_matrix read_file(std::istream& input_stream, file_format format) {
-	switch (format) {
-	case LOWER_DISTANCE_MATRIX:
-		return read_lower_distance_matrix(input_stream);
-	case UPPER_DISTANCE_MATRIX:
-		return read_upper_distance_matrix(input_stream);
-	case DISTANCE_MATRIX:
-		return read_distance_matrix(input_stream);
-	case POINT_CLOUD:
-		return read_point_cloud(input_stream);
-	case DIPHA:
-		return read_dipha(input_stream);
-	}
-}
-
-void print_usage_and_exit(int exit_code) {
-	std::cerr << "Usage: "
-	          << "ripser "
-	          << "[options] [filename]" << std::endl
-	          << std::endl
-	          << "Options:" << std::endl
-	          << std::endl
-	          << "  --help           print this screen" << std::endl
-	          << "  --format         use the specified file format for the input. Options are:" << std::endl
-	          << "                     lower-distance (lower triangular distance matrix; default)" << std::endl
-	          << "                     upper-distance (upper triangular distance matrix)" << std::endl
-	          << "                     distance       (full distance matrix)" << std::endl
-	          << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
-	          << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
-	          << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
-	          << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
-	          << "  --output <f>     output persistence pairs to file <f>" << std::endl
-#ifdef USE_COEFFICIENTS
-	          << "  --modulus <p>    compute homology with coefficients in the prime field Z/<p>Z"
-#endif
-	          << std::endl;
-
-	exit(exit_code);
-}
-
 std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float threshold, int do_cocycles) {
 	//Setup distance matrix, coefficient tables, etc
 	std::vector<value_t> distances(D, D+N);
-	compressed_lower_distance_matrix dist = compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
+	compressed_upper_distance_matrix dist = compressed_upper_distance_matrix(std::move(distances));
 	index_t n = dist.size();
 	dim_max = std::min((index_t)(dim_max), n-2);
 	if (threshold == -1) {
