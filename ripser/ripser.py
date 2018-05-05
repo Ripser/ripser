@@ -25,8 +25,8 @@ class Rips(BaseEstimator):
     maxdim : int, optional, default 1
         Maximum homology dimension computed. Will compute all dimensions lower than
         and equal to this value. For 1, H_0 and H_1 will be computed.
-    thresh : float, default -1
-        Maximum distances considered when constructing filtration. If -1, compute 
+    thresh : float, default infinity
+        Maximum distances considered when constructing filtration. If infinity, compute 
         the entire filtration.
     coeff : int prime, default 2
         Compute homology with coefficients in the prime field Z/pZ for p=coeff.
@@ -55,7 +55,7 @@ class Rips(BaseEstimator):
 
     """
 
-    def __init__(self, maxdim=1, thresh=-1, coeff=2, do_cocycles=False, verbose=True):
+    def __init__(self, maxdim=1, thresh=np.inf, coeff=2, do_cocycles=False, verbose=True):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
@@ -124,16 +124,10 @@ class Rips(BaseEstimator):
         """
 
         n_points = dm.shape[0]
-
-        if self.thresh == -1:
-            thresh = np.max(dm)*2
-        else:
-            thresh = self.thresh
-
         [I, J] = np.meshgrid(np.arange(n_points), np.arange(n_points))
         DParam = np.array(dm[I > J], dtype=np.float32)
 
-        res = DRFDM(DParam, self.maxdim, thresh,
+        res = DRFDM(DParam, self.maxdim, self.thresh,
                     self.coeff, int(self.do_cocycles))
         pds = []
         for dim in range(self.maxdim + 1):
