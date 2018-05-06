@@ -66,6 +66,7 @@ class Rips(BaseEstimator):
         self.cocycles_ = {}
         self.dm_ = None  # Distance matrix
         self.metric_ = None
+        self.nedges_ = None #Number of edges added
 
         if self.verbose:
             print("Rips(maxdim={}, thres={}, coef={}, verbose={})".format(
@@ -150,6 +151,7 @@ class Rips(BaseEstimator):
                     cocycle[:, -1] = np.mod(cocycle[:, -1], self.coeff)
                     self.cocycles_[dim].append(cocycle)
                     res = res[c_length*(dim+2)::]
+        self.n_edges_ = int(res[0])
         return pds
 
     def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, lifetime=False, legend=True, show=True):

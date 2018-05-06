@@ -1,7 +1,7 @@
 build: ripser
 
 
-all: python ripser ripser-coeff ripser-reduction ripser-debug
+all: ripser ripser-coeff ripser-reduction ripser-coeff-reduction ripser-debug
 
 python: src/ripser.cpp
 	c++ -std=c++11 src/ripser.cpp -c -o ripser -Ofast -D NDEBUG -D PYTHON_EXTENSION
@@ -15,10 +15,12 @@ python: src/ripser.cpp
 # ripser-reduction: ripser.cpp
 # 	c++ -std=c++11 ripser.cpp -o ripser-reduction -Ofast -D NDEBUG -D ASSEMBLE_REDUCTION_MATRIX -D PRINT_PERSISTENCE_PAIRS
 
-# ripser-debug: ripser.cpp
-# 	c++ -std=c++11 ripser.cpp -o ripser-debug -g
+ripser-coeff-reduction: ripser.cpp
+	c++ -std=c++11 ripser.cpp -o ripser-coeff-reduction -Ofast -D NDEBUG -D USE_COEFFICIENTS -D ASSEMBLE_REDUCTION_MATRIX
+
+ripser-debug: ripser.cpp
+	c++ -std=c++11 ripser.cpp -o ripser-debug -g
 
 
 clean:
-	rm -f ripser 
-#ripser-coeff ripser-reduction ripser-debug
+	rm -f ripser ripser-coeff ripser-reduction ripser-coeff-reduction ripser-debug
