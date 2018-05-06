@@ -25,7 +25,6 @@ class TestParams():
         assert len(dgm) == 2
         assert rips.coeff == 2
 
-
     def test_coeff(self):
 
         data = np.random.random((100,3))
@@ -41,20 +40,19 @@ class TestParams():
         data = np.random.random((100,3))
 
         # maxdim refers to the max H_p class, generate all less than
-
+        
         rips0 = Rips(maxdim=0)
         dgm0 = rips0.fit_transform(data)
         assert len(dgm0) == 1
-
+        
         rips1 = Rips(maxdim=1)
         dgm1 = rips1.fit_transform(data)
         assert len(dgm1) == 2
-
+        
         rips2 = Rips(maxdim=2)
         dgm2 = rips2.fit_transform(data)
         assert len(dgm2) == 3
-
-    """
+    
     def test_thresh(self):
         data = np.random.random((100,3))
 
@@ -66,4 +64,3 @@ class TestParams():
 
         # Barcode of H_1 diagram will be smaller, right?
         assert len(dgm0[1]) < len(dgm1[1]), "Usually"
-    """

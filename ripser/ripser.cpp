@@ -936,20 +936,20 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 		if (d <= threshold) ++num_edges;
 	}
 
-	std::vector<value_t>* retvec;
+	std::vector<value_t> retvec;
 	if (threshold >= max) {
 		ripser<compressed_lower_distance_matrix> r(std::move(dist), dim_max, threshold, ratio,
 		                                         modulus, do_cocycles);
 		r.compute_barcodes();
-		retvec = &r.retvec;
+		retvec.insert(retvec.end(), r.retvec.begin(), r.retvec.end());
 	} else {
 		ripser<sparse_distance_matrix> r(sparse_distance_matrix(std::move(dist), threshold), dim_max,
 		                               threshold, ratio, modulus, do_cocycles);
 		r.compute_barcodes();
-		retvec = &r.retvec;
+		retvec.insert(retvec.end(), r.retvec.begin(), r.retvec.end());
 	}
 	//Report the number of edges that were added
-	retvec->push_back((value_t)num_edges);
-	return *retvec;
+	retvec.push_back((value_t)num_edges);
+	return retvec;
 }
 
