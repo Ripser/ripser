@@ -183,27 +183,20 @@ public:
 class sparse_distance_matrix {
 public:
 	std::vector<std::vector<diameter_index_t>> neighbors;
-	value_t num_edges;
 
 	//Initialize from thresholded dense distance matrix
 	template <typename DistanceMatrix>
 	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()) {
-		num_edges = 0;
 		for (index_t i = 0; i < size(); ++i) {
 			for (index_t j = 0; j < size(); ++j) {
 				if (i != j && mat(i, j) <= threshold) {
 					neighbors[i].push_back(std::make_pair(mat(i, j), j));
-					if (i < j) {
-						num_edges++; //Assuming undirected edges
-					}
 				}
 			}
 		}
 	}
 	//Initialize from COO format
-	template <typename DistanceMatrix>
-	sparse_distance_matrix(int* I, int* J, value_t* V, int NEdges, int N, value_t threshold) : neighbors(N) {
-		num_edges = 0;
+	sparse_distance_matrix(int* I, int* J, float* V, int NEdges, int N, float threshold) : neighbors(N) {
 		int i, j;
 		value_t val;
 		for (int idx = 0; idx < NEdges; idx++) {
@@ -981,9 +974,21 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 
 std::vector<value_t> pythondmsparse(int* I, int* J, float* V, int NEdges, 
 								 int N, int modulus, int dim_max, float threshold, int do_cocycles) {
+	std::cout << "NEdges = " << NEdges << "\n";
 	//Setup distance matrix and figure out threshold
 	std::vector<value_t> retvec;
-	//ripser<sparse_distance_matrix> r(I, J, V, NEdges, N, threshold);
-
+	float ratio = 1.0; //TODO: This seems like a dummy parameter at the moment
+	ripser<sparse_distance_matrix> r(sparse_distance_matrix(I, J, V, NEdges, N, threshold), 
+									dim_max, threshold, ratio, modulus, do_cocycles);
+	r.compute_barcodes();
+	retvec.insert(retvec.end(), r.retvec.begin(), r.retvec.end());
+	//Report the number of edges that were added
+	value_t num_edges;
+	for (int idx = 0; idx < NEdges; idx++) {
+		if (I[idx] < J[idx] && V[idx] <= threshold) {
+			num_edges++;
+		}
+	}
+	retvec.push_back(num_edges);
 	return retvec;
 }

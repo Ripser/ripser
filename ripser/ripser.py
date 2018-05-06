@@ -67,7 +67,7 @@ class Rips(BaseEstimator):
         self.cocycles_ = {}
         self.dm_ = None  # Distance matrix
         self.metric_ = None
-        self.nedges_ = None #Number of edges added
+        self.num_edges_ = None #Number of edges added
 
         if self.verbose:
             print("Rips(maxdim={}, thres={}, coef={}, verbose={})".format(
@@ -91,11 +91,19 @@ class Rips(BaseEstimator):
         """
 
         if not distance_matrix:
+            if X.shape[0] == X.shape[1]:
+                from warnings import warn
+                warn("The input matrix is square, but the distance_matrix flag is off.  Did you mean to indicate that this was a distance matrix?")
+            elif X.shape[0] < X.shape[1]:
+                from warnings import warn
+                warn("The input point cloud has more columns than rows; did you mean to transpose?")
             X = pairwise_distances(X, metric=metric)
-        if sparse.issparse(X):
-            X = sparse.coo_matrix.astype(X.tocoo(), dtype=np.float32)
+        elif sparse.issparse(X):
+            #Sparse distance matrix
+            X = sparse.csr_matrix.astype(X.tocsr(), dtype=np.float32)
+        if not (X.shape[0] == X.shape[1]):
+            raise Exception('Distance matrix is not square')
         self.dm_ = X
-
 
         dgm = self._compute_rips(X)
         self.dgm_ = dgm
@@ -160,7 +168,7 @@ class Rips(BaseEstimator):
                     cocycle[:, -1] = np.mod(cocycle[:, -1], self.coeff)
                     self.cocycles_[dim].append(cocycle)
                     res = res[c_length*(dim+2)::]
-        self.n_edges_ = int(res[0])
+        self.num_edges_ = int(res[0])
         return pds
 
     def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, lifetime=False, legend=True, show=True):
