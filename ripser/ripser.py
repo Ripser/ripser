@@ -7,13 +7,14 @@ from itertools import cycle
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-
+from scipy import sparse
 
 import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.metrics.pairwise import pairwise_distances
 
 from pyRipser import doRipsFiltrationDM as DRFDM
+from pyRipser import doRipsFiltrationDMSparse as DRFDMSparse
 
 
 class Rips(BaseEstimator):
@@ -91,8 +92,11 @@ class Rips(BaseEstimator):
 
         if not distance_matrix:
             X = pairwise_distances(X, metric=metric)
-        X = np.array(X, dtype=np.float32)
+        if sparse.issparse(X):
+            X = sparse.coo_matrix.astype(X.tocoo(), dtype=np.float32)
         self.dm_ = X
+
+
         dgm = self._compute_rips(X)
         self.dgm_ = dgm
 
@@ -125,11 +129,16 @@ class Rips(BaseEstimator):
         """
 
         n_points = dm.shape[0]
-        [I, J] = np.meshgrid(np.arange(n_points), np.arange(n_points))
-        DParam = np.array(dm[I > J], dtype=np.float32)
 
-        res = DRFDM(DParam, self.maxdim, self.thresh,
-                    self.coeff, int(self.do_cocycles))
+        if sparse.issparse(dm):
+            coo = sparse.coo_matrix.astype(dm.tocoo(), dtype=np.float32)
+            res = DRFDMSparse(coo.row, coo.col, coo.data, n_points, \
+                        self.maxdim, self.thresh, self.coeff, self.do_cocycles)
+        else:
+            [I, J] = np.meshgrid(np.arange(n_points), np.arange(n_points))
+            DParam = np.array(dm[I > J], dtype=np.float32)
+            res = DRFDM(DParam, self.maxdim, self.thresh,
+                        self.coeff, int(self.do_cocycles))
         pds = []
         for dim in range(self.maxdim + 1):
             # Number of homology classes in this dimension

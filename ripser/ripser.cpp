@@ -183,14 +183,38 @@ public:
 class sparse_distance_matrix {
 public:
 	std::vector<std::vector<diameter_index_t>> neighbors;
+	value_t num_edges;
 
+	//Initialize from thresholded dense distance matrix
 	template <typename DistanceMatrix>
 	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()) {
-
-		for (index_t i = 0; i < size(); ++i)
-			for (index_t j = 0; j < size(); ++j)
-				if (i != j && mat(i, j) <= threshold)
+		num_edges = 0;
+		for (index_t i = 0; i < size(); ++i) {
+			for (index_t j = 0; j < size(); ++j) {
+				if (i != j && mat(i, j) <= threshold) {
 					neighbors[i].push_back(std::make_pair(mat(i, j), j));
+					if (i < j) {
+						num_edges++; //Assuming undirected edges
+					}
+				}
+			}
+		}
+	}
+	//Initialize from COO format
+	template <typename DistanceMatrix>
+	sparse_distance_matrix(int* I, int* J, value_t* V, int NEdges, int N, value_t threshold) : neighbors(N) {
+		num_edges = 0;
+		int i, j;
+		value_t val;
+		for (int idx = 0; idx < NEdges; idx++) {
+			i = I[idx];
+			j = J[idx];
+			val = V[idx];
+			if (i != j && val <= threshold) {
+				neighbors[i].push_back(std::make_pair(val, j));
+				neighbors[j].push_back(std::make_pair(val, i));
+			}
+		}
 	}
 
 	size_t size() const { return neighbors.size(); }
@@ -908,7 +932,8 @@ void ripser<sparse_distance_matrix>::assemble_columns_to_reduce(
 }
 
 std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float threshold, int do_cocycles) {
-	//Setup distance matrix, coefficient tables, etc
+	//Setup distance matrix and figure out threshold
+	std::vector<value_t> retvec;
 	std::vector<value_t> distances(D, D+N);
 	compressed_lower_distance_matrix dist = 
 		compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
@@ -936,7 +961,7 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 		if (d <= threshold) ++num_edges;
 	}
 
-	std::vector<value_t> retvec;
+	
 	if (threshold >= max) {
 		ripser<compressed_lower_distance_matrix> r(std::move(dist), dim_max, threshold, ratio,
 		                                         modulus, do_cocycles);
@@ -953,3 +978,12 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 	return retvec;
 }
 
+
+std::vector<value_t> pythondmsparse(int* I, int* J, float* V, int NEdges, 
+								 int N, int modulus, int dim_max, float threshold, int do_cocycles) {
+	//Setup distance matrix and figure out threshold
+	std::vector<value_t> retvec;
+	//ripser<sparse_distance_matrix> r(I, J, V, NEdges, N, threshold);
+
+	return retvec;
+}

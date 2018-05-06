@@ -26,7 +26,7 @@ class TestParams():
         assert rips.coeff == 2
 
     def test_coeff(self):
-
+        np.random.seed(3100)
         data = np.random.random((100,3))
 
         rips3 = Rips(coeff=3)
@@ -37,6 +37,7 @@ class TestParams():
         assert dgm2 is not dgm3, "This is a vacuous assertion, we only care that the above operations did not throw errors"
     
     def test_maxdim(self):
+        np.random.seed(3100)
         data = np.random.random((100,3))
 
         # maxdim refers to the max H_p class, generate all less than
@@ -54,6 +55,7 @@ class TestParams():
         assert len(dgm2) == 3
     
     def test_thresh(self):
+        np.random.seed(3100)
         data = np.random.random((100,3))
 
         rips0 = Rips(thresh=0.1)
