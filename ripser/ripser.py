@@ -80,6 +80,7 @@ class Rips(BaseEstimator):
         ----------
         X: ndarray (n_samples, n_features)
             A numpy array of either data or distance matrix.
+            Can also be a sparse distance matrix of type scipy.sparse
 
         distance_matrix: bool
             Indicator that X is a distance matrix, if not we compute a 
