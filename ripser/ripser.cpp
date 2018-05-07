@@ -203,7 +203,7 @@ public:
 			i = I[idx];
 			j = J[idx];
 			val = V[idx];
-			if (i != j && val <= threshold) {
+			if (i < j && val <= threshold) {
 				neighbors[i].push_back(std::make_pair(val, j));
 				neighbors[j].push_back(std::make_pair(val, i));
 			}
@@ -974,7 +974,6 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 
 std::vector<value_t> pythondmsparse(int* I, int* J, float* V, int NEdges, 
 								 int N, int modulus, int dim_max, float threshold, int do_cocycles) {
-	std::cout << "NEdges = " << NEdges << "\n";
 	//Setup distance matrix and figure out threshold
 	std::vector<value_t> retvec;
 	float ratio = 1.0; //TODO: This seems like a dummy parameter at the moment
