@@ -21,6 +21,7 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -996,7 +997,7 @@ int unwrapvector(std::vector<value_t> vec, float** out) {
     int length = vec.size();
     float* arr = (float*) malloc(length * sizeof(value_t));
     std::memcpy(arr, &vec[0], length * sizeof(value_t));
-    *out = resarr;
+    *out = arr;
     return length;
 }
 
@@ -1007,7 +1008,7 @@ extern "C" {
         return unwrapvector(resvec, out);
     }
 
-    int cripsersparse(float** out, int* I, int* J, float* V, int NEdgges, int N,
+    int cripsersparse(float** out, int* I, int* J, float* V, int NEdges, int N,
                       int modulus, int dim_max, float threshold, int do_cocycles) {
         std::vector<value_t> resvec = pythondmsparse(I, J, V, NEdges, N, modulus, dim_max, threshold, do_cocycles);
         return unwrapvector(resvec, out);
