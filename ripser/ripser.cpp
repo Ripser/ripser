@@ -21,6 +21,7 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -387,12 +388,12 @@ template <typename DistanceMatrix> class ripser {
 
 public:
 	/*Store all of the results into an array with the following format
-	 [NumperClass0, PD0, 
+	 [NumperClass0, PD0,
 	  NumPerClass1, PD1, Cocycle1_0Len, Cocycle1_0, Cocycle1_1Len, Cocycle1_1, ..., Cocycle1_NumPerClass1Len, Cocycle1_NumPerClass1
 	  NumPerClass2, PD2, Cocycle1_0Len, Cocycle1_0, Cocycle1_1Len, Cocycle1_1, ..., Cocycle2_NumPerClass1Len, Cocycle2_NumPerClass1
 	  ...
 	  , n_edges]
-	
+
 	where PD0 is b0, d0, b1, d1, ...
 	and each cocycle is simplexidx0, simplexidx1, ..., simplexidxd, val mod p
 	*/
@@ -402,7 +403,7 @@ public:
 	       coefficient_t _modulus, int _do_cocycles)
 	    : dist(std::move(_dist)), n(dist.size()),
 	      dim_max(std::min(_dim_max, index_t(dist.size() - 2))), threshold(_threshold),
-	      ratio(_ratio), modulus(_modulus), do_cocycles(_do_cocycles), 
+	      ratio(_ratio), modulus(_modulus), do_cocycles(_do_cocycles),
 		  binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
@@ -928,7 +929,7 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 	//Setup distance matrix and figure out threshold
 	std::vector<value_t> retvec;
 	std::vector<value_t> distances(D, D+N);
-	compressed_lower_distance_matrix dist = 
+	compressed_lower_distance_matrix dist =
 		compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
 	index_t n = dist.size();
 	dim_max = std::min((index_t)(dim_max), n-2);
@@ -954,7 +955,7 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 		if (d <= threshold) ++num_edges;
 	}
 
-	
+
 	if (threshold >= max) {
 		ripser<compressed_lower_distance_matrix> r(std::move(dist), dim_max, threshold, ratio,
 		                                         modulus, do_cocycles);
@@ -972,12 +973,12 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 }
 
 
-std::vector<value_t> pythondmsparse(int* I, int* J, float* V, int NEdges, 
+std::vector<value_t> pythondmsparse(int* I, int* J, float* V, int NEdges,
 								 int N, int modulus, int dim_max, float threshold, int do_cocycles) {
 	//Setup distance matrix and figure out threshold
 	std::vector<value_t> retvec;
 	float ratio = 1.0; //TODO: This seems like a dummy parameter at the moment
-	ripser<sparse_distance_matrix> r(sparse_distance_matrix(I, J, V, NEdges, N, threshold), 
+	ripser<sparse_distance_matrix> r(sparse_distance_matrix(I, J, V, NEdges, N, threshold),
 									dim_max, threshold, ratio, modulus, do_cocycles);
 	r.compute_barcodes();
 	retvec.insert(retvec.end(), r.retvec.begin(), r.retvec.end());
@@ -990,4 +991,26 @@ std::vector<value_t> pythondmsparse(int* I, int* J, float* V, int NEdges,
 	}
 	retvec.push_back(num_edges);
 	return retvec;
+}
+
+int unwrapvector(std::vector<value_t> vec, float** out) {
+    int length = vec.size();
+    float* arr = (float*) malloc(length * sizeof(value_t));
+    std::memcpy(arr, &vec[0], length * sizeof(value_t));
+    *out = arr;
+    return length;
+}
+
+extern "C" {
+    int cripser(float** out, float* D, int N,
+                int modulus, int dim_max, float threshold, int do_cocycles) {
+        std::vector<value_t> resvec = pythondm(D, N, modulus, dim_max, threshold, do_cocycles);
+        return unwrapvector(resvec, out);
+    }
+
+    int cripsersparse(float** out, int* I, int* J, float* V, int NEdges, int N,
+                      int modulus, int dim_max, float threshold, int do_cocycles) {
+        std::vector<value_t> resvec = pythondmsparse(I, J, V, NEdges, N, modulus, dim_max, threshold, do_cocycles);
+        return unwrapvector(resvec, out);
+    }
 }
