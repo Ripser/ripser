@@ -635,6 +635,7 @@ public:
 								std::vector<value_t> thiscocycle;
 								index_t lencocycle = 0;
 								while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+									simplex.clear();
 									get_simplex_vertices(get_index(e), dim, n, std::back_inserter(simplex));
 									for (size_t k = 0; k < simplex.size(); k++) {
 										thiscocycle.push_back((value_t)simplex[k]);
@@ -698,6 +699,7 @@ public:
 						std::vector<value_t> thiscocycle;
 						index_t lencocycle = 0;
 						while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
+							simplex.clear();
 							get_simplex_vertices(get_index(e), dim, n, std::back_inserter(simplex));
 							for (size_t k = 0; k < simplex.size(); k++) {
 								thiscocycle.push_back((value_t)simplex[k]);
