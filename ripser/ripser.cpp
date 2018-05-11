@@ -628,22 +628,9 @@ public:
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 							if (do_cocycles) {
-								//Representative cocycle
-								auto cocycle = working_reduction_column;
-								diameter_entry_t e;
-								std::vector<index_t> simplex;
 								std::vector<value_t> thiscocycle;
-								index_t lencocycle = 0;
-								while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-									get_simplex_vertices(get_index(e), dim, n, std::back_inserter(simplex));
-									for (size_t k = 0; k < simplex.size(); k++) {
-										thiscocycle.push_back((value_t)simplex[k]);
-									}
-									thiscocycle.push_back(normalize(get_coefficient(e), modulus));
-									cocycle.pop();
-									lencocycle++;
-								}
-								allcocycles.push_back(lencocycle);
+								index_t lencocycle = extract_cocycle(thiscocycle, working_reduction_column, dim);
+								allcocycles.push_back((value_t)lencocycle);
 								allcocycles.insert(allcocycles.end(), thiscocycle.begin(), thiscocycle.end());
 							}
 #endif
@@ -692,21 +679,9 @@ public:
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 					if (do_cocycles) {
 						//Representative cocycle
-						auto cocycle = working_reduction_column;
-						diameter_entry_t e;
-						std::vector<index_t> simplex;
 						std::vector<value_t> thiscocycle;
-						index_t lencocycle = 0;
-						while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
-							get_simplex_vertices(get_index(e), dim, n, std::back_inserter(simplex));
-							for (size_t k = 0; k < simplex.size(); k++) {
-								thiscocycle.push_back((value_t)simplex[k]);
-							}
-							thiscocycle.push_back(normalize(get_coefficient(e), modulus));
-							cocycle.pop();
-							lencocycle++;
-						}
-						allcocycles.push_back(lencocycle);
+						index_t lencocycle = extract_cocycle(thiscocycle, working_reduction_column, dim);
+						allcocycles.push_back((value_t)lencocycle);
 						allcocycles.insert(allcocycles.end(), thiscocycle.begin(), thiscocycle.end());
 					}
 #endif
@@ -743,6 +718,27 @@ public:
 				                           dim + 1);
 			}
 		}
+	}
+
+	template<typename Chain>
+	value_t extract_cocycle(std::vector<value_t>& thiscocycle, Chain& cycle, index_t dim) {
+		diameter_entry_t e;
+		value_t lencocycle = 0;
+		while (get_index(e = get_pivot(cycle, modulus)) != -1) {
+			vertices.resize(dim + 1);
+			get_simplex_vertices(get_index(e), dim, n,
+								 vertices.rbegin());
+			
+			auto it = vertices.begin();
+			if (it != vertices.end()) {
+				thiscocycle.push_back((value_t)(*it++));
+				while (it != vertices.end()) thiscocycle.push_back((value_t)(*it++));
+			}
+			thiscocycle.push_back((value_t)(normalize(get_coefficient(e), modulus)));
+			cycle.pop();
+			lencocycle++;
+		}
+		return lencocycle;
 	}
 };
 
