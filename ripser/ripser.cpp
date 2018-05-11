@@ -402,7 +402,7 @@ public:
 	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
 	       coefficient_t _modulus, int _do_cocycles)
 	    : dist(std::move(_dist)), n(dist.size()),
-	      dim_max(std::min(_dim_max, index_t(dist.size() - 2))), threshold(_threshold),
+	      dim_max(_dim_max), threshold(_threshold),
 	      ratio(_ratio), modulus(_modulus), do_cocycles(_do_cocycles),
 		  binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
@@ -735,14 +735,19 @@ public:
 		compute_dim_0_pairs(simplices, columns_to_reduce);
 
 		for (index_t dim = 1; dim <= dim_max; ++dim) {
-			hash_map<index_t, index_t> pivot_column_index;
-			pivot_column_index.reserve(columns_to_reduce.size());
+			if (dim < n-2) {
+				hash_map<index_t, index_t> pivot_column_index;
+				pivot_column_index.reserve(columns_to_reduce.size());
 
-			compute_pairs(columns_to_reduce, pivot_column_index, dim);
+				compute_pairs(columns_to_reduce, pivot_column_index, dim);
 
-			if (dim < dim_max) {
-				assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index,
-				                           dim + 1);
+				if (dim < dim_max) {
+					assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index,
+											dim + 1);
+				}
+			}
+			else {
+				retvec.push_back(0); //Not enough points to even run a reduction for this dimension
 			}
 		}
 	}
@@ -934,7 +939,6 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 	compressed_lower_distance_matrix dist =
 		compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
 	index_t n = dist.size();
-	dim_max = std::min((index_t)(dim_max), n-2);
 	float ratio = 1.0; //TODO: This seems like a dummy parameter at the moment
 
 	value_t min = std::numeric_limits<value_t>::infinity(),
@@ -957,7 +961,7 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 		if (d <= threshold) ++num_edges;
 	}
 
-
+	std::cout << "dim_max = " << dim_max << "\n";
 	if (threshold >= max) {
 		ripser<compressed_lower_distance_matrix> r(std::move(dist), dim_max, threshold, ratio,
 		                                         modulus, do_cocycles);
