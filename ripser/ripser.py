@@ -4,6 +4,7 @@
 """
 
 from itertools import cycle
+import warnings
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -63,15 +64,16 @@ class Rips(BaseEstimator):
         self.do_cocycles = do_cocycles
         self.verbose = verbose
 
+        # Internal variables
         self.dgm_ = None
         self.cocycles_ = {}
         self.dm_ = None  # Distance matrix
-        self.metric_ = None
-        self.num_edges_ = None #Number of edges added
+        self.metric_ = None 
+        self.num_edges_ = None # Number of edges added
 
         if self.verbose:
-            print("Rips(maxdim={}, thres={}, coef={}, verbose={})".format(
-                maxdim, thresh, coeff, verbose))
+            print("Rips(maxdim={}, thresh={}, coeff={}, do_cocycles={}, verbose={})".format(
+                maxdim, thresh, coeff, do_cocycles, verbose))
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
         """Compute persistence diagrams for X data array.
@@ -93,15 +95,17 @@ class Rips(BaseEstimator):
 
         if not distance_matrix:
             if X.shape[0] == X.shape[1]:
-                from warnings import warn
-                warn("The input matrix is square, but the distance_matrix flag is off.  Did you mean to indicate that this was a distance matrix?")
+                warnings.warn("The input matrix is square, but the distance_matrix "
+                "flag is off.  Did you mean to indicate that this was a distance matrix?")
             elif X.shape[0] < X.shape[1]:
-                from warnings import warn
-                warn("The input point cloud has more columns than rows; did you mean to transpose?")
+                warnings.warn("The input point cloud has more columns than rows; did you mean to transpose?")
+
+            self.metric_ = metric
             X = pairwise_distances(X, metric=metric)
         elif sparse.issparse(X):
             #Sparse distance matrix
             X = sparse.csr_matrix.astype(X.tocsr(), dtype=np.float32)
+
         if not (X.shape[0] == X.shape[1]):
             raise Exception('Distance matrix is not square')
         self.dm_ = X
