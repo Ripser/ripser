@@ -932,7 +932,7 @@ void ripser<sparse_distance_matrix>::assemble_columns_to_reduce(
 	simplices.swap(next_simplices);
 }
 
-std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float threshold, int do_cocycles) {
+std::vector<value_t> rips_dm(float* D, int N, int modulus, int dim_max, float threshold, int do_cocycles) {
 	//Setup distance matrix and figure out threshold
 	std::vector<value_t> retvec;
 	std::vector<value_t> distances(D, D+N);
@@ -978,7 +978,7 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 }
 
 
-std::vector<value_t> pythondmsparse(int* I, int* J, float* V, int NEdges,
+std::vector<value_t> rips_dm_sparse(int* I, int* J, float* V, int NEdges,
 								 int N, int modulus, int dim_max, float threshold, int do_cocycles) {
 	//Setup distance matrix and figure out threshold
 	std::vector<value_t> retvec;
@@ -1009,13 +1009,13 @@ int unwrapvector(std::vector<value_t> vec, float** out) {
 extern "C" {
     int cripser(float** out, float* D, int N,
                 int modulus, int dim_max, float threshold, int do_cocycles) {
-        std::vector<value_t> resvec = pythondm(D, N, modulus, dim_max, threshold, do_cocycles);
+        std::vector<value_t> resvec = rips_dm(D, N, modulus, dim_max, threshold, do_cocycles);
         return unwrapvector(resvec, out);
     }
 
     int cripsersparse(float** out, int* I, int* J, float* V, int NEdges, int N,
                       int modulus, int dim_max, float threshold, int do_cocycles) {
-        std::vector<value_t> resvec = pythondmsparse(I, J, V, NEdges, N, modulus, dim_max, threshold, do_cocycles);
+        std::vector<value_t> resvec = rips_dm_sparse(I, J, V, NEdges, N, modulus, dim_max, threshold, do_cocycles);
         return unwrapvector(resvec, out);
     }
 }

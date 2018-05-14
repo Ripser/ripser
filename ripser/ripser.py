@@ -95,8 +95,7 @@ class Rips(BaseEstimator):
 
         if not distance_matrix:
             if X.shape[0] == X.shape[1]:
-                warnings.warn("The input matrix is square, but the distance_matrix "
-                "flag is off.  Did you mean to indicate that this was a distance matrix?")
+                warnings.warn("The input matrix is square, but the distance_matrix flag is off.  Did you mean to indicate that this was a distance matrix?")
             elif X.shape[0] < X.shape[1]:
                 warnings.warn("The input point cloud has more columns than rows; did you mean to transpose?")
 
@@ -152,6 +151,7 @@ class Rips(BaseEstimator):
             DParam = np.array(dm[I > J], dtype=np.float32)
             res = DRFDM(DParam, self.maxdim, self.thresh,
                         self.coeff, int(self.do_cocycles))
+                        
         pds = []
         for dim in range(self.maxdim + 1):
             # Number of homology classes in this dimension
