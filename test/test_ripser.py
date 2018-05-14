@@ -29,6 +29,17 @@ class TestLibrary():
         rip = Rips()
         assert rip is not None
 
+class TestTransform():
+    def test_input_warnings(self):
+        
+        rips = Rips()
+        data = np.random.random((3,10))
+
+        with pytest.warns(Warning):
+            rips.transform(data)
+
+
+
 class TestParams():
     def test_defaults(self):
         data = np.random.random((100,3))
