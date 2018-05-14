@@ -961,7 +961,6 @@ std::vector<value_t> pythondm(float* D, int N, int modulus, int dim_max, float t
 		if (d <= threshold) ++num_edges;
 	}
 
-	std::cout << "dim_max = " << dim_max << "\n";
 	if (threshold >= max) {
 		ripser<compressed_lower_distance_matrix> r(std::move(dist), dim_max, threshold, ratio,
 		                                         modulus, do_cocycles);
