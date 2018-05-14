@@ -68,7 +68,7 @@ class Rips(BaseEstimator):
         self.metric_ = None
 
         if self.verbose:
-            print("Rips(maxdim={}, thres={}, coef={}, verbose={})".format(
+            print("Rips(maxdim={}, thresh={}, coeff={}, verbose={})".format(
                 maxdim, thresh, coeff, verbose))
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
