@@ -76,7 +76,8 @@ class Rips(BaseEstimator):
                 maxdim, thresh, coeff, do_cocycles, verbose))
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
-        """Compute persistence diagrams for X data array.
+        """ Compute persistence diagrams for X data array. If X is not a distance matrix,
+            it will be converted to a distance matrix using the chosen metric.
 
         Parameters
         ----------
@@ -107,6 +108,7 @@ class Rips(BaseEstimator):
 
         if not (X.shape[0] == X.shape[1]):
             raise Exception('Distance matrix is not square')
+
         self.dm_ = X
 
         dgm = self._compute_rips(X)
@@ -147,20 +149,22 @@ class Rips(BaseEstimator):
             res = DRFDMSparse(coo.row, coo.col, coo.data, n_points, \
                         self.maxdim, self.thresh, self.coeff, self.do_cocycles)
         else:
-            [I, J] = np.meshgrid(np.arange(n_points), np.arange(n_points))
+            I, J = np.meshgrid(np.arange(n_points), np.arange(n_points))
             DParam = np.array(dm[I > J], dtype=np.float32)
             res = DRFDM(DParam, self.maxdim, self.thresh,
                         self.coeff, int(self.do_cocycles))
-                        
+
         pds = []
         for dim in range(self.maxdim + 1):
             # Number of homology classes in this dimension
             n_classes = int(res[0])
+
             # First extract the persistence diagram
             res = res[1::]
             pd = np.array(res[0:n_classes*2])
             pds.append(np.reshape(pd, (n_classes, 2)))
             res = res[n_classes*2::]
+
             # Now extract the representative cocycles if they were computed
             if self.do_cocycles and dim > 0:
                 self.cocycles_[dim] = []

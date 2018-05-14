@@ -35,9 +35,19 @@ class TestTransform():
         rips = Rips()
         data = np.random.random((3,10))
 
-        with pytest.warns(Warning):
+        with pytest.warns(UserWarning, match='has more columns than rows') as w:
             rips.transform(data)
 
+        data = np.random.random((3,3))
+        with pytest.warns(UserWarning, match='input matrix is square, but the distance_matrix') as w:
+            rips.transform(data)
+
+    def test_non_square_dist_matrix(self):
+        rips = Rips()
+        data = np.random.random((3,10))
+
+        with pytest.raises(Exception):
+            rips.transform(data, distance_matrix=True)
 
 
 class TestParams():
