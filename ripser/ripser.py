@@ -4,16 +4,18 @@
 """
 
 from itertools import cycle
+import warnings
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-
+from scipy import sparse
 
 import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.metrics.pairwise import pairwise_distances
 
 from pyRipser import doRipsFiltrationDM as DRFDM
+from pyRipser import doRipsFiltrationDMSparse as DRFDMSparse
 
 
 class Rips(BaseEstimator):
@@ -25,8 +27,8 @@ class Rips(BaseEstimator):
     maxdim : int, optional, default 1
         Maximum homology dimension computed. Will compute all dimensions lower than
         and equal to this value. For 1, H_0 and H_1 will be computed.
-    thresh : float, default -1
-        Maximum distances considered when constructing filtration. If -1, compute 
+    thresh : float, default infinity
+        Maximum distances considered when constructing filtration. If infinity, compute 
         the entire filtration.
     coeff : int prime, default 2
         Compute homology with coefficients in the prime field Z/pZ for p=coeff.
@@ -55,29 +57,33 @@ class Rips(BaseEstimator):
 
     """
 
-    def __init__(self, maxdim=1, thresh=-1, coeff=2, do_cocycles=False, verbose=True):
+    def __init__(self, maxdim=1, thresh=np.inf, coeff=2, do_cocycles=False, verbose=True):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
         self.do_cocycles = do_cocycles
         self.verbose = verbose
 
+        # Internal variables
         self.dgm_ = None
         self.cocycles_ = {}
         self.dm_ = None  # Distance matrix
-        self.metric_ = None
+        self.metric_ = None 
+        self.num_edges_ = None # Number of edges added
 
         if self.verbose:
-            print("Rips(maxdim={}, thresh={}, coeff={}, verbose={})".format(
-                maxdim, thresh, coeff, verbose))
+            print("Rips(maxdim={}, thresh={}, coeff={}, do_cocycles={}, verbose={})".format(
+                maxdim, thresh, coeff, do_cocycles, verbose))
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
-        """Compute persistence diagrams for X data array.
+        """ Compute persistence diagrams for X data array. If X is not a distance matrix,
+            it will be converted to a distance matrix using the chosen metric.
 
         Parameters
         ----------
         X: ndarray (n_samples, n_features)
             A numpy array of either data or distance matrix.
+            Can also be a sparse distance matrix of type scipy.sparse
 
         distance_matrix: bool
             Indicator that X is a distance matrix, if not we compute a 
@@ -89,9 +95,22 @@ class Rips(BaseEstimator):
         """
 
         if not distance_matrix:
+            if X.shape[0] == X.shape[1]:
+                warnings.warn("The input matrix is square, but the distance_matrix flag is off.  Did you mean to indicate that this was a distance matrix?")
+            elif X.shape[0] < X.shape[1]:
+                warnings.warn("The input point cloud has more columns than rows; did you mean to transpose?")
+
+            self.metric_ = metric
             X = pairwise_distances(X, metric=metric)
-        X = np.array(X, dtype=np.float32)
+        elif sparse.issparse(X):
+            #Sparse distance matrix
+            X = sparse.csr_matrix.astype(X.tocsr(), dtype=np.float32)
+
+        if not (X.shape[0] == X.shape[1]):
+            raise Exception('Distance matrix is not square')
+
         self.dm_ = X
+
         dgm = self._compute_rips(X)
         self.dgm_ = dgm
 
@@ -125,25 +144,27 @@ class Rips(BaseEstimator):
 
         n_points = dm.shape[0]
 
-        if self.thresh == -1:
-            thresh = np.max(dm)*2
+        if sparse.issparse(dm):
+            coo = sparse.coo_matrix.astype(dm.tocoo(), dtype=np.float32)
+            res = DRFDMSparse(coo.row, coo.col, coo.data, n_points, \
+                        self.maxdim, self.thresh, self.coeff, self.do_cocycles)
         else:
-            thresh = self.thresh
+            I, J = np.meshgrid(np.arange(n_points), np.arange(n_points))
+            DParam = np.array(dm[I > J], dtype=np.float32)
+            res = DRFDM(DParam, self.maxdim, self.thresh,
+                        self.coeff, int(self.do_cocycles))
 
-        [I, J] = np.meshgrid(np.arange(n_points), np.arange(n_points))
-        DParam = np.array(dm[I > J], dtype=np.float32)
-
-        res = DRFDM(DParam, self.maxdim, thresh,
-                    self.coeff, int(self.do_cocycles))
         pds = []
         for dim in range(self.maxdim + 1):
             # Number of homology classes in this dimension
             n_classes = int(res[0])
+
             # First extract the persistence diagram
             res = res[1::]
             pd = np.array(res[0:n_classes*2])
             pds.append(np.reshape(pd, (n_classes, 2)))
             res = res[n_classes*2::]
+
             # Now extract the representative cocycles if they were computed
             if self.do_cocycles and dim > 0:
                 self.cocycles_[dim] = []
@@ -156,6 +177,7 @@ class Rips(BaseEstimator):
                     cocycle[:, -1] = np.mod(cocycle[:, -1], self.coeff)
                     self.cocycles_[dim].append(cocycle)
                     res = res[c_length*(dim+2)::]
+        self.num_edges_ = int(res[0])
         return pds
 
     def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, lifetime=False, legend=True, show=True):
