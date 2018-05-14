@@ -29,6 +29,27 @@ class TestLibrary():
         rip = Rips()
         assert rip is not None
 
+class TestTransform():
+    def test_input_warnings(self):
+        
+        rips = Rips()
+        data = np.random.random((3,10))
+
+        with pytest.warns(UserWarning, match='has more columns than rows') as w:
+            rips.transform(data)
+
+        data = np.random.random((3,3))
+        with pytest.warns(UserWarning, match='input matrix is square, but the distance_matrix') as w:
+            rips.transform(data)
+
+    def test_non_square_dist_matrix(self):
+        rips = Rips()
+        data = np.random.random((3,10))
+
+        with pytest.raises(Exception):
+            rips.transform(data, distance_matrix=True)
+
+
 class TestParams():
     def test_defaults(self):
         data = np.random.random((100,3))
