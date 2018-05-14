@@ -1,5 +1,11 @@
+# 0.2.1:
+    - Sparse distance matrix support
+    - Two additional notebooks about sparsity
+    - Language agnostic bindings support
+    - Bug fixes (filtrations with low number of points)
+
 # 0.2.0:
-    - Fix int rounding bug for small magnitude threshold
+    - Bug fixes (int rounding error for small magnitude threshold)
 
 # 0.1.7: 
     - Generation of cocycles.
