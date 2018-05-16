@@ -1,33 +1,22 @@
 /*
 
- Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
- This branch extends the code to non-Rips filtrations.
+Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
 
- Copyright 2015-2016 Ulrich Bauer.
+Copyright 2015-2016 Ulrich Bauer.
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU Lesser General Public License as published by the
- Free Software Foundation, either version 3 of the License, or (at your option)
- any later version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.
 
- You should have received a copy of the GNU Lesser General Public License along
- with this program.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Lesser General Public License along
+with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- */
-
-#include <algorithm>
-#include <cassert>
-#include <cmath>
-#include <fstream>
-#include <iostream>
-#include <numeric>
-#include <queue>
-#include <sstream>
-#include <unordered_map>
+*/
 
 #define ASSEMBLE_REDUCTION_MATRIX
 //#define USE_COEFFICIENTS
@@ -39,6 +28,16 @@
 
 //#define COFACE_BASED_FILTRATION
 #define FACE_BASED_FILTRATION
+
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <numeric>
+#include <queue>
+#include <sstream>
+#include <unordered_map>
 
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/sparse_hash_map>
@@ -541,7 +540,7 @@ void compute_pairs2(std::vector<filtered_simplex>& columns_to_reduce, hash_map<i
 		    reduction_column;
 #endif
 
-		std::priority_queue<filtered_simplex, std::vector<filtered_simplex_coeff>,
+		std::priority_queue<filtered_simplex_coeff, std::vector<filtered_simplex_coeff>,
 		                    greater_filtration_or_smaller_index<filtered_simplex_coeff>>
 		    working_coboundary;
 
