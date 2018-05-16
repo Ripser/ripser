@@ -138,69 +138,79 @@ std::vector<index_t> vertices_of_simplex(const index_t simplex_index, const inde
 	return vertices;
 }
 
+#ifdef USE_COEFFICIENTS
+struct entry_t {
+	index_t index : 8 * (sizeof(index_t) - sizeof(coefficient_t));
+	coefficient_t coefficient;
+	entry_t(index_t _index, coefficient_t _coefficient) : index(_index), coefficient(_coefficient) {}
+	entry_t(index_t _index) : index(_index), coefficient(1) {}
+	entry_t() : index(0), coefficient(1) {}
+} __attribute__((packed));
+
+static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
+
+entry_t make_entry(index_t _index, coefficient_t _coefficient) { return entry_t(_index, _coefficient); }
+index_t get_index(entry_t e) { return e.index; }
+index_t get_coefficient(entry_t e) { return e.coefficient; }
+void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
+
+bool operator==(const entry_t& e1, const entry_t& e2) {
+	return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
+}
+
+std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
+	stream << get_index(e) << ":" << get_coefficient(e);
+	return stream;
+}
+
+#else
+
+typedef index_t entry_t;
+const index_t get_index(entry_t i) { return i; }
+index_t get_coefficient(entry_t i) { return 1; }
+entry_t make_entry(index_t _index, coefficient_t _value) { return entry_t(_index); }
+void set_coefficient(index_t& e, const coefficient_t c) {}
+
+#endif
+
+const entry_t& get_entry(const entry_t& e) { return e; }
+
 template <typename Entry> struct smaller_index {
-	bool operator()(Entry& a, Entry& b) { return a.get_index() < b.get_index(); }
+	bool operator()(const Entry& a, const Entry& b) { return get_index(a) < get_index(b); }
 };
 
-class filtered_simplex {
-	index_t index;
-	coefficient_t coefficient;
-	value_t filtration_value;
-
+class diameter_index_t : public std::pair<value_t, index_t> {
 public:
-	filtered_simplex(const filtered_simplex& s) {
-		index = s.index;
-		filtration_value = s.filtration_value;
-	}
-	filtered_simplex(index_t ind, value_t fval) {
-		index = ind;
-		filtration_value = fval;
-	}
-	filtered_simplex(index_t ind) {
-		index = ind;
-		filtration_value = 0;
-	}
-	value_t get_filtration_value() { return this->filtration_value; }
-	index_t get_index() { return this->index; }
+	diameter_index_t() : std::pair<value_t, index_t>() {}
+	diameter_index_t(std::pair<value_t, index_t> p) : std::pair<value_t, index_t>(p) {}
 };
+value_t get_diameter(diameter_index_t i) { return i.first; }
+index_t get_index(diameter_index_t i) { return i.second; }
 
-class filtered_simplex_coeff {
-	index_t index;
-	coefficient_t coefficient;
-	value_t filtration_value;
-
+class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
-	filtered_simplex_coeff(const filtered_simplex_coeff& s) {
-		index = s.index;
-		coefficient = s.coefficient;
-		filtration_value = s.filtration_value;
-	}
-	filtered_simplex_coeff(index_t ind, coefficient_t coeff, value_t fval) {
-		index = ind;
-		coefficient = coeff;
-		filtration_value = fval;
-	}
-	filtered_simplex_coeff(index_t ind) {
-		index = ind;
-		coefficient = 1;
-		filtration_value = 0;
-	}
-	filtered_simplex_coeff(filtered_simplex s, coefficient_t coeff) {
-		this->index = s.get_index();
-		this->filtration_value = s.get_filtration_value();
-		this->coefficient = coeff;
-	}
-	coefficient_t get_coefficient() { return this->coefficient; }
-	value_t get_filtration_value() { return this->filtration_value; }
-	index_t get_index() { return this->index; }
-	void set_coefficient(coefficient_t coeff) { this->coefficient = coeff; }
-	void set_filtration(value_t fval) { this->filtration_value = fval; }
+	diameter_entry_t(std::pair<value_t, entry_t> p) : std::pair<value_t, entry_t>(p) {}
+	diameter_entry_t(entry_t e) : std::pair<value_t, entry_t>(0, e) {}
+	diameter_entry_t() : diameter_entry_t(0) {}
+	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
+	: std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
+	diameter_entry_t(diameter_index_t _diameter_index, coefficient_t _coefficient)
+	: std::pair<value_t, entry_t>(get_diameter(_diameter_index),
+								  make_entry(get_index(_diameter_index), _coefficient)) {}
+	diameter_entry_t(diameter_index_t _diameter_index) : diameter_entry_t(_diameter_index, 1) {}
 };
 
-template <typename Entry> struct greater_filtration_or_smaller_index {
-	bool operator()(Entry& a, Entry& b) {
-		return (a.get_filtration_value() > b.get_filtration_value()) ||
-		       ((a.get_filtration_value() == b.get_filtration_value()) && (a.get_index() < b.get_index()));
+const entry_t& get_entry(const diameter_entry_t& p) { return p.second; }
+entry_t& get_entry(diameter_entry_t& p) { return p.second; }
+const index_t get_index(const diameter_entry_t& p) { return get_index(get_entry(p)); }
+const coefficient_t get_coefficient(const diameter_entry_t& p) { return get_coefficient(get_entry(p)); }
+const value_t& get_diameter(const diameter_entry_t& p) { return p.first; }
+void set_coefficient(diameter_entry_t& p, const coefficient_t c) { set_coefficient(get_entry(p), c); }
+
+template <typename Entry> struct greater_diameter_or_smaller_index {
+	bool operator()(const Entry& a, const Entry& b) {
+		return (get_diameter(a) > get_diameter(b)) ||
+		((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
 	}
 };
 
@@ -309,16 +319,16 @@ class simplex_coboundary_enumerator {
 private:
 	index_t idx_below, idx_above, v, k;
 	std::vector<index_t> vertices;
-	filtered_simplex_coeff simplex;
+	diameter_entry_t simplex;
 	const coefficient_t modulus;
 	const binomial_coeff_table& binomial_coeff;
 
 public:
-	simplex_coboundary_enumerator(filtered_simplex_coeff _simplex, index_t _dim, index_t _n,
+	simplex_coboundary_enumerator(diameter_entry_t _simplex, index_t _dim, index_t _n,
 	                               const coefficient_t _modulus, const binomial_coeff_table& _binomial_coeff)
-	    : simplex(_simplex), idx_below(_simplex.get_index()), idx_above(0), v(_n - 1), k(_dim + 1), modulus(_modulus),
+	    : simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(_n - 1), k(_dim + 1), modulus(_modulus),
 	      binomial_coeff(_binomial_coeff), vertices(_dim + 1) {
-		get_simplex_vertices(_simplex.get_index(), _dim, _n, binomial_coeff, vertices.begin());
+		get_simplex_vertices(get_index(_simplex), _dim, _n, binomial_coeff, vertices.begin());
 	}
 
 	bool has_next() {
@@ -335,11 +345,11 @@ public:
 
 	index_t next_index() { return idx_above + binomial_coeff(v--, k + 1) + idx_below; }
 
-	filtered_simplex_coeff next() {
+	diameter_entry_t next() {
 		index_t coface_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
 		value_t coface_fvalue = 1; // dummy
-		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * simplex.get_coefficient() % modulus;
-		return filtered_simplex_coeff(coface_index, coface_coefficient, coface_fvalue);
+		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
+		return diameter_entry_t(coface_fvalue, coface_index, coface_coefficient);
 	}
 };
 
@@ -379,9 +389,9 @@ public:
 	}
 };
 
-template <typename Heap> filtered_simplex_coeff pop_pivot(Heap& column, coefficient_t modulus) {
+template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
 	if (column.empty())
-		return filtered_simplex_coeff(-1);
+		return diameter_entry_t(-1);
 	else {
 		auto pivot = column.top();
 
@@ -393,33 +403,31 @@ template <typename Heap> filtered_simplex_coeff pop_pivot(Heap& column, coeffici
 
 			if (coefficient == 0) {
 				if (column.empty())
-					return filtered_simplex_coeff(-1);
+					return diameter_entry_t(-1);
 				else
 					pivot = column.top();
 			}
 		} while (!column.empty() && get_index(column.top()) == get_index(pivot));
-		if (get_index(pivot) != -1) { pivot.set_coefficient(coefficient); }
+		if (get_index(pivot) != -1) { set_coefficient(pivot, coefficient); }
 #else
 		column.pop();
-		auto column_top = column.top();
-		while (!column.empty() && column_top.get_index() == pivot.get_index()) {
+		while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
 			column.pop();
 			if (column.empty())
-				return filtered_simplex_coeff(-1);
+				return diameter_entry_t(-1);
 			else {
 				pivot = column.top();
 				column.pop();
 			}
-			column_top = column.top();
 		}
 #endif
 		return pivot;
 	}
 }
 
-template <typename Heap> filtered_simplex_coeff get_pivot(Heap& column, coefficient_t modulus) {
-	filtered_simplex_coeff result = pop_pivot(column, modulus);
-	if (result.get_index() != -1) column.push(result);
+template <typename Heap> diameter_entry_t get_pivot(Heap& column, coefficient_t modulus) {
+	diameter_entry_t result = pop_pivot(column, modulus);
+	if (get_index(result) != -1) column.push(result);
 	return result;
 }
 
@@ -464,12 +472,12 @@ public:
 	}
 };
 
-template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t c, value_t fvalue) {
-	filtered_simplex_coeff S(i, c, fvalue);
-	column.push(S);
+template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
+	entry_t e = make_entry(i, c);
+	column.push(std::make_pair(diameter, e));
 }
 
-void assemble_columns_to_reduce(std::vector<filtered_simplex>& columns_to_reduce,
+void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
                                  hash_map<index_t, index_t>& pivot_column_index,
                                  std::unordered_map<index_t, simplex>* simplicialFiltration, index_t dim, index_t n,
                                  value_t threshold, const binomial_coeff_table& binomial_coeff) {
@@ -488,8 +496,7 @@ void assemble_columns_to_reduce(std::vector<filtered_simplex>& columns_to_reduce
 			std::unordered_map<index_t, simplex>::const_iterator S = simplicialFiltration[dim + 1].find(index);
 			value_t fval = S->second.get_filtration();
 			index_t ind = index;
-			filtered_simplex F(ind, fval);
-			if (fval <= threshold) columns_to_reduce.push_back(F);
+			if (fval <= threshold) columns_to_reduce.push_back(std::make_pair(fval, index));
 #ifdef INDICATE_PROGRESS
 			if ((index + 1) % 1000 == 0)
 				std::cout << "\033[K"
@@ -505,13 +512,13 @@ void assemble_columns_to_reduce(std::vector<filtered_simplex>& columns_to_reduce
 #endif
 
 	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
-	          greater_filtration_or_smaller_index<filtered_simplex>());
+	          greater_diameter_or_smaller_index<diameter_index_t>());
 #ifdef INDICATE_PROGRESS
 	std::cout << "\033[K";
 #endif
 }
 
-void compute_pairs(std::vector<filtered_simplex>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
+void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
                     index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                     const std::vector<coefficient_t>& multiplicative_inverse,
                     std::unordered_map<index_t, simplex>* simplicialFiltration,
@@ -522,57 +529,56 @@ void compute_pairs(std::vector<filtered_simplex>& columns_to_reduce, hash_map<in
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-	compressed_sparse_matrix<filtered_simplex_coeff> reduction_coefficients;
+	compressed_sparse_matrix<diameter_entry_t> reduction_coefficients;
 #else
 #ifdef USE_COEFFICIENTS
-	std::vector<filtered_simplex_coeff> reduction_coefficients;
+	std::vector<diameter_entry_t> reduction_coefficients;
 #endif
 #endif
 
-	std::vector<filtered_simplex_coeff> coface_entries;
+	std::vector<diameter_entry_t> coface_entries;
 
 	for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
 		auto column_to_reduce = columns_to_reduce[i];
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-		std::priority_queue<filtered_simplex_coeff, std::vector<filtered_simplex_coeff>,
-		                    smaller_index<filtered_simplex_coeff>>
+		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>, smaller_index<diameter_entry_t>>
 		    reduction_column;
 #endif
 
-		std::priority_queue<filtered_simplex_coeff, std::vector<filtered_simplex_coeff>,
-		                    greater_filtration_or_smaller_index<filtered_simplex_coeff>>
+		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
+		                    greater_diameter_or_smaller_index<diameter_entry_t>>
 		    working_coboundary;
 
-		value_t filtration_val = column_to_reduce.get_filtration_value();
+		value_t diameter = get_diameter(column_to_reduce);
 
 #ifdef INDICATE_PROGRESS
 		if ((i + 1) % 1000 == 0)
 			std::cout << "\033[K"
 			          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
-			          << " (Filtration value:  " << filtration_val << ")" << std::flush << "\r";
+			          << " (filtration value:  " << diameter << ")" << std::flush << "\r";
 #endif
 
 		index_t j = i;
 
 		// start with a dummy pivot entry with coefficient -1 in order to initialize
 		// working_coboundary with the coboundary of the simplex with index column_to_reduce
-		filtered_simplex_coeff pivot(-1, -1 + modulus, 0);
+		diameter_entry_t pivot(0, -1, -1 + modulus);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 		// initialize reduction_coefficients as identity matrix
 		reduction_coefficients.append_column();
-		reduction_coefficients.push_back(filtered_simplex_coeff(column_to_reduce, 1));
+		reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, 1));
 #else
 #ifdef USE_COEFFICIENTS
-		reduction_coefficients.push_back(filtered_simplex_coeff(column_to_reduce, 1));
+		reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, 1));
 #endif
 #endif
 
 		bool might_be_apparent_pair = (i == j);
 
 		do {
-			const coefficient_t factor = modulus - pivot.get_coefficient();
+			const coefficient_t factor = modulus - get_coefficient(pivot);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 			auto coeffs_begin = reduction_coefficients.cbegin(j), coeffs_end = reduction_coefficients.cend(j);
@@ -585,29 +591,28 @@ void compute_pairs(std::vector<filtered_simplex>& columns_to_reduce, hash_map<in
 #endif
 
 			for (auto it = coeffs_begin; it != coeffs_end; ++it) {
-				filtered_simplex_coeff current_simplex = *it;
-				current_simplex.set_coefficient(current_simplex.get_coefficient() * factor % modulus);
+				diameter_entry_t simplex = *it;
+				set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-				reduction_column.push(current_simplex);
+				reduction_column.push(simplex);
 #endif
 
 				coface_entries.clear();
-				simplex_coboundary_enumerator cofaces(current_simplex, dim, n, modulus, binomial_coeff);
+				simplex_coboundary_enumerator cofaces(simplex, dim, n, modulus, binomial_coeff);
 
 				while (cofaces.has_next()) {
-					filtered_simplex_coeff coface = cofaces.next();
-					index_t ind = coface.get_index();
-					if (simplicialFiltration[dim + 1].find(ind) != simplicialFiltration[dim + 1].end()) {
-						std::unordered_map<index_t, simplex>::const_iterator S =
-						    simplicialFiltration[dim + 1].find(ind);
+					diameter_entry_t coface = cofaces.next();
+					auto S =
+					simplicialFiltration[dim + 1].find(get_index(coface));
+					if (S != simplicialFiltration[dim + 1].end()) {
 						value_t fval = S->second.get_filtration();
-						coface.set_filtration(fval);
+						coface = std::make_pair(fval, get_entry(coface));
 						if (fval <= threshold) {
 							coface_entries.push_back(coface);
 							if (might_be_apparent_pair &&
-							    (current_simplex.get_filtration_value() == coface.get_filtration_value())) {
-								if (pivot_column_index.find(coface.get_index()) == pivot_column_index.end()) {
+							    (get_diameter(simplex) == get_diameter(coface))) {
+								if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end()) {
 									pivot = coface;
 									goto found_persistence_pair;
 								}
@@ -621,8 +626,8 @@ void compute_pairs(std::vector<filtered_simplex>& columns_to_reduce, hash_map<in
 
 			pivot = get_pivot(working_coboundary, modulus);
 
-			if (pivot.get_index() != -1) {
-				auto pair = pivot_column_index.find(pivot.get_index());
+			if (get_index(pivot) != -1) {
+				auto pair = pivot_column_index.find(get_index(pivot));
 
 				if (pair != pivot_column_index.end()) {
 					j = pair->second;
@@ -634,27 +639,27 @@ void compute_pairs(std::vector<filtered_simplex>& columns_to_reduce, hash_map<in
 				std::cout << "\033[K";
 #endif
 				// std::cout << "Index "  << " [" << column_to_reduce.get_index() << ", )";
-				std::cout << " [" << filtration_val << ", )" << std::endl << std::flush;
+				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
 #endif
 				break;
 			}
 
 		found_persistence_pair:
 #ifdef PRINT_PERSISTENCE_PAIRS
-			value_t death = pivot.get_filtration_value();
-			if (filtration_val != death) {
+			value_t death = get_diameter(pivot);
+			if (diameter != death) {
 #ifdef INDICATE_PROGRESS
 				std::cout << "\033[K";
 #endif
 				//  std::cout << "Index "  << " [" << pivot.get_index() << "," << i << ")";
-				std::cout << " [" << filtration_val << "," << death << ")" << std::endl << std::flush;
+				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
 			}
 #endif
 
-			pivot_column_index.insert(std::make_pair(pivot.get_index(), i));
+			pivot_column_index.insert(std::make_pair(get_index(pivot), i));
 
 #ifdef USE_COEFFICIENTS
-			const coefficient_t inverse = multiplicative_inverse[pivot.get_coefficient()];
+			const coefficient_t inverse = multiplicative_inverse[get_coefficient(pivot)];
 #endif
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
@@ -662,18 +667,18 @@ void compute_pairs(std::vector<filtered_simplex>& columns_to_reduce, hash_map<in
 			// by reduction_column (possibly with a different entry on the diagonal)
 			reduction_coefficients.pop_back();
 			while (true) {
-				filtered_simplex_coeff e = pop_pivot(reduction_column, modulus);
-				if (e.get_index() == -1) break;
+				diameter_entry_t e = pop_pivot(reduction_column, modulus);
+				if (get_index(e) == -1) break;
 #ifdef USE_COEFFICIENTS
-				e.set_coefficient(inverse * e.get_coefficient() % modulus);
-				assert(e.get_coefficient() > 0);
+				set_coefficient(e, inverse * get_coefficient(e) % modulus);
+				assert(get_coefficient(e) > 0);
 #endif
 				reduction_coefficients.push_back(e);
 			}
 #else
 #ifdef USE_COEFFICIENTS
 			reduction_coefficients.pop_back();
-			reduction_coefficients.push_back(filtered_simplex_coeff(column_to_reduce, inverse));
+			reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, inverse));
 #endif
 #endif
 			break;
@@ -962,19 +967,19 @@ int main(int argc, const char* argv[]) {
 
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
 
-	std::vector<filtered_simplex> columns_to_reduce;
+	std::vector<diameter_index_t> columns_to_reduce;
 
 	{
 		union_find dset(n);
-		std::vector<filtered_simplex> edges;
+		std::vector<diameter_index_t> edges;
 		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
 			if (simplicialFiltration[1].find(index) != simplicialFiltration[1].end()) {
 				hash_map<index_t, simplex>::const_iterator S = simplicialFiltration[1].find(index);
-				value_t f_val = S->second.get_filtration();
-				if (f_val <= threshold) edges.push_back(filtered_simplex(index, f_val));
+				value_t diameter = S->second.get_filtration();
+				if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
 			}
 		}
-		std::sort(edges.rbegin(), edges.rend(), greater_filtration_or_smaller_index<filtered_simplex>());
+		std::sort(edges.rbegin(), edges.rend(), greater_diameter_or_smaller_index<diameter_index_t>());
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim 0:" << std::endl;
@@ -983,7 +988,7 @@ int main(int argc, const char* argv[]) {
 		std::vector<index_t> vertices_of_edge(2);
 		for (auto e : edges) {
 			vertices_of_edge.clear();
-			get_simplex_vertices(e.get_index(), 1, n, binomial_coeff, std::back_inserter(vertices_of_edge));
+			get_simplex_vertices(get_index(e), 1, n, binomial_coeff, std::back_inserter(vertices_of_edge));
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 
 			if (u != v) {
@@ -993,8 +998,8 @@ int main(int argc, const char* argv[]) {
 				hash_map<index_t, simplex>::const_iterator v1 = simplicialFiltration[0].find(vertices_of_edge[1]);
 				value_t f_val1 = v1->second.get_filtration();
 				value_t paired_fval = f_val0 > f_val1 ? f_val0 : f_val1;
-				if (e.get_filtration_value() > 0)
-					std::cout << " [" << paired_fval << "," << e.get_filtration_value() << ")" << std::endl;
+				if (get_diameter(e) > 0)
+					std::cout << " [" << paired_fval << "," << get_diameter(e) << ")" << std::endl;
 #endif
 				dset.link(u, v);
 			} else
