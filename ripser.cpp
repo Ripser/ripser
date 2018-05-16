@@ -216,8 +216,6 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 
 template <typename Iterator> bool next_face(const Iterator first, Iterator k, const Iterator last);
 
-bool descend_compare(index_t i, index_t j) { return (i > j); }
-
 class simplex {
 	std::vector<index_t> vertices;
 	value_t filtration_value;
@@ -275,7 +273,7 @@ public:
 		index_t cofacet_dim = this->vertices.size();
 
 		for (index_t i = 0; i < n; ++i) {
-			if (!(std::binary_search(vertices.begin(), vertices.end(), i, descend_compare))) {
+			if (!(std::binary_search(vertices.begin(), vertices.end(), i, std::greater<index_t>()))) {
 				cofacet_vertices.assign(vertices.begin(), vertices.end());
 				cofacet_vertices.push_back(i);
 				cofacet.clear();
@@ -306,7 +304,8 @@ public:
 		this->CNS_index = index;
 		return index;
 	}
-	void sort() { std::sort(this->vertices.begin(), this->vertices.end(), descend_compare); }
+	
+	void sort() { std::sort(this->vertices.begin(), this->vertices.end(), std::greater<index_t>()); }
 	value_t get_filtration() const { return filtration_value; }
 	index_t get_index() const { return CNS_index; }
 	std::vector<index_t>::iterator vertices_begin() { return vertices.begin(); }
@@ -479,7 +478,7 @@ template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t 
 
 void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
                                  hash_map<index_t, index_t>& pivot_column_index,
-                                 std::unordered_map<index_t, simplex>* simplicialFiltration, index_t dim, index_t n,
+                                 std::unordered_map<index_t, value_t>* simplicialFiltration, index_t dim, index_t n,
                                  value_t threshold, const binomial_coeff_table& binomial_coeff) {
 	index_t num_simplices = binomial_coeff(n, dim + 2);
 
@@ -493,8 +492,8 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 	for (index_t index = 0; index < num_simplices; ++index) {
 		if (pivot_column_index.find(index) == pivot_column_index.end() &&
 		    simplicialFiltration[dim + 1].find(index) != simplicialFiltration[dim + 1].end()) {
-			std::unordered_map<index_t, simplex>::const_iterator S = simplicialFiltration[dim + 1].find(index);
-			value_t fval = S->second.get_filtration();
+			auto S = simplicialFiltration[dim + 1].find(index);
+			value_t fval = S->second;
 			index_t ind = index;
 			if (fval <= threshold) columns_to_reduce.push_back(std::make_pair(fval, index));
 #ifdef INDICATE_PROGRESS
@@ -521,7 +520,7 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
                     index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                     const std::vector<coefficient_t>& multiplicative_inverse,
-                    std::unordered_map<index_t, simplex>* simplicialFiltration,
+                    std::unordered_map<index_t, value_t>* simplicialFiltration,
                     const binomial_coeff_table& binomial_coeff) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
@@ -606,7 +605,7 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 					auto S =
 					simplicialFiltration[dim + 1].find(get_index(coface));
 					if (S != simplicialFiltration[dim + 1].end()) {
-						value_t fval = S->second.get_filtration();
+						value_t fval = S->second;
 						coface = std::make_pair(fval, get_entry(coface));
 						if (fval <= threshold) {
 							coface_entries.push_back(coface);
@@ -720,7 +719,7 @@ void print_usage_and_exit(int exit_code) {
 	exit(exit_code);
 }
 
-std::unordered_map<index_t, simplex>* read_file(std::istream& input_stream, index_t& n, index_t& dim_max) {
+std::unordered_map<index_t, value_t>* read_file(std::istream& input_stream, index_t& n, index_t& dim_max) {
 	std::string line;
 	std::string delimiter = "]";
 	std::getline(input_stream, line);
@@ -737,7 +736,7 @@ std::unordered_map<index_t, simplex>* read_file(std::istream& input_stream, inde
 	std::cout << "dim_max " << dim_max << std::endl;
 	const binomial_coeff_table B(n, dim_max + 2);
 
-	std::unordered_map<index_t, simplex>* simplicialFiltration = new std::unordered_map<index_t, simplex>[dim_max + 1];
+	std::unordered_map<index_t, value_t>* simplicialFiltration = new std::unordered_map<index_t, value_t>[dim_max + 1];
 
 	while (std::getline(input_stream, line)) {
 		std::cout << line << std::endl;
@@ -761,148 +760,12 @@ std::unordered_map<index_t, simplex>* read_file(std::istream& input_stream, inde
 		current_simplex.assign_filtration(line.substr(string_end + 1, line.length()));
 		index_t index = current_simplex.compute_index(B);
 		// std::cout << "index " << index << std::endl;
-		std::pair<index_t, simplex> indexed_simplex;
-		indexed_simplex.first = index;
-		indexed_simplex.second = current_simplex;
 		// std::cout << "dim " << dim << std::endl;
-		simplicialFiltration[dim].insert(indexed_simplex);
+		simplicialFiltration[dim].insert(std::make_pair(index, current_simplex.get_filtration()));
 	}
 	return simplicialFiltration;
 }
 
-void missing_faces_helper_routine(std::unordered_map<index_t, simplex>* simplicialFiltration,
-                                  std::vector<index_t> simplex_vertices, const binomial_coeff_table& B, index_t n,
-                                  index_t face_dim) {
-	simplex face;
-	face.clear();
-	face.assign_vertices(simplex_vertices.begin(), simplex_vertices.begin() + face_dim + 1);
-	face.sort();
-	// face.assign_filtration(line.substr(string_end+1,line.length()));
-
-	index_t index = face.compute_index(B);
-
-	if (simplicialFiltration[face_dim].find(index) == simplicialFiltration[face_dim].end()) {
-		std::cout << "New face added" << std::endl;
-		for (auto i = simplex_vertices.begin(); i != simplex_vertices.begin() + face_dim + 1; ++i)
-			std::cout << *i << ' ';
-		std::cout << std::endl;
-		std::pair<index_t, simplex> indexed_simplex;
-		indexed_simplex.second.clear();
-#ifdef FACE_BASED_FILTRATION
-		face.assign_highest_facet(simplicialFiltration, B);
-#else
-		face.assign_lowest_cofacet(simplicialFiltration, B, n);
-#endif
-
-		std::cout << "Filtration value: " << face.get_filtration() << std::endl;
-		indexed_simplex.first = index;
-		indexed_simplex.second = face;
-		simplicialFiltration[face_dim].insert(indexed_simplex);
-	}
-}
-
-template <typename Iterator> bool next_face(const Iterator first, Iterator k, const Iterator last) {
-	if ((first == last) || (first == k) || (last == k)) {
-		// std::cout << "First false " << std::endl;
-		return false;
-	}
-	Iterator i1 = first;
-	Iterator i2 = last;
-	++i1;
-	if (last == i1) {
-		//     std::cout << "Second false " << std::endl;
-		return false;
-	}
-	i1 = last;
-	--i1;
-	i1 = k;
-	--i2;
-	while (first != i1) {
-		if (*--i1 < *i2) {
-			Iterator j = k;
-			while (!(*i1 < *j)) ++j;
-			std::iter_swap(i1, j);
-			++i1;
-			++j;
-			i2 = k;
-			std::rotate(i1, j, last);
-			while (last != j) {
-				++j;
-				++i2;
-			}
-			std::rotate(k, i2, last);
-			return true;
-		}
-	}
-	std::rotate(first, k, last);
-	// std::cout << "Third false " << std::endl;
-
-	return false;
-}
-
-void add_missing_faces(std::unordered_map<index_t, simplex>* simplicialFiltration, index_t dim_max, index_t n,
-                       const binomial_coeff_table& B) {
-/*
-
-   hash_map<index_t, simplex>::iterator S = simplicialFiltration[0].begin();
-  std::vector<index_t>::iterator a, b;
-  a = S->second.vertices_begin(), b = S->second.vertices_end();
-  std::vector<index_t> simplex_vertices ( a, b );
-
-*/
-
-#ifdef FACE_BASED_FILTRATION
-	for (index_t dim = 1; dim <= dim_max; ++dim) {
-		for (auto simplicialIterator = simplicialFiltration[dim].begin();
-		     simplicialIterator != simplicialFiltration[dim].end(); ++simplicialIterator) {
-			std::vector<index_t>::iterator a, b;
-			a = simplicialIterator->second.vertices_begin(), b = simplicialIterator->second.vertices_end();
-			std::vector<index_t> simplex_vertices(a, b);
-			/*   for ( auto i = simplex_vertices.begin(); i != simplex_vertices.end() ; ++i)
-			       std::cout << *i << ' ';
-			   std::cout << std::endl; */
-
-			for (index_t face_dim = 0; face_dim < dim; ++face_dim) {
-				do {
-					/*  std::cout << "face is "  << std::endl;
-					  for ( auto i = simplex_vertices.begin(); i != simplex_vertices.begin()+ face_dim + 1 ; ++i)
-					      std::cout << *i << ' ';
-					  std::cout << std::endl; */
-					missing_faces_helper_routine(simplicialFiltration, simplex_vertices, B, n, face_dim);
-
-				} while (next_face(simplex_vertices.begin(), simplex_vertices.begin() + face_dim + 1,
-				                   simplex_vertices.end()));
-			}
-		}
-	}
-
-#else
-	for (index_t face_dim = dim_max - 1; face_dim >= 0; --face_dim) {
-		for (index_t dim = dim_max; dim >= face_dim + 1; --dim) {
-			for (auto simplicialIterator = simplicialFiltration[dim].begin();
-			     simplicialIterator != simplicialFiltration[dim].end(); ++simplicialIterator) {
-				std::vector<index_t>::iterator a, b;
-				a = simplicialIterator->second.vertices_begin(), b = simplicialIterator->second.vertices_end();
-				std::vector<index_t> simplex_vertices(a, b);
-				/*  for ( auto i = simplex_vertices.begin(); i != simplex_vertices.begin()+ dim + 1 ; ++i)
-				      std::cout << *i << ' ';
-				  std::cout << std::endl; */
-
-				do {
-					/*     std::cout << "face is "  << std::endl;
-					     for ( auto i = simplex_vertices.begin(); i != simplex_vertices.begin()+ face_dim + 1 ; ++i)
-					         std::cout << *i << ' ';
-					     std::cout << std::endl; */
-					missing_faces_helper_routine(simplicialFiltration, simplex_vertices, B, n, face_dim);
-
-				} while (next_face(simplex_vertices.begin(), simplex_vertices.begin() + face_dim + 1,
-				                   simplex_vertices.end()));
-			}
-		}
-	}
-
-#endif
-}
 
 #include <iostream>
 
@@ -954,7 +817,7 @@ int main(int argc, const char* argv[]) {
 		exit(-1);
 	}
 
-	std::unordered_map<index_t, simplex>* simplicialFiltration;
+	std::unordered_map<index_t, value_t>* simplicialFiltration;
 
 	simplicialFiltration = read_file(filename ? file_stream : std::cin, n, dim_max);
 
@@ -962,9 +825,6 @@ int main(int argc, const char* argv[]) {
 	dim_max = std::min(dim_max, n - 2);
 
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
-
-	add_missing_faces(simplicialFiltration, dim_max, n, binomial_coeff);
-
 	std::vector<coefficient_t> multiplicative_inverse(multiplicative_inverse_vector(modulus));
 
 	std::vector<diameter_index_t> columns_to_reduce;
@@ -974,8 +834,8 @@ int main(int argc, const char* argv[]) {
 		std::vector<diameter_index_t> edges;
 		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
 			if (simplicialFiltration[1].find(index) != simplicialFiltration[1].end()) {
-				hash_map<index_t, simplex>::const_iterator S = simplicialFiltration[1].find(index);
-				value_t diameter = S->second.get_filtration();
+				hash_map<index_t, value_t>::const_iterator S = simplicialFiltration[1].find(index);
+				value_t diameter = S->second;
 				if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
 			}
 		}
@@ -993,11 +853,11 @@ int main(int argc, const char* argv[]) {
 
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				hash_map<index_t, simplex>::const_iterator v0 = simplicialFiltration[0].find(vertices_of_edge[0]);
-				value_t f_val0 = v0->second.get_filtration();
-				hash_map<index_t, simplex>::const_iterator v1 = simplicialFiltration[0].find(vertices_of_edge[1]);
-				value_t f_val1 = v1->second.get_filtration();
-				value_t paired_fval = f_val0 > f_val1 ? f_val0 : f_val1;
+				auto v0 = simplicialFiltration[0].find(vertices_of_edge[0]);
+				value_t f_val0 = v0->second;
+				auto v1 = simplicialFiltration[0].find(vertices_of_edge[1]);
+				value_t f_val1 = v1->second;
+				value_t paired_fval = std::max(f_val0, f_val1);
 				if (get_diameter(e) > 0)
 					std::cout << " [" << paired_fval << "," << get_diameter(e) << ")" << std::endl;
 #endif
@@ -1011,8 +871,8 @@ int main(int argc, const char* argv[]) {
 		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) {
 				// std::cout << " [0, )" << std::endl << std::flush;
-				hash_map<index_t, simplex>::const_iterator unpaired_vertex = simplicialFiltration[0].find(i);
-				value_t f_val = unpaired_vertex->second.get_filtration();
+				auto unpaired_vertex = simplicialFiltration[0].find(i);
+				value_t f_val = unpaired_vertex->second;
 				std::cout << " [" << f_val << ","
 				          << ")" << std::endl;
 			}
