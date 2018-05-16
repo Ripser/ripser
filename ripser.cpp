@@ -138,7 +138,7 @@ std::vector<index_t> vertices_of_simplex(const index_t simplex_index, const inde
 	return vertices;
 }
 
-template <typename Entry> struct smaller_index2 {
+template <typename Entry> struct smaller_index {
 	bool operator()(Entry& a, Entry& b) { return a.get_index() < b.get_index(); }
 };
 
@@ -305,7 +305,7 @@ public:
 	void set_filtration(value_t fval) { filtration_value = fval; }
 };
 
-class simplex_coboundary_enumerator2 {
+class simplex_coboundary_enumerator {
 private:
 	index_t idx_below, idx_above, v, k;
 	std::vector<index_t> vertices;
@@ -314,7 +314,7 @@ private:
 	const binomial_coeff_table& binomial_coeff;
 
 public:
-	simplex_coboundary_enumerator2(filtered_simplex_coeff _simplex, index_t _dim, index_t _n,
+	simplex_coboundary_enumerator(filtered_simplex_coeff _simplex, index_t _dim, index_t _n,
 	                               const coefficient_t _modulus, const binomial_coeff_table& _binomial_coeff)
 	    : simplex(_simplex), idx_below(_simplex.get_index()), idx_above(0), v(_n - 1), k(_dim + 1), modulus(_modulus),
 	      binomial_coeff(_binomial_coeff), vertices(_dim + 1) {
@@ -379,7 +379,7 @@ public:
 	}
 };
 
-template <typename Heap> filtered_simplex_coeff pop_pivot2(Heap& column, coefficient_t modulus) {
+template <typename Heap> filtered_simplex_coeff pop_pivot(Heap& column, coefficient_t modulus) {
 	if (column.empty())
 		return filtered_simplex_coeff(-1);
 	else {
@@ -417,8 +417,8 @@ template <typename Heap> filtered_simplex_coeff pop_pivot2(Heap& column, coeffic
 	}
 }
 
-template <typename Heap> filtered_simplex_coeff get_pivot2(Heap& column, coefficient_t modulus) {
-	filtered_simplex_coeff result = pop_pivot2(column, modulus);
+template <typename Heap> filtered_simplex_coeff get_pivot(Heap& column, coefficient_t modulus) {
+	filtered_simplex_coeff result = pop_pivot(column, modulus);
 	if (result.get_index() != -1) column.push(result);
 	return result;
 }
@@ -464,12 +464,12 @@ public:
 	}
 };
 
-template <typename Heap> void push_entry2(Heap& column, index_t i, coefficient_t c, value_t fvalue) {
+template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t c, value_t fvalue) {
 	filtered_simplex_coeff S(i, c, fvalue);
 	column.push(S);
 }
 
-void assemble_columns_to_reduce2(std::vector<filtered_simplex>& columns_to_reduce,
+void assemble_columns_to_reduce(std::vector<filtered_simplex>& columns_to_reduce,
                                  hash_map<index_t, index_t>& pivot_column_index,
                                  std::unordered_map<index_t, simplex>* simplicialFiltration, index_t dim, index_t n,
                                  value_t threshold, const binomial_coeff_table& binomial_coeff) {
@@ -511,7 +511,7 @@ void assemble_columns_to_reduce2(std::vector<filtered_simplex>& columns_to_reduc
 #endif
 }
 
-void compute_pairs2(std::vector<filtered_simplex>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
+void compute_pairs(std::vector<filtered_simplex>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
                     index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                     const std::vector<coefficient_t>& multiplicative_inverse,
                     std::unordered_map<index_t, simplex>* simplicialFiltration,
@@ -536,7 +536,7 @@ void compute_pairs2(std::vector<filtered_simplex>& columns_to_reduce, hash_map<i
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 		std::priority_queue<filtered_simplex_coeff, std::vector<filtered_simplex_coeff>,
-		                    smaller_index2<filtered_simplex_coeff>>
+		                    smaller_index<filtered_simplex_coeff>>
 		    reduction_column;
 #endif
 
@@ -593,7 +593,7 @@ void compute_pairs2(std::vector<filtered_simplex>& columns_to_reduce, hash_map<i
 #endif
 
 				coface_entries.clear();
-				simplex_coboundary_enumerator2 cofaces(current_simplex, dim, n, modulus, binomial_coeff);
+				simplex_coboundary_enumerator cofaces(current_simplex, dim, n, modulus, binomial_coeff);
 
 				while (cofaces.has_next()) {
 					filtered_simplex_coeff coface = cofaces.next();
@@ -619,7 +619,7 @@ void compute_pairs2(std::vector<filtered_simplex>& columns_to_reduce, hash_map<i
 				for (auto e : coface_entries) working_coboundary.push(e);
 			}
 
-			pivot = get_pivot2(working_coboundary, modulus);
+			pivot = get_pivot(working_coboundary, modulus);
 
 			if (pivot.get_index() != -1) {
 				auto pair = pivot_column_index.find(pivot.get_index());
@@ -662,7 +662,7 @@ void compute_pairs2(std::vector<filtered_simplex>& columns_to_reduce, hash_map<i
 			// by reduction_column (possibly with a different entry on the diagonal)
 			reduction_coefficients.pop_back();
 			while (true) {
-				filtered_simplex_coeff e = pop_pivot2(reduction_column, modulus);
+				filtered_simplex_coeff e = pop_pivot(reduction_column, modulus);
 				if (e.get_index() == -1) break;
 #ifdef USE_COEFFICIENTS
 				e.set_coefficient(inverse * e.get_coefficient() % modulus);
@@ -715,7 +715,7 @@ void print_usage_and_exit(int exit_code) {
 	exit(exit_code);
 }
 
-std::unordered_map<index_t, simplex>* read_file2(std::istream& input_stream, index_t& n, index_t& dim_max) {
+std::unordered_map<index_t, simplex>* read_file(std::istream& input_stream, index_t& n, index_t& dim_max) {
 	std::string line;
 	std::string delimiter = "]";
 	std::getline(input_stream, line);
@@ -951,7 +951,7 @@ int main(int argc, const char* argv[]) {
 
 	std::unordered_map<index_t, simplex>* simplicialFiltration;
 
-	simplicialFiltration = read_file2(filename ? file_stream : std::cin, n, dim_max);
+	simplicialFiltration = read_file(filename ? file_stream : std::cin, n, dim_max);
 
 	std::cout << "Complex of dimension " << dim_max << " with " << n << " points" << std::endl;
 	dim_max = std::min(dim_max, n - 2);
@@ -1019,11 +1019,11 @@ int main(int argc, const char* argv[]) {
 		hash_map<index_t, index_t> pivot_column_index;
 		pivot_column_index.reserve(columns_to_reduce.size());
 
-		compute_pairs2(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse,
+		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse,
 		               simplicialFiltration, binomial_coeff);
 
 		if (dim < dim_max - 1) {
-			assemble_columns_to_reduce2(columns_to_reduce, pivot_column_index, simplicialFiltration, dim, n, threshold,
+			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, simplicialFiltration, dim, n, threshold,
 			                            binomial_coeff);
 		}
 	}
