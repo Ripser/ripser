@@ -214,105 +214,15 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 	}
 };
 
-template <typename Iterator> bool next_face(const Iterator first, Iterator k, const Iterator last);
-
-class simplex {
-	std::vector<index_t> vertices;
-	value_t filtration_value;
-	index_t CNS_index;
-
-public:
-	void add_vertex(index_t num) { this->vertices.push_back(num); }
-
-	void assign_filtration(std::string str) {
-		std::stringstream stream(str);
-		stream >> this->filtration_value;
-	}
-
-	void assign_vertices(std::vector<index_t>::iterator begin, std::vector<index_t>::iterator end) {
-		vertices.assign(begin, end);
-	}
-
-	void assign_highest_facet(std::unordered_map<index_t, simplex>* simplicialFiltration,
-	                          const binomial_coeff_table& B) {
-
-		index_t facet_dim = this->vertices.size() - 2;
-		value_t max = 0;
-
-		if (facet_dim < 0) {
-			filtration_value = 0;
-			return;
-		}
-		do {
-			simplex facet;
-			facet.clear();
-			facet.assign_vertices(vertices.begin(), vertices.begin() + facet_dim + 1);
-			facet.sort();
-			// face.assign_filtration(line.substr(string_end+1,line.length()));
-			index_t index = facet.compute_index(B);
-
-			if (simplicialFiltration[facet_dim].find(index) != simplicialFiltration[facet_dim].end()) {
-				std::unordered_map<index_t, simplex>::const_iterator S = simplicialFiltration[facet_dim].find(index);
-				value_t fval = S->second.get_filtration();
-				max = max < fval ? fval : max;
-			} else {
-				std::cout << "Unexpected outcome: facet unassigned" << std::endl;
-				exit(-1);
-			}
-
-		} while (next_face(vertices.begin(), vertices.begin() + facet_dim + 1, vertices.end()));
-		filtration_value = max;
-	}
-
-	void assign_lowest_cofacet(std::unordered_map<index_t, simplex>* simplicialFiltration,
-	                           const binomial_coeff_table& B, index_t n) {
-
-		index_t min = std::numeric_limits<value_t>::max();
-		std::vector<index_t> cofacet_vertices;
-		simplex cofacet;
-		index_t cofacet_dim = this->vertices.size();
-
-		for (index_t i = 0; i < n; ++i) {
-			if (!(std::binary_search(vertices.begin(), vertices.end(), i, std::greater<index_t>()))) {
-				cofacet_vertices.assign(vertices.begin(), vertices.end());
-				cofacet_vertices.push_back(i);
-				cofacet.clear();
-				cofacet.assign_vertices(cofacet_vertices.begin(), cofacet_vertices.end());
-				index_t index = cofacet.compute_index(B);
-				if (simplicialFiltration[cofacet_dim].find(index) != simplicialFiltration[cofacet_dim].end()) {
-					std::unordered_map<index_t, simplex>::const_iterator S =
-					    simplicialFiltration[cofacet_dim].find(index);
-					value_t fval = S->second.get_filtration();
-					min = min > fval ? fval : min;
-				}
-			}
-		}
-		filtration_value = min;
-	}
-
-	void clear() {
-		this->vertices.clear();
-		this->filtration_value = 0;
-	}
-	index_t compute_index(const binomial_coeff_table& B) {
-
-		index_t index = 0, j = this->vertices.size() - 1;
-		for (index_t i : vertices) {
-			index += B(i, j + 1);
-			j--;
-		}
-		this->CNS_index = index;
-		return index;
-	}
+index_t compute_index(const std::vector<index_t> vertices, const binomial_coeff_table& B) {
 	
-	void sort() { std::sort(this->vertices.begin(), this->vertices.end(), std::greater<index_t>()); }
-	value_t get_filtration() const { return filtration_value; }
-	index_t get_index() const { return CNS_index; }
-	std::vector<index_t>::iterator vertices_begin() { return vertices.begin(); }
-	std::vector<index_t>::iterator vertices_end() { return vertices.end(); }
-	void set_index(index_t ind) { CNS_index = ind; }
-	void set_filtration(value_t fval) { filtration_value = fval; }
-};
+	index_t index = 0, j = vertices.size() - 1;
+	for (index_t i : vertices) {
+		index += B(i, j + 1);
+		j--;
+	}
+	return index;
+}
 
 class simplex_coboundary_enumerator {
 private:
@@ -727,10 +637,10 @@ std::unordered_map<index_t, value_t>* read_file(std::istream& input_stream, inde
 	index_t num;
 	std::vector<index_t> new_simplex;
 	std::size_t string_end;
-	simplex current_simplex;
+	index_t dim;
+
 	stream >> n;
 	stream >> dim_max;
-	index_t dim;
 
 	std::cout << "n " << n << std::endl;
 	std::cout << "dim_max " << dim_max << std::endl;
@@ -748,20 +658,22 @@ std::unordered_map<index_t, value_t>* read_file(std::istream& input_stream, inde
 		// std::cout << line[line.length()] << "gotcha ";
 
 		// std::cout << stream.str() << std::endl;
-		current_simplex.clear();
+		new_simplex.clear();
 		dim = 0;
 		while (stream >> num) {
-			current_simplex.add_vertex(num);
+			new_simplex.push_back(num);
 			// std::cout << num << std::endl;
 			dim++;
 		}
 		dim--;
-		current_simplex.sort();
-		current_simplex.assign_filtration(line.substr(string_end + 1, line.length()));
-		index_t index = current_simplex.compute_index(B);
+		std::sort(new_simplex.rbegin(), new_simplex.rend());
+		
+		value_t filtration_value;
+		(std::stringstream(line.substr(string_end + 1, line.length()))) >> filtration_value;
+		index_t index = compute_index(new_simplex, B);
 		// std::cout << "index " << index << std::endl;
 		// std::cout << "dim " << dim << std::endl;
-		simplicialFiltration[dim].insert(std::make_pair(index, current_simplex.get_filtration()));
+		simplicialFiltration[dim].insert(std::make_pair(index, filtration_value));
 	}
 	return simplicialFiltration;
 }
