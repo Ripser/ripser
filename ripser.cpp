@@ -427,15 +427,13 @@ public:
 		columns_to_reduce.clear();
 
 #ifdef INDICATE_PROGRESS
-		std::cout
-		          << "assembling " << num_simplices << " columns" ;
+		std::cout << "\033[K"
+		          << "assembling " << num_simplices << " columns" << std::flush << "\r";
 #endif
 
 		for (index_t index = 0; index < num_simplices; ++index) {
 			if (pivot_column_index.find(index) == pivot_column_index.end()) {
 				value_t diameter = compute_diameter(index, dim);
-				
-				std::cout << dim << "-simplex " << index << " (" << diameter << std::endl;
 				if (diameter <= threshold)
 					columns_to_reduce.push_back(std::make_pair(diameter, index));
 #ifdef INDICATE_PROGRESS
@@ -763,7 +761,6 @@ int main(int argc, const char* argv[]) {
 	    read_file(filename ? file_stream : std::cin, n, dim_max);
 
 	std::cout << "complex of dimension " << dim_max << " with " << n << " vertices" << std::endl;
-	dim_max = std::min(dim_max - 1, n - 2);
 
 	ripser(std::move(filtration), n, dim_max, threshold, modulus).compute_barcodes();
 }
