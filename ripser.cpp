@@ -107,10 +107,8 @@ public:
 
 	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points)
 	    : points(std::move(_points)) {
-			for (auto p: points) {
-				assert(p.size() == points.front().size());
-			}
-		}
+		for (auto p : points) { assert(p.size() == points.front().size()); }
+	}
 
 	value_t operator()(const index_t i, const index_t j) const {
 		assert(i < points.size());
@@ -133,23 +131,16 @@ public:
 	}
 
 	index_t find(index_t x) {
-		index_t y = x, z = parent[y];
-		while (z != y) {
-			y = z;
-			z = parent[y];
-		}
-		y = parent[x];
-		while (z != y) {
-			parent[x] = z;
-			x = y;
-			y = parent[x];
+		index_t y = x, z;
+		while ((z = parent[y]) != y) y = z;
+		while ((z = parent[x]) != y) {
+			parent[x] = y;
+			x = z;
 		}
 		return z;
 	}
 	void link(index_t x, index_t y) {
-		x = find(x);
-		y = find(y);
-		if (x == y) return;
+		if ((x = find(x)) == (y = find(y))) return;
 		if (rank[x] > rank[y])
 			parent[y] = x;
 		else {
@@ -228,7 +219,7 @@ public:
 
 class ripser {
 	compressed_lower_distance_matrix dist;
-	index_t dim_max, n;
+    index_t n, dim_max;
 	value_t threshold;
 	const binomial_coeff_table binomial_coeff;
 	mutable std::vector<index_t> vertices;
@@ -318,8 +309,6 @@ public:
 		}
 	};
 
-	void compute_barcodes();
-
 	void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
 	                                hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
 		index_t num_simplices = binomial_coeff(n, dim + 1);
@@ -336,6 +325,42 @@ public:
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
+	}
+	
+	void compute_dim_0_pairs(std::vector<diameter_index_t>& edges,
+							 std::vector<diameter_index_t>& columns_to_reduce) {
+		union_find dset(n);
+		
+		edges = get_edges();
+		
+		std::sort(edges.rbegin(), edges.rend(),
+				  greater_diameter_or_smaller_index<diameter_index_t>());
+		
+#ifdef PRINT_PERSISTENCE_PAIRS
+		std::cout << "persistence intervals in dim 0:" << std::endl;
+#endif
+		
+		std::vector<index_t> vertices_of_edge(2);
+		for (auto e : edges) {
+			vertices_of_edge.clear();
+			get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
+			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
+			
+			if (u != v) {
+#ifdef PRINT_PERSISTENCE_PAIRS
+				if (get_diameter(e) != 0)
+					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+#endif
+				dset.link(u, v);
+			} else
+				columns_to_reduce.push_back(e);
+		}
+		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
+		
+#ifdef PRINT_PERSISTENCE_PAIRS
+		for (index_t i = 0; i < n; ++i)
+			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+#endif
 	}
 	
 	template <typename Column, typename Iterator>
@@ -385,7 +410,8 @@ public:
 
 		compressed_sparse_matrix<diameter_index_t> reduction_matrix;
 
-		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size(); ++index_column_to_reduce) {
+		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
+		     ++index_column_to_reduce) {
 			auto column_to_reduce = columns_to_reduce[index_column_to_reduce];
 
 			std::priority_queue<diameter_index_t, std::vector<diameter_index_t>,
@@ -393,6 +419,14 @@ public:
 			    working_reduction_column, working_coboundary;
 
 			value_t diameter = get_diameter(column_to_reduce);
+
+#ifdef INDICATE_PROGRESS
+			if ((index_column_to_reduce + 1) % 1000000 == 0)
+				std::cout << "\033[K"
+				          << "reducing column " << index_column_to_reduce + 1 << "/"
+				          << columns_to_reduce.size() << " (diameter " << diameter << ")"
+				          << std::flush << "\r";
+#endif
 
 			index_t index_column_to_add = index_column_to_reduce;
 			
@@ -447,6 +481,34 @@ public:
 			}
 		}
 
+	}
+	
+	std::vector<diameter_index_t> get_edges() {
+		std::vector<diameter_index_t> edges;
+		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
+			value_t diameter = compute_diameter(index, 1);
+			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
+		}
+		return edges;
+	}
+	
+	void compute_barcodes() {
+		
+		std::vector<diameter_index_t> simplices, columns_to_reduce;
+		
+		compute_dim_0_pairs(simplices, columns_to_reduce);
+		
+		for (index_t dim = 1; dim <= dim_max; ++dim) {
+			hash_map<index_t, index_t> pivot_column_index;
+			pivot_column_index.reserve(columns_to_reduce.size());
+			
+			compute_pairs(columns_to_reduce, pivot_column_index, dim);
+			
+			if (dim < dim_max) {
+				assemble_columns_to_reduce(columns_to_reduce, pivot_column_index,
+										   dim + 1);
+			}
+		}
 	}
 };
 
@@ -571,7 +633,9 @@ int main(int argc, char** argv) {
 	file_format format = DISTANCE_MATRIX;
 
 	index_t dim_max = 1;
-	value_t threshold = std::numeric_limits<value_t>::infinity();
+	value_t threshold = std::numeric_limits<value_t>::max();
+
+	float ratio = 1;
 
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
@@ -586,6 +650,11 @@ int main(int argc, char** argv) {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			threshold = std::stof(parameter, &next_pos);
+			if (next_pos != parameter.size()) print_usage_and_exit(-1);
+		} else if (arg == "--ratio") {
+			std::string parameter = std::string(argv[++i]);
+			size_t next_pos;
+			ratio = std::stof(parameter, &next_pos);
 			if (next_pos != parameter.size()) print_usage_and_exit(-1);
 		} else if (arg == "--format") {
 			std::string parameter = std::string(argv[++i]);
@@ -613,74 +682,9 @@ int main(int argc, char** argv) {
 
 	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
 
+    auto range = std::minmax_element(dist.distances.begin(), dist.distances.end());
+    std::cout << "value range: [" << *range.first << "," << *range.second << "]" << std::endl;
+
 	std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
-
-	value_t min = std::numeric_limits<value_t>::infinity(), max = -std::numeric_limits<value_t>::infinity();
-	
-	for (auto d: dist.distances) {
-		if (d != std::numeric_limits<value_t>::infinity() ) {
-			min = std::min(min, d);
-			max = std::max(max, d);
-		} else {
-			threshold = std::min(threshold, std::numeric_limits<value_t>::max());
-		}
-	}
-	
-	std::cout << "value range: [" << min << "," << max << "]"
-	          << std::endl;
-
 	ripser(std::move(dist), dim_max, threshold).compute_barcodes();
-}
-
-void ripser::compute_barcodes() {
-
-	std::vector<diameter_index_t> columns_to_reduce;
-
-	{
-		union_find dset(n);
-		std::vector<diameter_index_t> edges;
-		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
-			value_t diameter = compute_diameter(index, 1);
-			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
-		}
-		std::sort(edges.rbegin(), edges.rend(),
-		          greater_diameter_or_smaller_index<diameter_index_t>());
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim 0:" << std::endl;
-#endif
-
-		std::vector<index_t> vertices_of_edge(2);
-		for (auto e : edges) {
-			vertices_of_edge.clear();
-			get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
-			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
-
-			if (u != v) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) != 0)
-					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
-#endif
-				dset.link(u, v);
-			} else
-				columns_to_reduce.push_back(e);
-		}
-		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
-#endif
-	}
-
-	for (index_t dim = 1; dim <= dim_max; ++dim) {
-		hash_map<index_t, index_t> pivot_column_index;
-		pivot_column_index.reserve(columns_to_reduce.size());
-
-		compute_pairs(columns_to_reduce, pivot_column_index, dim);
-
-		if (dim < dim_max) {
-			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, dim + 1);
-		}
-	}
 }
