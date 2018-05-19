@@ -1,0 +1,11 @@
+/usr/bin/time -l ~/Source/Dionysus/examples/cohomology/rips-pairwise-cohomology -s3 -p2 ~/Bitbucket/phat-paper/benchmark/point\ cloud/sphere_3_192_points.dat
+
+/usr/bin/time -l ~/Bitbucket/phat/benchmark --primal --bit_tree_pivot_column --twist ~/Bitbucket/phat-paper/benchmark/phat/sphere_3_192_coboundary.phat
+
+/usr/bin/time -l ~/Source/dipha/dipha --benchmark --upper_dim 3 --dual ~/Bitbucket/phat-paper/benchmark/dipha/sphere_3_192.complex /dev/null
+
+/usr/bin/time -l ~/Source/Gudhi_library_1.3.0/example/Persistent_cohomology/rips_persistence -d3 -p2 ~/Bitbucket/phat-paper/benchmark/point\ cloud/sphere_3_192_points.dat -o/dev/null
+
+c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D FILE_FORMAT_DIPHA -D PRINT_PERSISTENCE_PAIRS && /usr/bin/time -l ./ripser --dim 2 ~/Bitbucket/phat-paper/benchmark/dipha/sphere_3_192.complex
+
+/usr/bin/time -l java -Xmx16G -cp Bitbucket/phat-paper/benchmark:Source/javaplex/dist/javaplex-4.2.1.jar RipsFiltration ~/Bitbucket/phat-paper/benchmark/point\ cloud/sphere_3_192_points.dat 2 3
