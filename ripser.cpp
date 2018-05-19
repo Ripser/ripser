@@ -376,6 +376,47 @@ public:
 			return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
 		}
 	};
+	
+	class simplex_boundary_enumerator {
+	private:
+		index_t idx_below, idx_above, v, k, face_dim;
+		std::vector<index_t> vertices;
+		const diameter_entry_t simplex;
+		const coefficient_t modulus;
+		const binomial_coeff_table& binomial_coeff;
+		const ripser& parent;
+		
+	public:
+		simplex_boundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
+									const ripser& _parent)
+		: idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1),
+		vertices(_dim + 1), simplex(_simplex), modulus(_parent.modulus),
+		binomial_coeff(_parent.binomial_coeff), face_dim(_dim - 1), parent(_parent) {
+			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
+		}
+		
+		bool has_next() {
+			parent.get_next_vertex(v, idx_below, k);
+			return (v != -1) && (binomial_coeff(v, k) <= idx_below);
+		}
+		
+		diameter_entry_t next() {
+			index_t face_index = idx_above - binomial_coeff(v, k) + idx_below;
+			
+			value_t face_diameter = parent.compute_diameter(face_index, face_dim);
+			
+			coefficient_t face_coefficient = (k & 1 ? 1 : -1 + modulus) * get_coefficient(simplex) % modulus;
+			
+			idx_below -= binomial_coeff(v, k);
+			idx_above += binomial_coeff(v, k - 1);
+			
+			--v;
+			--k;
+			
+			return diameter_entry_t(face_diameter, face_index, face_coefficient);
+			;
+		}
+	};
 
 	void compute_barcodes();
 
