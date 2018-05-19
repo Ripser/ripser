@@ -193,10 +193,10 @@ public:
 	diameter_entry_t(entry_t e) : std::pair<value_t, entry_t>(0, e) {}
 	diameter_entry_t() : diameter_entry_t(0) {}
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
-	: std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
+	    : std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
 	diameter_entry_t(diameter_index_t _diameter_index, coefficient_t _coefficient)
-	: std::pair<value_t, entry_t>(get_diameter(_diameter_index),
-								  make_entry(get_index(_diameter_index), _coefficient)) {}
+	    : std::pair<value_t, entry_t>(get_diameter(_diameter_index),
+	                                  make_entry(get_index(_diameter_index), _coefficient)) {}
 	diameter_entry_t(diameter_index_t _diameter_index) : diameter_entry_t(_diameter_index, 1) {}
 };
 
@@ -210,12 +210,12 @@ void set_coefficient(diameter_entry_t& p, const coefficient_t c) { set_coefficie
 template <typename Entry> struct greater_diameter_or_smaller_index {
 	bool operator()(const Entry& a, const Entry& b) {
 		return (get_diameter(a) > get_diameter(b)) ||
-		((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
+		       ((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
 	}
 };
 
 index_t compute_index(const std::vector<index_t> vertices, const binomial_coeff_table& B) {
-	
+
 	index_t index = 0, j = vertices.size() - 1;
 	for (index_t i : vertices) {
 		index += B(i, j + 1);
@@ -233,8 +233,8 @@ private:
 	const binomial_coeff_table& binomial_coeff;
 
 public:
-	simplex_coboundary_enumerator(diameter_entry_t _simplex, index_t _dim, index_t _n,
-	                               const coefficient_t _modulus, const binomial_coeff_table& _binomial_coeff)
+	simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, index_t _n, const coefficient_t _modulus,
+	                              const binomial_coeff_table& _binomial_coeff)
 	    : simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(_n - 1), k(_dim + 1), modulus(_modulus),
 	      binomial_coeff(_binomial_coeff), vertices(_dim + 1) {
 		get_simplex_vertices(get_index(_simplex), _dim, _n, binomial_coeff, vertices.begin());
@@ -387,9 +387,9 @@ template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t 
 }
 
 void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
-                                 hash_map<index_t, index_t>& pivot_column_index,
-                                 std::unordered_map<index_t, value_t>* simplicialFiltration, index_t dim, index_t n,
-                                 value_t threshold, const binomial_coeff_table& binomial_coeff) {
+                                hash_map<index_t, index_t>& pivot_column_index,
+                                const std::vector<std::unordered_map<index_t, value_t>>& simplicialFiltration, index_t dim, index_t n,
+                                value_t threshold, const binomial_coeff_table& binomial_coeff) {
 	index_t num_simplices = binomial_coeff(n, dim + 2);
 
 	columns_to_reduce.clear();
@@ -428,10 +428,10 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 }
 
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
-                    index_t dim, index_t n, value_t threshold, coefficient_t modulus,
-                    const std::vector<coefficient_t>& multiplicative_inverse,
-                    std::unordered_map<index_t, value_t>* simplicialFiltration,
-                    const binomial_coeff_table& binomial_coeff) {
+                   index_t dim, index_t n, value_t threshold, coefficient_t modulus,
+                   const std::vector<coefficient_t>& multiplicative_inverse,
+                   const std::vector<std::unordered_map<index_t, value_t>>& simplicialFiltration,
+                   const binomial_coeff_table& binomial_coeff) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 	std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
@@ -512,15 +512,13 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 
 				while (cofaces.has_next()) {
 					diameter_entry_t coface = cofaces.next();
-					auto S =
-					simplicialFiltration[dim + 1].find(get_index(coface));
+					auto S = simplicialFiltration[dim + 1].find(get_index(coface));
 					if (S != simplicialFiltration[dim + 1].end()) {
 						value_t fval = S->second;
 						coface = std::make_pair(fval, get_entry(coface));
 						if (fval <= threshold) {
 							coface_entries.push_back(coface);
-							if (might_be_apparent_pair &&
-							    (get_diameter(simplex) == get_diameter(coface))) {
+							if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
 								if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end()) {
 									pivot = coface;
 									goto found_persistence_pair;
@@ -629,7 +627,7 @@ void print_usage_and_exit(int exit_code) {
 	exit(exit_code);
 }
 
-std::unordered_map<index_t, value_t>* read_file(std::istream& input_stream, index_t& n, index_t& dim_max) {
+std::vector<std::unordered_map<index_t, value_t>> read_file(std::istream& input_stream, index_t& n, index_t& dim_max) {
 	std::string line;
 	std::string delimiter = "]";
 	std::getline(input_stream, line);
@@ -646,7 +644,7 @@ std::unordered_map<index_t, value_t>* read_file(std::istream& input_stream, inde
 	std::cout << "dim_max " << dim_max << std::endl;
 	const binomial_coeff_table B(n, dim_max + 2);
 
-	std::unordered_map<index_t, value_t>* simplicialFiltration = new std::unordered_map<index_t, value_t>[dim_max + 1];
+	std::vector<std::unordered_map<index_t, value_t>> simplicialFiltration(dim_max + 1);
 
 	while (std::getline(input_stream, line)) {
 		std::cout << line << std::endl;
@@ -667,7 +665,7 @@ std::unordered_map<index_t, value_t>* read_file(std::istream& input_stream, inde
 		}
 		dim--;
 		std::sort(new_simplex.rbegin(), new_simplex.rend());
-		
+
 		value_t filtration_value;
 		(std::stringstream(line.substr(string_end + 1, line.length()))) >> filtration_value;
 		index_t index = compute_index(new_simplex, B);
@@ -677,7 +675,6 @@ std::unordered_map<index_t, value_t>* read_file(std::istream& input_stream, inde
 	}
 	return simplicialFiltration;
 }
-
 
 #include <iostream>
 
@@ -729,9 +726,7 @@ int main(int argc, const char* argv[]) {
 		exit(-1);
 	}
 
-	std::unordered_map<index_t, value_t>* simplicialFiltration;
-
-	simplicialFiltration = read_file(filename ? file_stream : std::cin, n, dim_max);
+	std::vector<std::unordered_map<index_t, value_t>> simplicialFiltration = read_file(filename ? file_stream : std::cin, n, dim_max);
 
 	std::cout << "Complex of dimension " << dim_max << " with " << n << " points" << std::endl;
 	dim_max = std::min(dim_max, n - 2);
@@ -770,8 +765,7 @@ int main(int argc, const char* argv[]) {
 				auto v1 = simplicialFiltration[0].find(vertices_of_edge[1]);
 				value_t f_val1 = v1->second;
 				value_t paired_fval = std::max(f_val0, f_val1);
-				if (get_diameter(e) > 0)
-					std::cout << " [" << paired_fval << "," << get_diameter(e) << ")" << std::endl;
+				if (get_diameter(e) > 0) std::cout << " [" << paired_fval << "," << get_diameter(e) << ")" << std::endl;
 #endif
 				dset.link(u, v);
 			} else
@@ -797,11 +791,11 @@ int main(int argc, const char* argv[]) {
 		pivot_column_index.reserve(columns_to_reduce.size());
 
 		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse,
-		               simplicialFiltration, binomial_coeff);
+		              simplicialFiltration, binomial_coeff);
 
 		if (dim < dim_max - 1) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, simplicialFiltration, dim, n, threshold,
-			                            binomial_coeff);
+			                           binomial_coeff);
 		}
 	}
 
