@@ -172,8 +172,8 @@ public:
 	    : distances(mat.size() * (mat.size() - 1) / 2), rows(mat.size()) {
 		init_rows();
 
-		for (index_t i = 1; i < size(); ++i)
-			for (index_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
+		for (size_t i = 1; i < size(); ++i)
+			for (size_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
 	}
 
 	value_t operator()(const index_t i, const index_t j) const;
@@ -188,8 +188,8 @@ public:
 	//Initialize from thresholded dense distance matrix
 	template <typename DistanceMatrix>
 	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()) {
-		for (index_t i = 0; i < size(); ++i) {
-			for (index_t j = 0; j < size(); ++j) {
+		for (size_t i = 0; i < size(); ++i) {
+			for (size_t j = 0; j < size(); ++j) {
 				if (i != j && mat(i, j) <= threshold) {
 					neighbors[i].push_back(std::make_pair(mat(i, j), j));
 				}
@@ -216,7 +216,7 @@ public:
 
 template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
 	value_t* pointer = &distances[0];
-	for (index_t i = 1; i < size(); ++i) {
+	for (size_t i = 1; i < size(); ++i) {
 		rows[i] = pointer;
 		pointer += i;
 	}
@@ -224,7 +224,7 @@ template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
 
 template <> void compressed_distance_matrix<UPPER_TRIANGULAR>::init_rows() {
 	value_t* pointer = &distances[0] - 1;
-	for (index_t i = 0; i < size() - 1; ++i) {
+	for (size_t i = 0; i < size() - 1; ++i) {
 		rows[i] = pointer;
 		pointer += size() - i - 2;
 	}
@@ -371,13 +371,40 @@ void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
 	column.push(std::make_pair(diameter, e));
 }
 
+/* This is the data structure from which the results of running ripser can be returned */
+typedef struct {
+	/* The first variable is a vector of unrolled persistence diagrams
+	   so, for example births_and_deaths_by_dim[0] contains a list of 
+	   			[birth0, death0, birth1, death1, ..., birthk, deathk]
+	   for k points in the 0D persistence diagram
+	   and likewise for d-dimensional persistence in births_and_deaths_by_dim[d]
+	*/
+	std::vector< std::vector<value_t> > births_and_deaths_by_dim;
+	/*
+	  The second variable is a vector of representative cocycles for each dimension.
+	  For now, only cocycles above dimension 0 are added, so dimension 0 is an empty list
+	  For the others, cocycles_by_dim[d] holds an array of representative cocycles
+	  for dimension d which is parallel with the array of births/deaths for dimension d.
+	  Each element of the array is itself an array of unrolled information about the cocycle
+	  For dimension 1, for example, the zeroeth element of the array contains
+	  [ccl0_simplex0_idx0 ccl0_simplex0_idx1 ccl0_simplex0_val, 
+	   ccl0_simplex1_idx0 ccl0_simplex1_idx1 ccl0_simplex1_val, ...
+	   ccl0_simplexk_idx0 ccl0_simplexk_idx1 ccl0_simplexk_val]
+	  for a cocycle representing the first persistence point, which has k simplices
+	  with nonzero values in the representative cocycle
+	*/
+	std::vector< std::vector< std::vector<int> > > cocycles_by_dim;
+	/* The third variable is the number of edges that were added during the computation*/
+	int num_edges;
+} ripserResults;
+
 template <typename DistanceMatrix> class ripser {
 	DistanceMatrix dist;
 	index_t n, dim_max;
 	value_t threshold;
-	int do_cocycles; //If this flag is off, don't extract the representative cocycles to save time
 	float ratio;
 	coefficient_t modulus;
+	int do_cocycles; //If this flag is off, don't extract the representative cocycles to save time
 	const binomial_coeff_table binomial_coeff;
 	std::vector<coefficient_t> multiplicative_inverse;
 	mutable std::vector<index_t> vertices;
@@ -387,17 +414,8 @@ template <typename DistanceMatrix> class ripser {
 
 
 public:
-	/*Store all of the results into an array with the following format
-	 [NumperClass0, PD0,
-	  NumPerClass1, PD1, Cocycle1_0Len, Cocycle1_0, Cocycle1_1Len, Cocycle1_1, ..., Cocycle1_NumPerClass1Len, Cocycle1_NumPerClass1
-	  NumPerClass2, PD2, Cocycle1_0Len, Cocycle1_0, Cocycle1_1Len, Cocycle1_1, ..., Cocycle2_NumPerClass1Len, Cocycle2_NumPerClass1
-	  ...
-	  , n_edges]
-
-	where PD0 is b0, d0, b1, d1, ...
-	and each cocycle is simplexidx0, simplexidx1, ..., simplexidxd, val mod p
-	*/
-	mutable std::vector<value_t> retvec;
+	mutable std::vector< std::vector<value_t> > births_and_deaths_by_dim;
+	mutable std::vector< std::vector< std::vector<int> > > cocycles_by_dim;
 
 	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
 	       coefficient_t _modulus, int _do_cocycles)
@@ -406,6 +424,13 @@ public:
 	      ratio(_ratio), modulus(_modulus), do_cocycles(_do_cocycles),
 		  binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
+
+	void copy_results(ripserResults& res) {
+		res.births_and_deaths_by_dim.insert(res.births_and_deaths_by_dim.end(), 
+				births_and_deaths_by_dim.begin(), births_and_deaths_by_dim.end());
+		res.cocycles_by_dim.insert(res.cocycles_by_dim.end(), 
+				cocycles_by_dim.begin(), cocycles_by_dim.end());
+	}
 
 	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
 		if (binomial_coeff(v, k) > idx) {
@@ -462,7 +487,6 @@ public:
 
 	void compute_dim_0_pairs(std::vector<diameter_index_t>& edges,
 	                         std::vector<diameter_index_t>& columns_to_reduce) {
-		std::vector<value_t> birthsanddeaths;
 		//TODO: Get correct birth times if the edges are negative (required for lower star)
 		union_find dset(n);
 
@@ -479,8 +503,8 @@ public:
 
 			if (u != v) {
 				if (get_diameter(e) != 0) {
-					birthsanddeaths.push_back(0);
-					birthsanddeaths.push_back((value_t)get_diameter(e));
+					births_and_deaths_by_dim[0].push_back(0);
+					births_and_deaths_by_dim[0].push_back((value_t)get_diameter(e));
 				}
 				dset.link(u, v);
 			} else
@@ -490,12 +514,10 @@ public:
 
 		for (index_t i = 0; i < n; ++i) {
 			if (dset.find(i) == i) {
-				birthsanddeaths.push_back(0);
-				birthsanddeaths.push_back(std::numeric_limits<value_t>::infinity());
+				births_and_deaths_by_dim[0].push_back(0);
+				births_and_deaths_by_dim[0].push_back(std::numeric_limits<value_t>::infinity());
 			}
 		}
-		retvec.push_back(birthsanddeaths.size()/2);
-		retvec.insert(retvec.end(), birthsanddeaths.begin(), birthsanddeaths.end());
 	}
 
 	template <typename Column, typename Iterator>
@@ -547,10 +569,8 @@ public:
 #endif
 
 		std::vector<diameter_entry_t> coface_entries;
-		std::vector<value_t> birthsanddeaths;
-		std::vector<value_t> allcocycles;
 
-		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
+		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
 			auto column_to_reduce = columns_to_reduce[index_column_to_reduce];
 
@@ -623,8 +643,8 @@ public:
 					} else {
 						value_t death = get_diameter(pivot);
 						if (diameter != death) {
-							birthsanddeaths.push_back(diameter);
-							birthsanddeaths.push_back(death);
+							births_and_deaths_by_dim[dim].push_back(diameter);
+							births_and_deaths_by_dim[dim].push_back(death);
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
 							if (do_cocycles) {
@@ -632,20 +652,17 @@ public:
 								auto cocycle = working_reduction_column;
 								diameter_entry_t e;
 								std::vector<index_t> simplex;
-								std::vector<value_t> thiscocycle;
-								index_t lencocycle = 0;
+								std::vector<int> thiscocycle;
 								while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
 									simplex.clear();
 									get_simplex_vertices(get_index(e), dim, n, std::back_inserter(simplex));
 									for (size_t k = 0; k < simplex.size(); k++) {
-										thiscocycle.push_back((value_t)simplex[k]);
+										thiscocycle.push_back((int)simplex[k]);
 									}
 									thiscocycle.push_back(normalize(get_coefficient(e), modulus));
 									cocycle.pop();
-									lencocycle++;
 								}
-								allcocycles.push_back(lencocycle);
-								allcocycles.insert(allcocycles.end(), thiscocycle.begin(), thiscocycle.end());
+								cocycles_by_dim[dim].push_back(thiscocycle);
 							}
 #endif
 
@@ -686,8 +703,8 @@ public:
 						break;
 					}
 				} else {
-					birthsanddeaths.push_back(diameter);
-					birthsanddeaths.push_back(std::numeric_limits<value_t>::infinity());
+					births_and_deaths_by_dim[dim].push_back(diameter);
+					births_and_deaths_by_dim[dim].push_back(std::numeric_limits<value_t>::infinity());
 
 
 #ifdef ASSEMBLE_REDUCTION_MATRIX
@@ -696,20 +713,17 @@ public:
 						auto cocycle = working_reduction_column;
 						diameter_entry_t e;
 						std::vector<index_t> simplex;
-						std::vector<value_t> thiscocycle;
-						index_t lencocycle = 0;
+						std::vector<int> thiscocycle;
 						while (get_index(e = get_pivot(cocycle, modulus)) != -1) {
 							simplex.clear();
 							get_simplex_vertices(get_index(e), dim, n, std::back_inserter(simplex));
 							for (size_t k = 0; k < simplex.size(); k++) {
-								thiscocycle.push_back((value_t)simplex[k]);
+								thiscocycle.push_back((int)simplex[k]);
 							}
 							thiscocycle.push_back(normalize(get_coefficient(e), modulus));
 							cocycle.pop();
-							lencocycle++;
 						}
-						allcocycles.push_back(lencocycle);
-						allcocycles.insert(allcocycles.end(), thiscocycle.begin(), thiscocycle.end());
+						cocycles_by_dim[dim].push_back(thiscocycle);
 					}
 #endif
 
@@ -717,13 +731,6 @@ public:
 				}
 			}
 		}
-
-		//Now copy everything into the result array
-		//Copy over persistence diagram
-		retvec.push_back(birthsanddeaths.size()/2);
-		retvec.insert(retvec.end(), birthsanddeaths.begin(), birthsanddeaths.end());
-		//Copy over cocycles
-		retvec.insert(retvec.end(), allcocycles.begin(), allcocycles.end());
 	}
 
 	std::vector<diameter_index_t> get_edges();
@@ -732,9 +739,13 @@ public:
 
 		std::vector<diameter_index_t> simplices, columns_to_reduce;
 
+		births_and_deaths_by_dim.push_back(std::vector<value_t>());
+		cocycles_by_dim.push_back(std::vector< std::vector<int> >());
 		compute_dim_0_pairs(simplices, columns_to_reduce);
-
+		
 		for (index_t dim = 1; dim <= dim_max; ++dim) {
+			births_and_deaths_by_dim.push_back(std::vector<value_t>());
+			cocycles_by_dim.push_back(std::vector< std::vector<int> >());
 			if (dim < n-2) {
 				hash_map<index_t, index_t> pivot_column_index;
 				pivot_column_index.reserve(columns_to_reduce.size());
@@ -745,9 +756,6 @@ public:
 					assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index,
 											dim + 1);
 				}
-			}
-			else {
-				retvec.push_back(0); //Not enough points to even run a reduction for this dimension
 			}
 		}
 	}
@@ -932,13 +940,11 @@ void ripser<sparse_distance_matrix>::assemble_columns_to_reduce(
 	simplices.swap(next_simplices);
 }
 
-std::vector<value_t> rips_dm(float* D, int N, int modulus, int dim_max, float threshold, int do_cocycles) {
+ripserResults rips_dm(float* D, int N, int modulus, int dim_max, float threshold, int do_cocycles) {
 	//Setup distance matrix and figure out threshold
-	std::vector<value_t> retvec;
 	std::vector<value_t> distances(D, D+N);
 	compressed_lower_distance_matrix dist =
 		compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
-	index_t n = dist.size();
 	float ratio = 1.0; //TODO: This seems like a dummy parameter at the moment
 
 	value_t min = std::numeric_limits<value_t>::infinity(),
@@ -946,9 +952,9 @@ std::vector<value_t> rips_dm(float* D, int N, int modulus, int dim_max, float th
 	int num_edges = 0;
 
 	value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
-	for (index_t i = 0; i < dist.size(); ++i) {
+	for (size_t i = 0; i < dist.size(); ++i) {
 		value_t r_i = -std::numeric_limits<value_t>::infinity();
-		for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
+		for (size_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
 		enclosing_radius = std::min(enclosing_radius, r_i);
 	}
 
@@ -961,43 +967,45 @@ std::vector<value_t> rips_dm(float* D, int N, int modulus, int dim_max, float th
 		if (d <= threshold) ++num_edges;
 	}
 
+	ripserResults res;
 	if (threshold >= max) {
 		ripser<compressed_lower_distance_matrix> r(std::move(dist), dim_max, threshold, ratio,
 		                                         modulus, do_cocycles);
 		r.compute_barcodes();
-		retvec.insert(retvec.end(), r.retvec.begin(), r.retvec.end());
+		r.copy_results(res);
 	} else {
 		ripser<sparse_distance_matrix> r(sparse_distance_matrix(std::move(dist), threshold), dim_max,
 		                               threshold, ratio, modulus, do_cocycles);
 		r.compute_barcodes();
-		retvec.insert(retvec.end(), r.retvec.begin(), r.retvec.end());
+		r.copy_results(res);
 	}
-	//Report the number of edges that were added
-	retvec.push_back((value_t)num_edges);
-	return retvec;
+	res.num_edges = num_edges;
+	return res;
 }
 
 
-std::vector<value_t> rips_dm_sparse(int* I, int* J, float* V, int NEdges,
+ripserResults rips_dm_sparse(int* I, int* J, float* V, int NEdges,
 								 int N, int modulus, int dim_max, float threshold, int do_cocycles) {
 	//Setup distance matrix and figure out threshold
-	std::vector<value_t> retvec;
 	float ratio = 1.0; //TODO: This seems like a dummy parameter at the moment
 	ripser<sparse_distance_matrix> r(sparse_distance_matrix(I, J, V, NEdges, N, threshold),
 									dim_max, threshold, ratio, modulus, do_cocycles);
 	r.compute_barcodes();
-	retvec.insert(retvec.end(), r.retvec.begin(), r.retvec.end());
 	//Report the number of edges that were added
-	value_t num_edges;
+	int num_edges = 0;
 	for (int idx = 0; idx < NEdges; idx++) {
 		if (I[idx] < J[idx] && V[idx] <= threshold) {
 			num_edges++;
 		}
 	}
-	retvec.push_back(num_edges);
-	return retvec;
+	ripserResults res;
+	r.copy_results(res);
+	res.num_edges = num_edges;
+	return res;
 }
 
+/*
+//TODO: @mtsch edit this
 int unwrapvector(std::vector<value_t> vec, float** out) {
     int length = vec.size();
     float* arr = (float*) malloc(length * sizeof(value_t));
@@ -1018,5 +1026,5 @@ extern "C" {
         std::vector<value_t> resvec = rips_dm_sparse(I, J, V, NEdges, N, modulus, dim_max, threshold, do_cocycles);
         return unwrapvector(resvec, out);
     }
-}
+}*/
 

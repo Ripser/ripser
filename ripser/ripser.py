@@ -66,7 +66,7 @@ class Rips(BaseEstimator):
 
         # Internal variables
         self.dgm_ = None
-        self.cocycles_ = {}
+        self.cocycles_ = None
         self.dm_ = None  # Distance matrix
         self.metric_ = None 
         self.num_edges_ = None # Number of edges added
@@ -154,31 +154,26 @@ class Rips(BaseEstimator):
             res = DRFDM(DParam, self.maxdim, self.thresh,
                         self.coeff, int(self.do_cocycles))
 
-        pds = []
-        for dim in range(self.maxdim + 1):
-            # Number of homology classes in this dimension
-            n_classes = int(res[0])
+        # Unwrap persistence diagrams
+        dgms = res['births_and_deaths_by_dim']
+        for dim in range(len(dgms)):
+            N = int(len(dgms[dim])/2)
+            dgms[dim] = np.reshape(np.array(dgms[dim]), [N, 2])
+        self.dgm_ = dgms
 
-            # First extract the persistence diagram
-            res = res[1::]
-            pd = np.array(res[0:n_classes*2])
-            pds.append(np.reshape(pd, (n_classes, 2)))
-            res = res[n_classes*2::]
-
-            # Now extract the representative cocycles if they were computed
-            if self.do_cocycles and dim > 0:
-                self.cocycles_[dim] = []
-                for _ in range(n_classes):
-                    c_length = int(res[0])
-                    res = res[1::]
-                    cocycle = res[0:c_length*(dim+2)]
-                    cocycle = np.reshape(cocycle, (c_length, dim+2))
-                    cocycle = np.array(cocycle, dtype=np.int64)
-                    cocycle[:, -1] = np.mod(cocycle[:, -1], self.coeff)
-                    self.cocycles_[dim].append(cocycle)
-                    res = res[c_length*(dim+2)::]
-        self.num_edges_ = int(res[0])
-        return pds
+        # Unwrap cocycles
+        cocycles = []
+        for dim in range(len(res['cocycles_by_dim'])):
+            cocycles.append([])
+            for j in range(len(res['cocycles_by_dim'][dim])):
+                ccl = res['cocycles_by_dim'][dim][j]
+                n = int(len(ccl)/(dim+2))
+                ccl = np.reshape(np.array(ccl, dtype=np.int64), [n, dim+2])
+                ccl[:, -1] = np.mod(ccl[:, -1], self.coeff)
+                cocycles[dim].append(ccl)
+        self.cocycles_ = cocycles
+        self.num_edges_ = res['num_edges']
+        return dgms
 
     def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, lifetime=False, legend=True, show=True):
         """A helper function to plot persistence diagrams. 
