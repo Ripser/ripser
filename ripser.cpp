@@ -208,12 +208,14 @@ template <> void compressed_distance_matrix<UPPER_TRIANGULAR>::init_rows() {
 }
 
 template <>
-value_t compressed_distance_matrix<UPPER_TRIANGULAR>::operator()(index_t i, index_t j) const {
+value_t compressed_distance_matrix<UPPER_TRIANGULAR>::operator()(const index_t i,
+                                                                 const index_t j) const {
 	return i == j ? 0 : i > j ? rows[j][i] : rows[i][j];
 }
 
 template <>
-value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(index_t i, index_t j) const {
+value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(const index_t i,
+                                                                 const index_t j) const {
 	return i == j ? 0 : i < j ? rows[j][i] : rows[i][j];
 }
 
@@ -226,10 +228,8 @@ public:
 
 	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points)
 	    : points(std::move(_points)) {
-			for (auto p: points) {
-				assert(p.size() == points.front().size());
-			}
-		}
+		for (auto p : points) { assert(p.size() == points.front().size()); }
+	}
 
 	value_t operator()(const index_t i, const index_t j) const {
 		assert(i < points.size());
@@ -356,18 +356,20 @@ public:
 
 class ripser {
 	compressed_lower_distance_matrix dist;
-	index_t dim_max, n;
+	index_t n, dim_max;
 	value_t threshold;
+	float ratio;
 	coefficient_t modulus;
 	const binomial_coeff_table binomial_coeff;
 	std::vector<coefficient_t> multiplicative_inverse;
 	mutable std::vector<index_t> vertices;
 
 public:
-	ripser(compressed_lower_distance_matrix&& _dist, index_t _dim_max, value_t _threshold,
+	ripser(compressed_lower_distance_matrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
 	       coefficient_t _modulus)
-	    : dist(std::move(_dist)), dim_max(std::min(_dim_max, index_t(dist.size() - 2))),
-	      n(dist.size()), threshold(_threshold), modulus(_modulus), binomial_coeff(n, dim_max + 2),
+	    : dist(std::move(_dist)), n(dist.size()),
+	      dim_max(std::min(_dim_max, index_t(dist.size() - 2))), threshold(_threshold),
+	      ratio(_ratio), modulus(_modulus), binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
 	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
@@ -624,7 +626,7 @@ public:
 			found_persistence_pair:
 #ifdef PRINT_PERSISTENCE_PAIRS
 				value_t death = get_diameter(pivot);
-				if (diameter != death) {
+				if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
 					std::cout << "\033[K";
 #endif
@@ -842,6 +844,8 @@ int main(int argc, char** argv) {
 	index_t dim_max = 1;
 	value_t threshold = std::numeric_limits<value_t>::infinity();
 
+	float ratio = 1;
+
 #ifdef USE_COEFFICIENTS
 	coefficient_t modulus = 2;
 #else
@@ -861,6 +865,11 @@ int main(int argc, char** argv) {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			threshold = std::stof(parameter, &next_pos);
+			if (next_pos != parameter.size()) print_usage_and_exit(-1);
+		} else if (arg == "--ratio") {
+			std::string parameter = std::string(argv[++i]);
+			size_t next_pos;
+			ratio = std::stof(parameter, &next_pos);
 			if (next_pos != parameter.size()) print_usage_and_exit(-1);
 		} else if (arg == "--format") {
 			std::string parameter = std::string(argv[++i]);
@@ -915,7 +924,7 @@ int main(int argc, char** argv) {
 	std::cout << "value range: [" << min << "," << max << "]"
 	          << std::endl;
 
-	ripser(std::move(dist), dim_max, threshold, modulus).compute_barcodes();
+	ripser(std::move(dist), dim_max, threshold, ratio,  modulus).compute_barcodes();
 }
 
 void ripser::compute_barcodes() {
