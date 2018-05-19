@@ -355,8 +355,8 @@ public:
 	}
 };
 
-template <typename DistanceMatrix> class ripser {
-	DistanceMatrix dist;
+class ripser {
+	compressed_lower_distance_matrix dist;
 	index_t n, dim_max;
 	value_t threshold;
 	float ratio;
@@ -367,8 +367,8 @@ template <typename DistanceMatrix> class ripser {
 	mutable std::vector<diameter_entry_t> coface_entries;
 
 public:
-	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
-	       coefficient_t _modulus)
+	ripser(compressed_lower_distance_matrix&& _dist, index_t _dim_max, value_t _threshold,
+	       float _ratio, coefficient_t _modulus)
 	    : dist(std::move(_dist)), n(dist.size()),
 	      dim_max(std::min(_dim_max, index_t(dist.size() - 2))), threshold(_threshold),
 	      ratio(_ratio), modulus(_modulus), binomial_coeff(n, dim_max + 2),
@@ -467,35 +467,7 @@ public:
 #endif
 	                                              Column& working_coboundary, const index_t& dim,
 	                                              hash_map<index_t, index_t>& pivot_column_index,
-	                                              bool& might_be_apparent_pair) {
-		for (auto it = column_begin; it != column_end; ++it) {
-			diameter_entry_t simplex = *it;
-			set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
-
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-			working_reduction_column.push(simplex);
-#endif
-
-			coface_entries.clear();
-			simplex_coboundary_enumerator cofaces(simplex, dim, *this);
-			while (cofaces.has_next()) {
-				diameter_entry_t coface = cofaces.next();
-				if (get_diameter(coface) <= threshold) {
-					coface_entries.push_back(coface);
-					if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
-						if (pivot_column_index.find(get_index(coface)) ==
-						    pivot_column_index.end()) {
-							return coface;
-						}
-						might_be_apparent_pair = false;
-					}
-				}
-			}
-			for (auto coface : coface_entries) working_coboundary.push(coface);
-		}
-
-		return get_pivot(working_coboundary, modulus);
-	}
+	                                              bool& might_be_apparent_pair);
 
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 	                   hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
@@ -674,7 +646,7 @@ public:
 	}
 };
 
-template <> class ripser<compressed_lower_distance_matrix>::simplex_coboundary_enumerator {
+class ripser::simplex_coboundary_enumerator {
 private:
 	index_t idx_below, idx_above, v, k;
 	std::vector<index_t> vertices;
@@ -713,7 +685,43 @@ public:
 	}
 };
 
-template <> std::vector<diameter_index_t> ripser<compressed_lower_distance_matrix>::get_edges() {
+template <typename Column, typename Iterator>
+diameter_entry_t ripser::add_coboundary_and_get_pivot(
+    Iterator column_begin, Iterator column_end, coefficient_t factor_column_to_add,
+#ifdef ASSEMBLE_REDUCTION_MATRIX
+    Column& working_reduction_column,
+#endif
+    Column& working_coboundary, const index_t& dim, hash_map<index_t, index_t>& pivot_column_index,
+    bool& might_be_apparent_pair) {
+	for (auto it = column_begin; it != column_end; ++it) {
+		diameter_entry_t simplex = *it;
+		set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
+
+#ifdef ASSEMBLE_REDUCTION_MATRIX
+		working_reduction_column.push(simplex);
+#endif
+
+		coface_entries.clear();
+		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
+		while (cofaces.has_next()) {
+			diameter_entry_t coface = cofaces.next();
+			if (get_diameter(coface) <= threshold) {
+				coface_entries.push_back(coface);
+				if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
+					if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end()) {
+						return coface;
+					}
+					might_be_apparent_pair = false;
+				}
+			}
+		}
+		for (auto coface : coface_entries) working_coboundary.push(coface);
+	}
+
+	return get_pivot(working_coboundary, modulus);
+}
+
+std::vector<diameter_index_t> ripser::get_edges() {
 	std::vector<diameter_index_t> edges;
 	for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
 		value_t diameter = compute_diameter(index, 1);
@@ -722,10 +730,10 @@ template <> std::vector<diameter_index_t> ripser<compressed_lower_distance_matri
 	return edges;
 }
 
-template <>
-void ripser<compressed_lower_distance_matrix>::assemble_columns_to_reduce(
-    std::vector<diameter_index_t>& simplices, std::vector<diameter_index_t>& columns_to_reduce,
-    hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
+void ripser::assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
+                                        std::vector<diameter_index_t>& columns_to_reduce,
+                                        hash_map<index_t, index_t>& pivot_column_index,
+                                        index_t dim) {
 	index_t num_simplices = binomial_coeff(n, dim + 1);
 
 	columns_to_reduce.clear();
@@ -1017,6 +1025,5 @@ int main(int argc, char** argv) {
 	std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
 
 	std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
-	ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
-	    .compute_barcodes();
+	ripser(std::move(dist), dim_max, threshold, ratio, modulus).compute_barcodes();
 }
