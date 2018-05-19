@@ -269,23 +269,16 @@ public:
 	}
 
 	index_t find(index_t x) {
-		index_t y = x, z = parent[y];
-		while (z != y) {
-			y = z;
-			z = parent[y];
-		}
-		y = parent[x];
-		while (z != y) {
-			parent[x] = z;
-			x = y;
-			y = parent[x];
+		index_t y = x, z;
+		while ((z = parent[y]) != y) y = z;
+		while ((z = parent[x]) != y) {
+			parent[x] = y;
+			x = z;
 		}
 		return z;
 	}
 	void link(index_t x, index_t y) {
-		x = find(x);
-		y = find(y);
-		if (x == y) return;
+		if ((x = find(x)) == (y = find(y))) return;
 		if (rank[x] > rank[y])
 			parent[y] = x;
 		else {
