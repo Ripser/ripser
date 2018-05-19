@@ -26,9 +26,6 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 //#define USE_GOOGLE_HASHMAP
 
-//#define COFACE_BASED_FILTRATION
-#define FACE_BASED_FILTRATION
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -228,14 +225,15 @@ class simplex_coboundary_enumerator {
 private:
 	index_t idx_below, idx_above, v, k;
 	std::vector<index_t> vertices;
-	diameter_entry_t simplex;
+	const diameter_entry_t simplex;
+	const std::unordered_map<index_t, value_t>& filtration;
 	const coefficient_t modulus;
 	const binomial_coeff_table& binomial_coeff;
 
 public:
-	simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, index_t _n, const coefficient_t _modulus,
+	simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim, index_t _n, const std::unordered_map<index_t, value_t>& _filtration, const coefficient_t _modulus,
 	                              const binomial_coeff_table& _binomial_coeff)
-	    : simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(_n - 1), k(_dim + 1), modulus(_modulus),
+	    : simplex(_simplex), idx_below(get_index(_simplex)), idx_above(0), v(_n - 1), k(_dim + 1), filtration(_filtration), modulus(_modulus),
 	      binomial_coeff(_binomial_coeff), vertices(_dim + 1) {
 		get_simplex_vertices(get_index(_simplex), _dim, _n, binomial_coeff, vertices.begin());
 	}
@@ -256,9 +254,14 @@ public:
 
 	diameter_entry_t next() {
 		index_t coface_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
-		value_t coface_fvalue = 1; // dummy
+		value_t coface_diameter = std::numeric_limits<value_t>::infinity();
+		
+		auto pair = filtration.find(coface_index);
+		if (pair != filtration.end())
+			coface_diameter = pair->second;
+		
 		coefficient_t coface_coefficient = (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
-		return diameter_entry_t(coface_fvalue, coface_index, coface_coefficient);
+		return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
 	}
 };
 
@@ -387,9 +390,8 @@ template <typename Heap> void push_entry(Heap& column, index_t i, coefficient_t 
 }
 
 void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
-                                hash_map<index_t, index_t>& pivot_column_index,
-                                const std::vector<std::unordered_map<index_t, value_t>>& simplicialFiltration, index_t dim, index_t n,
-                                value_t threshold, const binomial_coeff_table& binomial_coeff) {
+                                hash_map<index_t, index_t>& pivot_column_index, const std::unordered_map<index_t, value_t>& filtration, index_t dim,
+                                index_t n, value_t threshold, const binomial_coeff_table& binomial_coeff) {
 	index_t num_simplices = binomial_coeff(n, dim + 2);
 
 	columns_to_reduce.clear();
@@ -401,11 +403,9 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 
 	for (index_t index = 0; index < num_simplices; ++index) {
 		if (pivot_column_index.find(index) == pivot_column_index.end() &&
-		    simplicialFiltration[dim + 1].find(index) != simplicialFiltration[dim + 1].end()) {
-			auto S = simplicialFiltration[dim + 1].find(index);
-			value_t fval = S->second;
-			index_t ind = index;
-			if (fval <= threshold) columns_to_reduce.push_back(std::make_pair(fval, index));
+		    filtration.find(index) != filtration.end()) {
+			value_t diameter = filtration.find(index)->second;
+			if (diameter <= threshold) columns_to_reduce.push_back(std::make_pair(diameter, index));
 #ifdef INDICATE_PROGRESS
 			if ((index + 1) % 1000 == 0)
 				std::cout << "\033[K"
@@ -430,7 +430,7 @@ void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce
 void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<index_t, index_t>& pivot_column_index,
                    index_t dim, index_t n, value_t threshold, coefficient_t modulus,
                    const std::vector<coefficient_t>& multiplicative_inverse,
-                   const std::vector<std::unordered_map<index_t, value_t>>& simplicialFiltration,
+                   const std::unordered_map<index_t, value_t>& filtration,
                    const binomial_coeff_table& binomial_coeff) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
@@ -508,23 +508,18 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #endif
 
 				coface_entries.clear();
-				simplex_coboundary_enumerator cofaces(simplex, dim, n, modulus, binomial_coeff);
+				simplex_coboundary_enumerator cofaces(simplex, dim, n, filtration, modulus, binomial_coeff);
 
 				while (cofaces.has_next()) {
 					diameter_entry_t coface = cofaces.next();
-					auto S = simplicialFiltration[dim + 1].find(get_index(coface));
-					if (S != simplicialFiltration[dim + 1].end()) {
-						value_t fval = S->second;
-						coface = std::make_pair(fval, get_entry(coface));
-						if (fval <= threshold) {
-							coface_entries.push_back(coface);
-							if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
-								if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end()) {
-									pivot = coface;
-									goto found_persistence_pair;
-								}
-								might_be_apparent_pair = false;
+					if (get_diameter(coface) <= threshold) {
+						coface_entries.push_back(coface);
+						if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
+							if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end()) {
+								pivot = coface;
+								goto found_persistence_pair;
 							}
+							might_be_apparent_pair = false;
 						}
 					}
 				}
@@ -545,7 +540,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #ifdef INDICATE_PROGRESS
 				std::cout << "\033[K";
 #endif
-				// std::cout << "Index "  << " [" << column_to_reduce.get_index() << ", )";
 				std::cout << " [" << diameter << ", )" << std::endl << std::flush;
 #endif
 				break;
@@ -558,7 +552,6 @@ void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce, hash_map<in
 #ifdef INDICATE_PROGRESS
 				std::cout << "\033[K";
 #endif
-				//  std::cout << "Index "  << " [" << pivot.get_index() << "," << i << ")";
 				std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
 			}
 #endif
@@ -640,40 +633,27 @@ std::vector<std::unordered_map<index_t, value_t>> read_file(std::istream& input_
 	stream >> n;
 	stream >> dim_max;
 
-	std::cout << "n " << n << std::endl;
-	std::cout << "dim_max " << dim_max << std::endl;
 	const binomial_coeff_table B(n, dim_max + 2);
 
-	std::vector<std::unordered_map<index_t, value_t>> simplicialFiltration(dim_max + 1);
+	std::vector<std::unordered_map<index_t, value_t>> filtration(dim_max + 1);
 
 	while (std::getline(input_stream, line)) {
-		std::cout << line << std::endl;
 		string_end = line.find(delimiter);
-		//  std::cout << "substring " << line.substr(1,string_end-1) << std::endl;
 		stream.str("");
 		stream.clear();
 		stream << line.substr(1, string_end - 1);
-		// std::cout << line[line.length()] << "gotcha ";
-
-		// std::cout << stream.str() << std::endl;
 		new_simplex.clear();
-		dim = 0;
 		while (stream >> num) {
 			new_simplex.push_back(num);
-			// std::cout << num << std::endl;
-			dim++;
 		}
-		dim--;
 		std::sort(new_simplex.rbegin(), new_simplex.rend());
 
 		value_t filtration_value;
 		(std::stringstream(line.substr(string_end + 1, line.length()))) >> filtration_value;
 		index_t index = compute_index(new_simplex, B);
-		// std::cout << "index " << index << std::endl;
-		// std::cout << "dim " << dim << std::endl;
-		simplicialFiltration[dim].insert(std::make_pair(index, filtration_value));
+		filtration[new_simplex.size() - 1].insert(std::make_pair(index, filtration_value));
 	}
-	return simplicialFiltration;
+	return filtration;
 }
 
 #include <iostream>
@@ -726,9 +706,9 @@ int main(int argc, const char* argv[]) {
 		exit(-1);
 	}
 
-	std::vector<std::unordered_map<index_t, value_t>> simplicialFiltration = read_file(filename ? file_stream : std::cin, n, dim_max);
+	std::vector<std::unordered_map<index_t, value_t>> filtration = read_file(filename ? file_stream : std::cin, n, dim_max);
 
-	std::cout << "Complex of dimension " << dim_max << " with " << n << " points" << std::endl;
+	std::cout << "complex of dimension " << dim_max << " with " << n << " vertices" << std::endl;
 	dim_max = std::min(dim_max, n - 2);
 
 	binomial_coeff_table binomial_coeff(n, dim_max + 2);
@@ -740,9 +720,8 @@ int main(int argc, const char* argv[]) {
 		union_find dset(n);
 		std::vector<diameter_index_t> edges;
 		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
-			if (simplicialFiltration[1].find(index) != simplicialFiltration[1].end()) {
-				hash_map<index_t, value_t>::const_iterator S = simplicialFiltration[1].find(index);
-				value_t diameter = S->second;
+			if (filtration[1].find(index) != filtration[1].end()) {
+				value_t diameter = filtration[1].find(index)->second;
 				if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
 			}
 		}
@@ -760,12 +739,7 @@ int main(int argc, const char* argv[]) {
 
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-				auto v0 = simplicialFiltration[0].find(vertices_of_edge[0]);
-				value_t f_val0 = v0->second;
-				auto v1 = simplicialFiltration[0].find(vertices_of_edge[1]);
-				value_t f_val1 = v1->second;
-				value_t paired_fval = std::max(f_val0, f_val1);
-				if (get_diameter(e) > 0) std::cout << " [" << paired_fval << "," << get_diameter(e) << ")" << std::endl;
+				if (get_diameter(e) > 0) std::cout << " [" << std::max(filtration[0].find(vertices_of_edge[0])->second, filtration[0].find(vertices_of_edge[1])->second) << "," << get_diameter(e) << ")" << std::endl;
 #endif
 				dset.link(u, v);
 			} else
@@ -776,11 +750,7 @@ int main(int argc, const char* argv[]) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) {
-				// std::cout << " [0, )" << std::endl << std::flush;
-				auto unpaired_vertex = simplicialFiltration[0].find(i);
-				value_t f_val = unpaired_vertex->second;
-				std::cout << " [" << f_val << ","
-				          << ")" << std::endl;
+				std::cout << " [" << filtration[0].find(i)->second << "," << ")" << std::endl;
 			}
 #endif
 	}
@@ -791,10 +761,10 @@ int main(int argc, const char* argv[]) {
 		pivot_column_index.reserve(columns_to_reduce.size());
 
 		compute_pairs(columns_to_reduce, pivot_column_index, dim, n, threshold, modulus, multiplicative_inverse,
-		              simplicialFiltration, binomial_coeff);
+		              filtration[dim + 1], binomial_coeff);
 
 		if (dim < dim_max - 1) {
-			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, simplicialFiltration, dim, n, threshold,
+			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, filtration[dim + 1], dim, n, threshold,
 			                           binomial_coeff);
 		}
 	}
