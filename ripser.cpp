@@ -422,33 +422,32 @@ public:
 
 	void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
 	                                hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
-		index_t num_simplices = binomial_coeff(n, dim + 1);
-
 		columns_to_reduce.clear();
 
 #ifdef INDICATE_PROGRESS
 		std::cout << "\033[K"
-		          << "assembling " << num_simplices << " columns" << std::flush << "\r";
+		          << "assembling " << filtration[dim].size() << " columns" << std::flush << "\n";
 #endif
 
-		for (index_t index = 0; index < num_simplices; ++index) {
+		for (auto entry: filtration[dim]) {
+			index_t index = entry.first;
+			value_t diameter = entry.second;
 			if (pivot_column_index.find(index) == pivot_column_index.end()) {
-				value_t diameter = compute_diameter(index, dim);
 				if (diameter <= threshold)
 					columns_to_reduce.push_back(std::make_pair(diameter, index));
 #ifdef INDICATE_PROGRESS
 				if ((index + 1) % 1000000 == 0)
 					std::cout << "\033[K"
 					          << "assembled " << columns_to_reduce.size() << " out of "
-					          << (index + 1) << "/" << num_simplices << " columns" << std::flush
-					          << "\r";
+					          << (index + 1) << "/" << filtration[dim].size() << " columns" << std::flush
+					          << "\n";
 #endif
 			}
 		}
 
 #ifdef INDICATE_PROGRESS
 		std::cout << "\033[K"
-		          << "sorting " << num_simplices << " columns" << std::flush << "\r";
+		          << "sorting " << columns_to_reduce.size() << " columns" << std::flush << "\n";
 #endif
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
@@ -688,7 +687,7 @@ std::vector<std::unordered_map<index_t, value_t>> read_file(std::istream& input_
 
 	const binomial_coeff_table B(n, dim_max + 2);
 
-	std::vector<std::unordered_map<index_t, value_t>> filtration(dim_max + 1);
+	std::vector<std::unordered_map<index_t, value_t>> filtration(dim_max + 2);
 
 	while (std::getline(input_stream, line)) {
 		string_end = line.find(delimiter);
