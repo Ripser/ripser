@@ -928,7 +928,7 @@ int main(int argc, char** argv) {
 	file_format format = DISTANCE_MATRIX;
 
 	index_t dim_max = 1;
-	value_t threshold = std::numeric_limits<value_t>::infinity();
+	value_t threshold = std::numeric_limits<value_t>::max();
 
 	float ratio = 1;
 
