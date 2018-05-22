@@ -50,7 +50,7 @@ template <class Key, class T> class hash_map : public std::unordered_map<Key, T>
 
 typedef float value_t;
 typedef int64_t index_t;
-typedef int16_t coefficient_t;
+typedef int8_t coefficient_t;
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
@@ -393,7 +393,7 @@ public:
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
 	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
-		if (binomial_coeff(v, k) > idx) {
+		if ((v != -1) && (binomial_coeff(v, k) > idx)) {
 			index_t count = v;
 			while (count > 0) {
 				index_t i = v;
@@ -406,7 +406,6 @@ public:
 					count = step;
 			}
 		}
-		assert(binomial_coeff(v, k) <= idx && binomial_coeff(v + 1, k) > idx);
 		return v;
 	}
 
@@ -528,8 +527,8 @@ public:
 #ifdef INDICATE_PROGRESS
 			if ((index_column_to_reduce + 1) % 1000000 == 0)
 				std::cout << "\033[K"
-				          << "reducing column " << index_column_to_reduce + 1 << "/"
-				          << columns_to_reduce.size() << " (diameter " << diameter << ")"
+				          << "reducing column " << get_index(column_to_reduce) << " (" << index_column_to_reduce + 1 << "/"
+				          << columns_to_reduce.size() << ", diameter " << diameter << ")"
 				          << std::flush << "\r";
 #endif
 
