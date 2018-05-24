@@ -580,18 +580,6 @@ public:
 #endif
 				    working_coboundary, dim, pivot_column_index, might_be_apparent_pair);
 
-				{
-					auto working_coboundary_copy = working_coboundary;
-					std::vector<entry_t> working_coboundary_entries;
-					while (true) {
-						diameter_entry_t e = pop_pivot(working_coboundary_copy, modulus);
-						if (get_index(e) == -1) break;
-						working_coboundary_entries.push_back(get_entry(e));
-					}
-					
-					std::cout << "working boundary: " << working_coboundary_entries << std::endl;
-				}
-				
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_index(pivot));
 
@@ -760,8 +748,6 @@ public:
         --v;
         --k;
 		
-		std::cout << parent.vertices_of_simplex(get_index(simplex), face_dim + 1) << " has face " << parent.vertices_of_simplex(face_index, face_dim) << ":" << (k & 1 ? -1 : 1) << std::endl;
-        
         return diameter_entry_t(face_diameter, face_index, face_coefficient);
         ;
     }
@@ -906,9 +892,7 @@ std::vector<std::unordered_map<index_t, value_t>> read_file(std::istream& input_
 
 	while (std::getline(input_stream, line)) {
 		string_end = line.find(delimiter);
-		stream.str("");
-		stream.clear();
-		stream << line.substr(1, string_end - 1);
+		std::stringstream stream(line.substr(1, string_end - 1));
 		new_simplex.clear();
 		while (stream >> num) { new_simplex.push_back(num); }
 		std::sort(new_simplex.rbegin(), new_simplex.rend());
@@ -978,12 +962,10 @@ int main(int argc, const char* argv[]) {
 
 	std::cout << "complex of dimension " << dim_max << " with " << n << " vertices" << std::endl;
 
-	std::clock_t c_start, c_end;
-	c_start = std::clock();
+	double clock_start = std::clock();
 
 	ripser(std::move(filtration), n, dim_max, threshold, ratio, modulus).compute_barcodes();
-	
-	c_end = std::clock();
-	std::cout << "Compute persistent homology in " << (c_end-c_start) / (double)CLOCKS_PER_SEC << " s.\n";
+
+	std::cout << "Computed persistent homology in " << (std::clock()-clock_start) / CLOCKS_PER_SEC << " s\n";
 
 }
