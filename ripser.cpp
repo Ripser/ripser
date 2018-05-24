@@ -371,12 +371,6 @@ public:
 	}
 };
 
-template <typename Heap>
-void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
-	entry_t e = make_entry(i, c);
-	column.push(std::make_pair(diameter, e));
-}
-
 template <typename DistanceMatrix> class ripser {
 	DistanceMatrix dist;
 	index_t n, dim_max;
@@ -495,35 +489,7 @@ public:
 #endif
 	                                              Column& working_coboundary, const index_t& dim,
 	                                              hash_map<index_t, index_t>& pivot_column_index,
-	                                              bool& might_be_apparent_pair) {
-		for (auto it = column_begin; it != column_end; ++it) {
-			diameter_entry_t simplex = *it;
-			set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
-
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-			working_reduction_column.push(simplex);
-#endif
-
-			coface_entries.clear();
-			simplex_coboundary_enumerator cofaces(simplex, dim, *this);
-			while (cofaces.has_next()) {
-				diameter_entry_t coface = cofaces.next();
-				if (get_diameter(coface) <= threshold) {
-					coface_entries.push_back(coface);
-					if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
-						if (pivot_column_index.find(get_index(coface)) ==
-						    pivot_column_index.end()) {
-							return coface;
-						}
-						might_be_apparent_pair = false;
-					}
-				}
-			}
-			for (auto coface : coface_entries) working_coboundary.push(coface);
-		}
-
-		return get_pivot(working_coboundary, modulus);
-	}
+	                                              bool& might_be_apparent_pair);
 
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 	                   hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
@@ -623,7 +589,7 @@ public:
 					} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 						value_t death = get_diameter(pivot);
-						if (diameter != death) {
+						if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
 							std::cout << "\033[K";
 #endif
@@ -740,6 +706,43 @@ public:
 		return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
 	}
 };
+
+template <typename DistanceMatrix>
+template <typename Column, typename Iterator>
+diameter_entry_t ripser<DistanceMatrix>::add_coboundary_and_get_pivot(
+    Iterator column_begin, Iterator column_end, coefficient_t factor_column_to_add,
+#ifdef ASSEMBLE_REDUCTION_MATRIX
+    Column& working_reduction_column,
+#endif
+    Column& working_coboundary, const index_t& dim, hash_map<index_t, index_t>& pivot_column_index,
+    bool& might_be_apparent_pair) {
+	for (auto it = column_begin; it != column_end; ++it) {
+		diameter_entry_t simplex = *it;
+		set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
+
+#ifdef ASSEMBLE_REDUCTION_MATRIX
+		working_reduction_column.push(simplex);
+#endif
+
+		coface_entries.clear();
+		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
+		while (cofaces.has_next()) {
+			diameter_entry_t coface = cofaces.next();
+			if (get_diameter(coface) <= threshold) {
+				coface_entries.push_back(coface);
+				if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
+					if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end()) {
+						return coface;
+					}
+					might_be_apparent_pair = false;
+				}
+			}
+		}
+		for (auto coface : coface_entries) working_coboundary.push(coface);
+	}
+
+	return get_pivot(working_coboundary, modulus);
+}
 
 template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator {
 private:
