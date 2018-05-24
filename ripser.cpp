@@ -567,7 +567,7 @@ public:
 					} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 						value_t death = get_diameter(pivot);
-						if (diameter != death) {
+						if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
 							std::cout << "\033[K";
 #endif
