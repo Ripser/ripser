@@ -26,8 +26,6 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 //#define USE_GOOGLE_HASHMAP
 
-#include "prettyprint.hpp"
-
 #include <cassert>
 #include <cmath>
 #include <fstream>
