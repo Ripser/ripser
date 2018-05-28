@@ -374,7 +374,7 @@ void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
 /* This is the data structure from which the results of running ripser can be returned */
 typedef struct {
 	/* The first variable is a vector of unrolled persistence diagrams
-	   so, for example births_and_deaths_by_dim[0] contains a list of 
+	   so, for example births_and_deaths_by_dim[0] contains a list of
 	   			[birth0, death0, birth1, death1, ..., birthk, deathk]
 	   for k points in the 0D persistence diagram
 	   and likewise for d-dimensional persistence in births_and_deaths_by_dim[d]
@@ -387,7 +387,7 @@ typedef struct {
 	  for dimension d which is parallel with the array of births/deaths for dimension d.
 	  Each element of the array is itself an array of unrolled information about the cocycle
 	  For dimension 1, for example, the zeroeth element of the array contains
-	  [ccl0_simplex0_idx0 ccl0_simplex0_idx1 ccl0_simplex0_val, 
+	  [ccl0_simplex0_idx0 ccl0_simplex0_idx1 ccl0_simplex0_val,
 	   ccl0_simplex1_idx0 ccl0_simplex1_idx1 ccl0_simplex1_val, ...
 	   ccl0_simplexk_idx0 ccl0_simplexk_idx1 ccl0_simplexk_val]
 	  for a cocycle representing the first persistence point, which has k simplices
@@ -426,9 +426,9 @@ public:
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
 	void copy_results(ripserResults& res) {
-		res.births_and_deaths_by_dim.insert(res.births_and_deaths_by_dim.end(), 
+		res.births_and_deaths_by_dim.insert(res.births_and_deaths_by_dim.end(),
 				births_and_deaths_by_dim.begin(), births_and_deaths_by_dim.end());
-		res.cocycles_by_dim.insert(res.cocycles_by_dim.end(), 
+		res.cocycles_by_dim.insert(res.cocycles_by_dim.end(),
 				cocycles_by_dim.begin(), cocycles_by_dim.end());
 	}
 
@@ -742,7 +742,7 @@ public:
 		births_and_deaths_by_dim.push_back(std::vector<value_t>());
 		cocycles_by_dim.push_back(std::vector< std::vector<int> >());
 		compute_dim_0_pairs(simplices, columns_to_reduce);
-		
+
 		for (index_t dim = 1; dim <= dim_max; ++dim) {
 			births_and_deaths_by_dim.push_back(std::vector<value_t>());
 			cocycles_by_dim.push_back(std::vector< std::vector<int> >());
@@ -1004,27 +1004,110 @@ ripserResults rips_dm_sparse(int* I, int* J, float* V, int NEdges,
 	return res;
 }
 
-/*
-//TODO: @mtsch edit this
-int unwrapvector(std::vector<value_t> vec, float** out) {
-    int length = vec.size();
-    float* arr = (float*) malloc(length * sizeof(value_t));
-    std::memcpy(arr, &vec[0], length * sizeof(value_t));
-    *out = arr;
-    return length;
+int unpack_results(int** n_intervals, value_t** births_and_deaths, int** cocycle_length, int** cocycles,
+                   ripserResults res, int do_cocycles) {
+
+    int n_dims = res.births_and_deaths_by_dim.size();
+    *n_intervals = (int*) malloc(n_dims * sizeof(int));
+    int n_intervals_total = 0;
+
+    for (int d = 0; d < n_dims; d++) {
+        int n_int_d = res.births_and_deaths_by_dim[d].size() / 2;
+        (*n_intervals)[d] = n_int_d;
+        n_intervals_total += n_int_d;
+    }
+    *births_and_deaths = (value_t*) malloc(n_intervals_total * 2 * sizeof(value_t));
+    *cocycle_length = (int*) calloc(n_intervals_total, sizeof(int));
+
+    int cocycle_length_total = 0;
+    int idx = 0;
+    for (int d = 0; d < n_dims; d++) {
+        std::copy(res.births_and_deaths_by_dim[d].begin(),
+                  res.births_and_deaths_by_dim[d].end(),
+                  &(*births_and_deaths)[2*idx]);
+
+        if (do_cocycles && !res.cocycles_by_dim[d].empty()) {
+            for (int i = 0; i < (*n_intervals)[d]; i++) {
+                int cc_length = res.cocycles_by_dim[d][i].size();
+                (*cocycle_length)[idx] = cc_length;
+                cocycle_length_total += cc_length;
+                idx++;
+            }
+        } else {
+            idx += (*n_intervals)[d];
+        }
+    }
+
+    if (do_cocycles && cocycle_length_total > 0) {
+        *cocycles = (int*) calloc(cocycle_length_total, sizeof(int));
+
+        int pos = 0;
+        for (int d = 0; d < n_dims; d++) {
+            if (!res.cocycles_by_dim[d].empty()) {
+                for (int i = 0; i < (*n_intervals)[d]; i++) {
+                    int cc_length = res.cocycles_by_dim[d][i].size();
+                    std::copy(res.cocycles_by_dim[d][i].begin(),
+                              res.cocycles_by_dim[d][i].end(),
+                              &(*cocycles)[pos]);
+                    pos += cc_length;
+                }
+            }
+        }
+    }
+    return res.num_edges;
 }
 
+#ifdef LIBRIPSER
 extern "C" {
-    int cripser(float** out, float* D, int N,
-                int modulus, int dim_max, float threshold, int do_cocycles) {
-        std::vector<value_t> resvec = rips_dm(D, N, modulus, dim_max, threshold, do_cocycles);
-        return unwrapvector(resvec, out);
+    #include "ripser.h"
+
+    /*
+      C interface to Ripser.
+
+      Results are passed through output arguments. The arrays are allocated in this
+      function and have to be freed manually by the caller.
+
+      Output arguments:
+      * n_intervals: number of intervals per dimension. (length = dim_max + 1)
+      * births_and_deaths: births and deaths of all dimension in a flat array. (length = 2 * sum(n_intervals))
+      * cocycle_length: lengths of individual cocycles. (length = sum(n_intervals))
+      * cocycles: cocycles stored in a flat array. (length = sum(cocycle_length))
+      Input arguments:
+      * D: lower triangle of the distance matrix in a flat array.
+      * N: length of D.
+      * modulus: Compute homology with coefficients in the prime field Z/pZ. p must be a prime number.
+      * dim_max: Compute persistent homology up to this dimension
+      * threshold: Compute Rips complexes up to this diameter
+      * do_cocycles: If nonzero, calculate cocycles and write them to cocycle_length and cocycles.
+
+      Returns number of edges.
+    */
+    int c_rips_dm(int** n_intervals, value_t** births_and_deaths,
+                  int** cocycle_length, int** cocycles,
+                  value_t* D, int N, int modulus, int dim_max, value_t threshold, int do_cocycles) {
+
+        ripserResults res = rips_dm(D, N, modulus, dim_max, threshold, do_cocycles);
+        return unpack_results(n_intervals, births_and_deaths, cocycle_length, cocycles,
+                              res, do_cocycles);
     }
 
-    int cripsersparse(float** out, int* I, int* J, float* V, int NEdges, int N,
-                      int modulus, int dim_max, float threshold, int do_cocycles) {
-        std::vector<value_t> resvec = rips_dm_sparse(I, J, V, NEdges, N, modulus, dim_max, threshold, do_cocycles);
-        return unwrapvector(resvec, out);
-    }
-}*/
+    /*
+      Same as c_rips_dm, but takes sparse matrix as input.
 
+      Arguments:
+      * I, J, V: indices and values.
+      * NEdges: total number of indices and values.
+      * N: size of sparse matrix.
+    */
+    int c_rips_dm_sparse(int** n_intervals, value_t** births_and_deaths,
+                         int** cocycle_length, int** cocycles,
+                         int* I, int* J, float* V, int NEdges, int N,
+                         int modulus, int dim_max, float threshold, int do_cocycles) {
+
+        ripserResults res = rips_dm_sparse(I, J, V, NEdges, N,
+                                           modulus, dim_max, threshold, do_cocycles);
+        return unpack_results(n_intervals, births_and_deaths, cocycle_length, cocycles,
+                              res, do_cocycles);
+    }
+}
+#endif
