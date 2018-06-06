@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from ripser import ripser
+from ripser import Rips
 from sklearn import datasets
 from sklearn.metrics.pairwise import pairwise_distances
 from scipy import sparse
@@ -24,40 +24,54 @@ class TestLibrary():
     # Does the library install in scope? Are the objects in scope?
     def test_import(self):
         import ripser
-        from ripser import ripser, plot_dgms
+        from ripser import Rips
         assert 1
+
+    def test_instantiate(self):
+        rip = Rips()
+        assert rip is not None
 
 
 class TestTransform():
     def test_input_warnings(self):
+
+        rips = Rips()
         data = np.random.random((3, 10))
 
         with pytest.warns(UserWarning, match='has more columns than rows') as w:
-            ripser(data)
+            rips.transform(data)
 
         data = np.random.random((3, 3))
         with pytest.warns(UserWarning, match='input matrix is square, but the distance_matrix') as w:
-            ripser(data)
+            rips.transform(data)
 
     def test_non_square_dist_matrix(self):
+        rips = Rips()
         data = np.random.random((3, 10))
 
         with pytest.raises(Exception):
-            ripser(data, distance_matrix=True)
+            rips.transform(data, distance_matrix=True)
 
 
 class TestParams():
     def test_defaults(self):
         data = np.random.random((100, 3))
-        dgms = ripser(data)['dgms']
-        assert len(dgms) == 2
+
+        rips = Rips()
+        dgm = rips.fit_transform(data)
+
+        assert len(dgm) == 2
+        assert rips.coeff == 2
 
     def test_coeff(self):
         np.random.seed(3100)
         data = np.random.random((100, 3))
 
-        dgm3 = ripser(data, coeff=3)['dgms']
-        dgm2 = ripser(data)['dgms']
+        rips3 = Rips(coeff=3)
+        dgm3 = rips3.fit_transform(data)
+
+        rips2 = Rips(coeff=2)
+        dgm2 = rips2.fit_transform(data)
         assert dgm2 is not dgm3, "This is a vacuous assertion, we only care that the above operations did not throw errors"
 
     def test_maxdim(self):
@@ -65,24 +79,31 @@ class TestParams():
         data = np.random.random((100, 3))
 
         # maxdim refers to the max H_p class, generate all less than
-        dgms0 = ripser(data, maxdim=0)['dgms']
-        assert len(dgms0) == 1
 
-        dgms1 = ripser(data)['dgms']
-        assert len(dgms1) == 2
+        rips0 = Rips(maxdim=0)
+        dgm0 = rips0.fit_transform(data)
+        assert len(dgm0) == 1
 
-        dgms2 = ripser(data, maxdim=2)['dgms']
-        assert len(dgms2) == 3
+        rips1 = Rips(maxdim=1)
+        dgm1 = rips1.fit_transform(data)
+        assert len(dgm1) == 2
+
+        rips2 = Rips(maxdim=2)
+        dgm2 = rips2.fit_transform(data)
+        assert len(dgm2) == 3
 
     def test_thresh(self):
         np.random.seed(3100)
         data = np.random.random((100, 3))
 
-        dgms0 = ripser(data, thresh=0.1)['dgms']
-        dgms1 = ripser(data)['dgms']
+        rips0 = Rips(thresh=0.1)
+        dgm0 = rips0.fit_transform(data)
+
+        rips1 = Rips(thresh=1)
+        dgm1 = rips1.fit_transform(data)
 
         # Barcode of H_1 diagram will be smaller, right?
-        assert len(dgms0[1]) < len(dgms1[1]), "Usually"
+        assert len(dgm0[1]) < len(dgm1[1]), "Usually"
 
     def test_sparse(self):
         np.random.seed(10)
@@ -91,18 +112,18 @@ class TestParams():
         # Do dense filtration with threshold
         data = datasets.make_circles(n_samples=100)[
             0] + 5 * datasets.make_circles(n_samples=100)[0]
-        res0 = ripser(data, thresh=thresh)
+        rips0 = Rips(thresh=thresh, maxdim=1)
+        dgms0 = rips0.fit_transform(data)
 
         # Convert to sparse matrix first based on threshold,
         # then do full filtration
+        rips1 = Rips(maxdim=1)
         D = makeSparseDM(data, thresh)
-        res1 = ripser(D, distance_matrix=True)
+        dgms1 = rips1.fit_transform(D, distance_matrix=True)
 
         # The same number of edges should have been added
-        assert res0['num_edges'] == res1['num_edges']
+        assert rips0.num_edges_ == rips1.num_edges_
 
-        dgms0 = res0['dgms']
-        dgms1 = res1['dgms']
         I10 = dgms0[1]
         I11 = dgms1[1]
         idx = np.argsort(I10[:, 0])
