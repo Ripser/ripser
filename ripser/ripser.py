@@ -1,5 +1,6 @@
 """
-    ripser provides functionality for persistent cohomology calculations, including computing barcodes, cocycles, and visualizations.
+    ripser provides functionality for persistent cohomology calculations, 
+    including computing barcodes, cocycles, and visualizations.
 
 """
 
@@ -11,7 +12,7 @@ import matplotlib as mpl
 from scipy import sparse
 
 import numpy as np
-from sklearn.base import BaseEstimator
+from sklearn.base import TransformerMixin
 from sklearn.metrics.pairwise import pairwise_distances
 
 from pyRipser import doRipsFiltrationDM as DRFDM
@@ -270,26 +271,32 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, labels=None, 
         plt.show()
 
 
-class Rips(BaseEstimator):
+class Rips(TransformerMixin):
     """sklearn class wrapper around Uli Bauer's ripser code 
+
     Parameters
     ----------
     maxdim : int, optional, default 1
         Maximum homology dimension computed. Will compute all dimensions lower than
         and equal to this value. For 1, H_0 and H_1 will be computed.
+    
     thresh : float, default infinity
         Maximum distances considered when constructing filtration. If infinity, compute 
         the entire filtration.
+    
     coeff : int prime, default 2
         Compute homology with coefficients in the prime field Z/pZ for p=coeff.
+    
     do_cocycles: bool
         Indicator of whether to compute cocycles, if so, we compute and store
         cocycles in the cocycles_ dictionary Rips member variable
+
     Attributes
     ----------
     dgm_ : list of ndarray, each shape (n_pairs, 2)
         After `transform`, dgm_ contains computed persistence diagrams in
         each dimension
+
     Examples
     --------
     ```
@@ -332,15 +339,19 @@ class Rips(BaseEstimator):
 
     def fit_transform(self, X, distance_matrix=False, metric='euclidean'):
         """Compute persistence diagrams for X data array and return the diagrams.
+
         Parameters
         ----------
         X: ndarray (n_samples, n_features)
             A numpy array of either data or distance matrix.
+        
         distance_matrix: bool
             Indicator that X is a distance matrix, if not we compute a 
             distance matrix from X using the chosen metric.
+        
         metric: string or callable
             The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including "euclidean", "manhattan", or "cosine". Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
+        
         Return
         ------
         dgms: list (size maxdim) of ndarray (n_pairs, 2)
@@ -351,18 +362,24 @@ class Rips(BaseEstimator):
 
     def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, lifetime=False, legend=True, show=True):
         """A helper function to plot persistence diagrams. 
+        
         Parameters
         ----------
         diagrams: ndarray (n_pairs, 2) or list of diagrams
             A diagram or list of diagrams as returned from self.fit. If diagram is None, we use self.dgm_ for plotting. If diagram is a list of diagrams, then plot all on the same plot using different colors.
+        
         plot_only: list of numeric
             If specified, an array of only the diagrams that should be plotted.
+        
         title: string, default is None
             If title is defined, add it as title of the plot.
+        
         xy_range: list of numeric [xmin, xmax, ymin, ymax]
             User provided range of axes. This is useful for comparing multiple persistence diagrams.
+        
         labels: string or list of strings
             Legend labels for each diagram. If none are specified, we use H_0, H_1, H_2,... by default.
+        
         colormap: string, default is 'default'
             Any of matplotlib color palettes. Some options are 'default', 'seaborn', 'sequential'. 
             See all availble styles with
@@ -370,16 +387,22 @@ class Rips(BaseEstimator):
                 import matplotlib as mpl
                 print(mpl.styles.available)
             ```
+        
         size: numeric, default is 20
             Pixel size of each point plotted.
+        
         ax_color: any valid matplitlib color type. 
             See [https://matplotlib.org/api/colors_api.html](https://matplotlib.org/api/colors_api.html) for complete API.
+        
         diagonal: bool, default is True
             Plot the diagonal x=y line.
+        
         lifetime: bool, default is False. If True, diagonal is turned to False.
             Plot life time of each point instead of birth and death. Essentially, visualize (x, y-x).
-        legend: bool, default is True
+        l
+        egend: bool, default is True
             If true, show the legend.
+        
         show: bool, default is True
             Call plt.show() after plotting. If you are using self.plot() as part of a subplot, set show=False and call plt.show() only once at the end.
         """
