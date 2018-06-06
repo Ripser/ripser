@@ -19,8 +19,8 @@ from pyRipser import doRipsFiltrationDM as DRFDM
 from pyRipser import doRipsFiltrationDMSparse as DRFDMSparse
 
 
-def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, \
-            do_cocycles=False, metric='euclidean'):
+def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False,
+           do_cocycles=False, metric='euclidean'):
     """ Compute persistence diagrams for X data array. If X is not a 
         distance matrix, it will be converted to a distance matrix using 
         the chosen metric.
@@ -95,12 +95,12 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, \
     if not distance_matrix:
         if X.shape[0] == X.shape[1]:
             warnings.warn(
-                "The input matrix is square, but the distance_matrix "+\
-                "flag is off.  Did you mean to indicate that "+\
+                "The input matrix is square, but the distance_matrix " +
+                "flag is off.  Did you mean to indicate that " +
                 "this was a distance matrix?")
         elif X.shape[0] < X.shape[1]:
             warnings.warn(
-                "The input point cloud has more columns than rows; "+\
+                "The input point cloud has more columns than rows; " +
                 "did you mean to transpose?")
         X = pairwise_distances(X, metric=metric)
 
@@ -139,10 +139,10 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, \
     return ret
 
 
-def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, \
-                labels=None, colormap='default', size=20, \
-                ax_color=np.array([0.0, 0.0, 0.0]), colors=None, 
-                diagonal=True, lifetime=False, legend=True, show=False):
+def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
+              labels=None, colormap='default', size=20,
+              ax_color=np.array([0.0, 0.0, 0.0]), colors=None,
+              diagonal=True, lifetime=False, legend=True, show=False):
     """A helper function to plot persistence diagrams. 
 
     Parameters
@@ -218,7 +218,7 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, \
         colors = cycle(['C0', 'C1', 'C2', 'C3', 'C4',
                         'C5', 'C6', 'C7', 'C8', 'C9'])
 
-    # Construct copy with proper type of each diagram 
+    # Construct copy with proper type of each diagram
     # so we can freely edit them.
     diagrams = [dgm.astype(np.float32, copy=True) for dgm in diagrams]
 
@@ -232,7 +232,7 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, \
         ax_min, ax_max = np.min(finite_dgms), np.max(finite_dgms)
         ax_range = ax_max - ax_min
 
-        # Give plot a nice buffer on all sides.  
+        # Give plot a nice buffer on all sides.
         # ax_range=0 when only one point,
         buffer = 1 if ax_range == 0 else ax_range / 5
 
@@ -308,14 +308,14 @@ class Rips(TransformerMixin):
         Maximum homology dimension computed. Will compute all dimensions 
         lower than and equal to this value. 
         For 1, H_0 and H_1 will be computed.
-    
+
     thresh : float, default infinity
         Maximum distances considered when constructing filtration. 
         If infinity, compute the entire filtration.
-    
+
     coeff : int prime, default 2
         Compute homology with coefficients in the prime field Z/pZ for p=coeff.
-    
+
     do_cocycles: bool
         Indicator of whether to compute cocycles, if so, we compute and store
         cocycles in the cocycles_ dictionary Rips member variable
@@ -338,8 +338,8 @@ class Rips(TransformerMixin):
     ```
     """
 
-    def __init__(self, maxdim=1, thresh=np.inf, coeff=2, \
-                        do_cocycles=False, verbose=True):
+    def __init__(self, maxdim=1, thresh=np.inf, coeff=2,
+                 do_cocycles=False, verbose=True):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
@@ -358,8 +358,8 @@ class Rips(TransformerMixin):
                 maxdim, thresh, coeff, do_cocycles, verbose))
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
-        result = ripser(X, maxdim=self.maxdim, thresh=self.thresh,\
-                        coeff=self.coeff, do_cocycles=self.do_cocycles,\
+        result = ripser(X, maxdim=self.maxdim, thresh=self.thresh,
+                        coeff=self.coeff, do_cocycles=self.do_cocycles,
                         distance_matrix=distance_matrix, metric=metric)
         self.dgms_ = result['dgms']
         self.num_edges_ = result['num_edges']
@@ -375,11 +375,11 @@ class Rips(TransformerMixin):
         ----------
         X: ndarray (n_samples, n_features)
             A numpy array of either data or distance matrix.
-        
+
         distance_matrix: bool
             Indicator that X is a distance matrix, if not we compute a 
             distance matrix from X using the chosen metric.
-        
+
         metric: string or callable
             The metric to use when calculating distance between instances in a 
             feature array. If metric is a string, it must be one of the options 
@@ -388,7 +388,7 @@ class Rips(TransformerMixin):
             called on each pair of instances (rows) and the resulting value 
             recorded. The callable should take two arrays from X as input and 
             return a value indicating the distance between them.
-        
+
         Return
         ------
         dgms: list (size maxdim) of ndarray (n_pairs, 2)
@@ -400,12 +400,12 @@ class Rips(TransformerMixin):
         self.transform(X, distance_matrix, metric)
         return self.dgms_
 
-    def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None,\
-             labels=None, colormap='default', size=20, \
-             ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, \
+    def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None,
+             labels=None, colormap='default', size=20,
+             ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True,
              lifetime=False, legend=True, show=True):
         """A helper function to plot persistence diagrams. 
-        
+
         Parameters
         ----------
         diagrams: ndarray (n_pairs, 2) or list of diagrams
@@ -413,21 +413,21 @@ class Rips(TransformerMixin):
             If diagram is None, we use self.dgm_ for plotting. 
             If diagram is a list of diagrams, then plot all on the same plot 
             using different colors.
-        
+
         plot_only: list of numeric
             If specified, an array of only the diagrams that should be plotted.
-        
+
         title: string, default is None
             If title is defined, add it as title of the plot.
-        
+
         xy_range: list of numeric [xmin, xmax, ymin, ymax]
             User provided range of axes. This is useful for comparing 
             multiple persistence diagrams.
-        
+
         labels: string or list of strings
             Legend labels for each diagram. 
             If none are specified, we use H_0, H_1, H_2,... by default.
-        
+
         colormap: string, default is 'default'
             Any of matplotlib color palettes. 
             Some options are 'default', 'seaborn', 'sequential'. 
@@ -436,23 +436,23 @@ class Rips(TransformerMixin):
                 import matplotlib as mpl
                 print(mpl.styles.available)
             ```
-        
+
         size: numeric, default is 20
             Pixel size of each point plotted.
-        
+
         ax_color: any valid matplitlib color type. 
             See [https://matplotlib.org/api/colors_api.html](https://matplotlib.org/api/colors_api.html) for complete API.
-        
+
         diagonal: bool, default is True
             Plot the diagonal x=y line.
-        
+
         lifetime: bool, default is False. If True, diagonal is turned to False.
             Plot life time of each point instead of birth and death. 
             Essentially, visualize (x, y-x).
-        
+
         legend: bool, default is True
             If true, show the legend.
-        
+
         show: bool, default is True
             Call plt.show() after plotting. 
             If you are using self.plot() as part of a subplot, 
@@ -462,8 +462,8 @@ class Rips(TransformerMixin):
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgms_
-        plot_dgms(diagrams, plot_only=plot_only, title=title,\
-                xy_range=xy_range, labels=labels, colormap=colormap,\
-                size=size, ax_color=ax_color, colors=colors,\
-                diagonal=diagonal, lifetime=lifetime,\
-                legend=legend, show=show)
+        plot_dgms(diagrams, plot_only=plot_only, title=title,
+                  xy_range=xy_range, labels=labels, colormap=colormap,
+                  size=size, ax_color=ax_color, colors=colors,
+                  diagonal=diagonal, lifetime=lifetime,
+                  legend=legend, show=show)
