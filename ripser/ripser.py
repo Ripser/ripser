@@ -19,9 +19,11 @@ from pyRipser import doRipsFiltrationDM as DRFDM
 from pyRipser import doRipsFiltrationDMSparse as DRFDMSparse
 
 
-def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycles=False, metric='euclidean'):
-    """ Compute persistence diagrams for X data array. If X is not a distance matrix,
-        it will be converted to a distance matrix using the chosen metric.
+def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, \
+            do_cocycles=False, metric='euclidean'):
+    """ Compute persistence diagrams for X data array. If X is not a 
+        distance matrix, it will be converted to a distance matrix using 
+        the chosen metric.
 
     Parameters
     ----------
@@ -30,12 +32,13 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycl
         Can also be a sparse distance matrix of type scipy.sparse
 
     maxdim : int, optional, default 1
-        Maximum homology dimension computed. Will compute all dimensions lower than
-        and equal to this value. For 1, H_0 and H_1 will be computed.
+        Maximum homology dimension computed. Will compute all dimensions 
+        lower than and equal to this value. 
+        For 1, H_0 and H_1 will be computed.
 
     thresh : float, default infinity
-        Maximum distances considered when constructing filtration. If infinity, compute 
-        the entire filtration.
+        Maximum distances considered when constructing filtration. 
+        If infinity, compute the entire filtration.
 
     coeff : int prime, default 2
         Compute homology with coefficients in the prime field Z/pZ for p=coeff.
@@ -49,16 +52,26 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycl
         cocycles in the cocycles_ dictionary Rips member variable
 
     metric: string or callable
-        The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including "euclidean", "manhattan", or "cosine". Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
+        The metric to use when calculating distance between instances in a 
+        feature array. If metric is a string, it must be one of the options 
+        specified in PAIRED_DISTANCES, including "euclidean", "manhattan", 
+        or "cosine". Alternatively, if metric is a callable function, it is 
+        called on each pair of instances (rows) and the resulting value 
+        recorded. The callable should take two arrays from X as input and 
+        return a value indicating the distance between them.
 
     Return
     ------
     A dictionary holding all of the results of the computation
 
     {'dgms': list (size maxdim) of ndarray (n_pairs, 2)
-        A list of persistence diagrams, one for each dimension less than maxdim. Each diagram is an ndarray of size (n_pairs, 2) with the first column representing the birth time and the second column representing the death time of each pair.
+        A list of persistence diagrams, one for each dimension less 
+        than maxdim. Each diagram is an ndarray of size (n_pairs, 2) 
+        with the first column representing the birth time and the 
+        second column representing the death time of each pair.
      'cocycles': list (size maxdim)
-        A list of representative cocycles in each dimension.  The list in each dimension is parallel to the diagram in that dimension.
+        A list of representative cocycles in each dimension.  The list 
+        in each dimension is parallel to the diagram in that dimension.
      'num_edges': int
         The number of edges added during the computation
      'dm' : ndarray (n_samples, n_samples)
@@ -75,6 +88,7 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycl
     data = datasets.make_circles(n_samples=110)[0]
     dgms = ripser(data)['dgms']
     plot_dgms(dgms)
+    ```
 
     """
 
@@ -122,14 +136,18 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycl
     return ret
 
 
-def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, lifetime=False, legend=True, show=False):
+def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, \
+                labels=None, colormap='default', size=20, \
+                ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, \
+                lifetime=False, legend=True, show=False):
     """A helper function to plot persistence diagrams. 
 
     Parameters
     ----------
 
     diagrams: ndarray (n_pairs, 2) or list of diagrams
-        A diagram or list of diagrams. If diagram is a list of diagrams, then plot all on the same plot using different colors.
+        A diagram or list of diagrams. If diagram is a list of diagrams, 
+        then plot all on the same plot using different colors.
 
     plot_only: list of numeric
         If specified, an array of only the diagrams that should be plotted.
@@ -138,13 +156,16 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, labels=None, 
         If title is defined, add it as title of the plot.
 
     xy_range: list of numeric [xmin, xmax, ymin, ymax]
-        User provided range of axes. This is useful for comparing multiple persistence diagrams.
+        User provided range of axes. This is useful for comparing 
+        multiple persistence diagrams.
 
     labels: string or list of strings
-        Legend labels for each diagram. If none are specified, we use H_0, H_1, H_2,... by default.
+        Legend labels for each diagram. 
+        If none are specified, we use H_0, H_1, H_2,... by default.
 
     colormap: string, default is 'default'
-        Any of matplotlib color palettes. Some options are 'default', 'seaborn', 'sequential'. 
+        Any of matplotlib color palettes. 
+        Some options are 'default', 'seaborn', 'sequential'. 
         See all availble styles with
         ```
             import matplotlib as mpl
@@ -161,13 +182,15 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, labels=None, 
         Plot the diagonal x=y line.
 
     lifetime: bool, default is False. If True, diagonal is turned to False.
-        Plot life time of each point instead of birth and death. Essentially, visualize (x, y-x).
+        Plot life time of each point instead of birth and death. 
+        Essentially, visualize (x, y-x).
 
     legend: bool, default is True
         If true, show the legend.
 
     show: bool, default is False
-        Call plt.show() after plotting. If you are using self.plot() as part of a subplot, set show=False and call plt.show() only once at the end.
+        Call plt.show() after plotting. If you are using self.plot() as part 
+        of a subplot, set show=False and call plt.show() only once at the end.
 
     """
 
@@ -277,12 +300,13 @@ class Rips(TransformerMixin):
     Parameters
     ----------
     maxdim : int, optional, default 1
-        Maximum homology dimension computed. Will compute all dimensions lower than
-        and equal to this value. For 1, H_0 and H_1 will be computed.
+        Maximum homology dimension computed. Will compute all dimensions 
+        lower than and equal to this value. 
+        For 1, H_0 and H_1 will be computed.
     
     thresh : float, default infinity
-        Maximum distances considered when constructing filtration. If infinity, compute 
-        the entire filtration.
+        Maximum distances considered when constructing filtration. 
+        If infinity, compute the entire filtration.
     
     coeff : int prime, default 2
         Compute homology with coefficients in the prime field Z/pZ for p=coeff.
@@ -338,7 +362,8 @@ class Rips(TransformerMixin):
         return self.dgms_
 
     def fit_transform(self, X, distance_matrix=False, metric='euclidean'):
-        """Compute persistence diagrams for X data array and return the diagrams.
+        """
+        Compute persistence diagrams for X data array and return the diagrams.
 
         Parameters
         ----------
@@ -350,12 +375,21 @@ class Rips(TransformerMixin):
             distance matrix from X using the chosen metric.
         
         metric: string or callable
-            The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including "euclidean", "manhattan", or "cosine". Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
+            The metric to use when calculating distance between instances in a 
+            feature array. If metric is a string, it must be one of the options 
+            specified in PAIRED_DISTANCES, including "euclidean", "manhattan", 
+            or "cosine". Alternatively, if metric is a callable function, it is 
+            called on each pair of instances (rows) and the resulting value 
+            recorded. The callable should take two arrays from X as input and 
+            return a value indicating the distance between them.
         
         Return
         ------
         dgms: list (size maxdim) of ndarray (n_pairs, 2)
-            A list of persistence diagrams, one for each dimension less than maxdim. Each diagram is an ndarray of size (n_pairs, 2) with the first column representing the birth time and the second column representing the death time of each pair.
+            A list of persistence diagrams, one for each dimension less 
+            than maxdim. Each diagram is an ndarray of size (n_pairs, 2) with 
+            the first column representing the birth time and the second column 
+            representing the death time of each pair.
         """
         self.transform(X, distance_matrix, metric)
         return self.dgms_
@@ -366,7 +400,10 @@ class Rips(TransformerMixin):
         Parameters
         ----------
         diagrams: ndarray (n_pairs, 2) or list of diagrams
-            A diagram or list of diagrams as returned from self.fit. If diagram is None, we use self.dgm_ for plotting. If diagram is a list of diagrams, then plot all on the same plot using different colors.
+            A diagram or list of diagrams as returned from self.fit. 
+            If diagram is None, we use self.dgm_ for plotting. 
+            If diagram is a list of diagrams, then plot all on the same plot 
+            using different colors.
         
         plot_only: list of numeric
             If specified, an array of only the diagrams that should be plotted.
@@ -375,13 +412,16 @@ class Rips(TransformerMixin):
             If title is defined, add it as title of the plot.
         
         xy_range: list of numeric [xmin, xmax, ymin, ymax]
-            User provided range of axes. This is useful for comparing multiple persistence diagrams.
+            User provided range of axes. This is useful for comparing 
+            multiple persistence diagrams.
         
         labels: string or list of strings
-            Legend labels for each diagram. If none are specified, we use H_0, H_1, H_2,... by default.
+            Legend labels for each diagram. 
+            If none are specified, we use H_0, H_1, H_2,... by default.
         
         colormap: string, default is 'default'
-            Any of matplotlib color palettes. Some options are 'default', 'seaborn', 'sequential'. 
+            Any of matplotlib color palettes. 
+            Some options are 'default', 'seaborn', 'sequential'. 
             See all availble styles with
             ```
                 import matplotlib as mpl
@@ -398,13 +438,15 @@ class Rips(TransformerMixin):
             Plot the diagonal x=y line.
         
         lifetime: bool, default is False. If True, diagonal is turned to False.
-            Plot life time of each point instead of birth and death. Essentially, visualize (x, y-x).
-        l
-        egend: bool, default is True
+            Plot life time of each point instead of birth and death. 
+            Essentially, visualize (x, y-x).
+        
+        legend: bool, default is True
             If true, show the legend.
         
         show: bool, default is True
-            Call plt.show() after plotting. If you are using self.plot() as part of a subplot, set show=False and call plt.show() only once at the end.
+            Call plt.show() after plotting. If you are using self.plot() as part of a 
+            subplot, set show=False and call plt.show() only once at the end.
         """
 
         if diagrams is None:
