@@ -46,7 +46,7 @@ class TestPlotting:
         assert x_plot[1] >= np.max(diagram)
 
         # get PathCollection
-        pathcols = [child for child in ax.get_children() 
+        pathcols = [child for child in ax.get_children()
                     if child.__class__.__name__ == "PathCollection"]
         assert len(pathcols) == 1
 
@@ -59,7 +59,7 @@ class TestPlotting:
         f, ax = plt.subplots()
         plot_dgms(diagrams, show=False)
 
-        pathcols = [child for child in ax.get_children() 
+        pathcols = [child for child in ax.get_children()
                     if child.__class__.__name__ == "PathCollection"]
 
         assert len(pathcols) == 2
@@ -74,7 +74,7 @@ class TestPlotting:
 
         f, ax = plt.subplots()
         plot_dgms(diagrams, legend=True, show=False)
-        legend = [child for child in ax.get_children() 
+        legend = [child for child in ax.get_children()
                   if child.__class__.__name__ == "Legend"]
 
         assert len(legend) == 1
@@ -87,7 +87,7 @@ class TestPlotting:
 
         f, ax = plt.subplots()
         plot_dgms(diagrams, legend=False, show=False)
-        legend = [child for child in ax.get_children() 
+        legend = [child for child in ax.get_children()
                   if child.__class__.__name__ == "Legend"]
 
         assert len(legend) == 0
@@ -155,7 +155,7 @@ class TestPlotting:
         f, ax = plt.subplots()
         plot_dgms(diagrams, lifetime=True, show=False)
 
-        pathcols = [child for child in ax.get_children() 
+        pathcols = [child for child in ax.get_children()
                     if child.__class__.__name__ == "PathCollection"]
 
         modded1 = diagrams[0]

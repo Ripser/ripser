@@ -18,7 +18,6 @@ from pyRipser import doRipsFiltrationDM as DRFDM
 from pyRipser import doRipsFiltrationDMSparse as DRFDMSparse
 
 
-
 def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycles=False, metric='euclidean'):
     """ Compute persistence diagrams for X data array. If X is not a distance matrix,
         it will be converted to a distance matrix using the chosen metric.
@@ -28,29 +27,29 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycl
     X: ndarray (n_samples, n_features)
         A numpy array of either data or distance matrix.
         Can also be a sparse distance matrix of type scipy.sparse
-    
+
     maxdim : int, optional, default 1
         Maximum homology dimension computed. Will compute all dimensions lower than
         and equal to this value. For 1, H_0 and H_1 will be computed.
-    
+
     thresh : float, default infinity
         Maximum distances considered when constructing filtration. If infinity, compute 
         the entire filtration.
-    
+
     coeff : int prime, default 2
         Compute homology with coefficients in the prime field Z/pZ for p=coeff.
-    
+
     distance_matrix: bool
         Indicator that X is a distance matrix, if not we compute a 
         distance matrix from X using the chosen metric.
-    
+
     do_cocycles: bool
         Indicator of whether to compute cocycles, if so, we compute and store
         cocycles in the cocycles_ dictionary Rips member variable
-    
+
     metric: string or callable
         The metric to use when calculating distance between instances in a feature array. If metric is a string, it must be one of the options specified in PAIRED_DISTANCES, including "euclidean", "manhattan", or "cosine". Alternatively, if metric is a callable function, it is called on each pair of instances (rows) and the resulting value recorded. The callable should take two arrays from X as input and return a value indicating the distance between them.
-    
+
     Return
     ------
     A dictionary holding all of the results of the computation
@@ -64,7 +63,7 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycl
      'dm' : ndarray (n_samples, n_samples)
         The distance matrix used in the computation
     }
-    
+
     Examples
     --------
 
@@ -80,9 +79,11 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycl
 
     if not distance_matrix:
         if X.shape[0] == X.shape[1]:
-            warnings.warn("The input matrix is square, but the distance_matrix flag is off.  Did you mean to indicate that this was a distance matrix?")
+            warnings.warn(
+                "The input matrix is square, but the distance_matrix flag is off.  Did you mean to indicate that this was a distance matrix?")
         elif X.shape[0] < X.shape[1]:
-            warnings.warn("The input point cloud has more columns than rows; did you mean to transpose?")
+            warnings.warn(
+                "The input point cloud has more columns than rows; did you mean to transpose?")
         X = pairwise_distances(X, metric=metric)
 
     if not (X.shape[0] == X.shape[1]):
@@ -92,8 +93,8 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycl
 
     if sparse.issparse(dm):
         coo = sparse.coo_matrix.astype(dm.tocoo(), dtype=np.float32)
-        res = DRFDMSparse(coo.row, coo.col, coo.data, n_points, \
-                    maxdim, thresh, coeff, int(do_cocycles))
+        res = DRFDMSparse(coo.row, coo.col, coo.data, n_points,
+                          maxdim, thresh, coeff, int(do_cocycles))
     else:
         I, J = np.meshgrid(np.arange(n_points), np.arange(n_points))
         DParam = np.array(dm[I > J], dtype=np.float32)
@@ -115,7 +116,8 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, do_cocycl
             ccl = np.reshape(np.array(ccl, dtype=np.int64), [n, dim+2])
             ccl[:, -1] = np.mod(ccl[:, -1], coeff)
             cocycles[dim].append(ccl)
-    ret = {'dgms':dgms, 'cocycles':cocycles, 'num_edges':res['num_edges'], 'dm':dm}
+    ret = {'dgms': dgms, 'cocycles': cocycles,
+           'num_edges': res['num_edges'], 'dm': dm}
     return ret
 
 
@@ -268,8 +270,6 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, labels=None, 
         plt.show()
 
 
-
-
 class Rips(BaseEstimator):
     """sklearn class wrapper around Uli Bauer's ripser code 
     Parameters
@@ -313,16 +313,16 @@ class Rips(BaseEstimator):
         self.dgms_ = None
         self.cocycles_ = None
         self.dm_ = None  # Distance matrix
-        self.metric_ = None 
-        self.num_edges_ = None # Number of edges added
+        self.metric_ = None
+        self.num_edges_ = None  # Number of edges added
 
         if self.verbose:
             print("Rips(maxdim={}, thresh={}, coeff={}, do_cocycles={}, verbose={})".format(
                 maxdim, thresh, coeff, do_cocycles, verbose))
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
-        result = ripser(X, maxdim=self.maxdim, thresh=self.thresh, coeff=self.coeff, \
-                        do_cocycles = self.do_cocycles, \
+        result = ripser(X, maxdim=self.maxdim, thresh=self.thresh, coeff=self.coeff,
+                        do_cocycles=self.do_cocycles,
                         distance_matrix=distance_matrix, metric=metric)
         self.dgms_ = result['dgms']
         self.num_edges_ = result['num_edges']
@@ -387,4 +387,5 @@ class Rips(BaseEstimator):
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgms_
-        plot_dgms(diagrams, plot_only=plot_only, title=title, xy_range=xy_range, labels=labels, colormap=colormap, size=size, ax_color=ax_color, colors=colors, diagonal=diagonal, lifetime=lifetime, legend=legend, show=show)
+        plot_dgms(diagrams, plot_only=plot_only, title=title, xy_range=xy_range, labels=labels, colormap=colormap,
+                  size=size, ax_color=ax_color, colors=colors, diagonal=diagonal, lifetime=lifetime, legend=legend, show=show)
