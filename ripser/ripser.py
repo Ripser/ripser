@@ -95,10 +95,13 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, \
     if not distance_matrix:
         if X.shape[0] == X.shape[1]:
             warnings.warn(
-                "The input matrix is square, but the distance_matrix flag is off.  Did you mean to indicate that this was a distance matrix?")
+                "The input matrix is square, but the distance_matrix "+\
+                "flag is off.  Did you mean to indicate that "+\
+                "this was a distance matrix?")
         elif X.shape[0] < X.shape[1]:
             warnings.warn(
-                "The input point cloud has more columns than rows; did you mean to transpose?")
+                "The input point cloud has more columns than rows; "+\
+                "did you mean to transpose?")
         X = pairwise_distances(X, metric=metric)
 
     if not (X.shape[0] == X.shape[1]):
@@ -138,8 +141,8 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False, \
 
 def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, \
                 labels=None, colormap='default', size=20, \
-                ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, \
-                lifetime=False, legend=True, show=False):
+                ax_color=np.array([0.0, 0.0, 0.0]), colors=None, 
+                diagonal=True, lifetime=False, legend=True, show=False):
     """A helper function to plot persistence diagrams. 
 
     Parameters
@@ -215,7 +218,8 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, \
         colors = cycle(['C0', 'C1', 'C2', 'C3', 'C4',
                         'C5', 'C6', 'C7', 'C8', 'C9'])
 
-    # Construct copy with proper type of each diagram so we can freely edit them.
+    # Construct copy with proper type of each diagram 
+    # so we can freely edit them.
     diagrams = [dgm.astype(np.float32, copy=True) for dgm in diagrams]
 
     # find min and max of all visible diagrams
@@ -228,7 +232,8 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None, \
         ax_min, ax_max = np.min(finite_dgms), np.max(finite_dgms)
         ax_range = ax_max - ax_min
 
-        # Give plot a nice buffer on all sides.  ax_range=0 when only one point,
+        # Give plot a nice buffer on all sides.  
+        # ax_range=0 when only one point,
         buffer = 1 if ax_range == 0 else ax_range / 5
 
         ax = ax_min - buffer/2
@@ -333,7 +338,8 @@ class Rips(TransformerMixin):
     ```
     """
 
-    def __init__(self, maxdim=1, thresh=np.inf, coeff=2, do_cocycles=False, verbose=True):
+    def __init__(self, maxdim=1, thresh=np.inf, coeff=2, \
+                        do_cocycles=False, verbose=True):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
@@ -352,8 +358,8 @@ class Rips(TransformerMixin):
                 maxdim, thresh, coeff, do_cocycles, verbose))
 
     def transform(self, X, distance_matrix=False, metric='euclidean'):
-        result = ripser(X, maxdim=self.maxdim, thresh=self.thresh, coeff=self.coeff,
-                        do_cocycles=self.do_cocycles,
+        result = ripser(X, maxdim=self.maxdim, thresh=self.thresh,\
+                        coeff=self.coeff, do_cocycles=self.do_cocycles,\
                         distance_matrix=distance_matrix, metric=metric)
         self.dgms_ = result['dgms']
         self.num_edges_ = result['num_edges']
@@ -394,7 +400,10 @@ class Rips(TransformerMixin):
         self.transform(X, distance_matrix, metric)
         return self.dgms_
 
-    def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None, labels=None, colormap='default', size=20, ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, lifetime=False, legend=True, show=True):
+    def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None,\
+             labels=None, colormap='default', size=20, \
+             ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True, \
+             lifetime=False, legend=True, show=True):
         """A helper function to plot persistence diagrams. 
         
         Parameters
@@ -445,12 +454,16 @@ class Rips(TransformerMixin):
             If true, show the legend.
         
         show: bool, default is True
-            Call plt.show() after plotting. If you are using self.plot() as part of a 
-            subplot, set show=False and call plt.show() only once at the end.
+            Call plt.show() after plotting. 
+            If you are using self.plot() as part of a subplot, 
+            set show=False and call plt.show() only once at the end.
         """
 
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgms_
-        plot_dgms(diagrams, plot_only=plot_only, title=title, xy_range=xy_range, labels=labels, colormap=colormap,
-                  size=size, ax_color=ax_color, colors=colors, diagonal=diagonal, lifetime=lifetime, legend=legend, show=show)
+        plot_dgms(diagrams, plot_only=plot_only, title=title,\
+                xy_range=xy_range, labels=labels, colormap=colormap,\
+                size=size, ax_color=ax_color, colors=colors,\
+                diagonal=diagonal, lifetime=lifetime,\
+                legend=legend, show=show)
