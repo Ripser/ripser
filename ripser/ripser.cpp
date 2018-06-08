@@ -184,10 +184,12 @@ public:
 class sparse_distance_matrix {
 public:
 	std::vector<std::vector<diameter_index_t>> neighbors;
+	std::vector<value_t> vertex_births;
 
 	//Initialize from thresholded dense distance matrix
 	template <typename DistanceMatrix>
-	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()) {
+	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : 
+							neighbors(mat.size()), vertex_births(mat.size(), 0) {
 		for (size_t i = 0; i < size(); ++i) {
 			for (size_t j = 0; j < size(); ++j) {
 				if (i != j && mat(i, j) <= threshold) {
@@ -197,7 +199,8 @@ public:
 		}
 	}
 	//Initialize from COO format
-	sparse_distance_matrix(int* I, int* J, float* V, int NEdges, int N, float threshold) : neighbors(N) {
+	sparse_distance_matrix(int* I, int* J, float* V, int NEdges, int N, float threshold) : 
+							neighbors(N), vertex_births(N, 0) {
 		int i, j;
 		value_t val;
 		for (int idx = 0; idx < NEdges; idx++) {
@@ -207,6 +210,9 @@ public:
 			if (i < j && val <= threshold) {
 				neighbors[i].push_back(std::make_pair(val, j));
 				neighbors[j].push_back(std::make_pair(val, i));
+			}
+			else if (i == j) {
+				vertex_births[i] = val;
 			}
 		}
 	}
@@ -249,10 +255,19 @@ typedef compressed_distance_matrix<UPPER_TRIANGULAR> compressed_upper_distance_m
 class union_find {
 	std::vector<index_t> parent;
 	std::vector<uint8_t> rank;
+	std::vector<value_t> birth;
 
 public:
-	union_find(index_t n) : parent(n), rank(n, 0) {
+	union_find(index_t n) : parent(n), rank(n, 0), birth(n, 0) {
 		for (index_t i = 0; i < n; ++i) parent[i] = i;
+	}
+
+	void set_birth(index_t i, value_t val) {
+		birth[i] = val;
+	}
+
+	value_t get_birth(index_t i) {
+		return birth[i];
 	}
 
 	index_t find(index_t x) {
@@ -273,10 +288,13 @@ public:
 		x = find(x);
 		y = find(y);
 		if (x == y) return;
-		if (rank[x] > rank[y])
+		if (rank[x] > rank[y]) {
 			parent[y] = x;
+			birth[x] = std::min(birth[x], birth[y]); //Elder rule
+		}
 		else {
 			parent[x] = y;
+			birth[y] = std::min(birth[x], birth[y]); //Elder rule
 			if (rank[x] == rank[y]) ++rank[y];
 		}
 	}
@@ -489,6 +507,9 @@ public:
 	                         std::vector<diameter_index_t>& columns_to_reduce) {
 		//TODO: Get correct birth times if the edges are negative (required for lower star)
 		union_find dset(n);
+		for (index_t i = 0; i < n; i++) {
+			dset.set_birth(i, get_vertex_birth(i));
+		}
 
 		edges = get_edges();
 
@@ -503,8 +524,13 @@ public:
 
 			if (u != v) {
 				if (get_diameter(e) != 0) {
-					births_and_deaths_by_dim[0].push_back(0);
-					births_and_deaths_by_dim[0].push_back((value_t)get_diameter(e));
+					//Elder rule; youngest class (max birth time of u and v) dies first
+					value_t birth = std::max(dset.get_birth(u), dset.get_birth(v));
+					value_t death = get_diameter(e);
+					if (death > birth) {
+						births_and_deaths_by_dim[0].push_back(birth);
+						births_and_deaths_by_dim[0].push_back(death);
+					}
 				}
 				dset.link(u, v);
 			} else
@@ -514,7 +540,7 @@ public:
 
 		for (index_t i = 0; i < n; ++i) {
 			if (dset.find(i) == i) {
-				births_and_deaths_by_dim[0].push_back(0);
+				births_and_deaths_by_dim[0].push_back(dset.get_birth(i));
 				births_and_deaths_by_dim[0].push_back(std::numeric_limits<value_t>::infinity());
 			}
 		}
@@ -734,6 +760,7 @@ public:
 	}
 
 	std::vector<diameter_index_t> get_edges();
+	value_t get_vertex_birth(index_t i);
 
 	void compute_barcodes() {
 
@@ -892,6 +919,16 @@ template <> std::vector<diameter_index_t> ripser<sparse_distance_matrix>::get_ed
 			if (i > j) edges.push_back(std::make_pair(get_diameter(n), get_edge_index(i, j)));
 		}
 	return edges;
+}
+
+template <> value_t ripser<compressed_lower_distance_matrix>::get_vertex_birth(index_t i) {
+	//TODO: Dummy for now; nonzero vertex births are only done through
+	//sparse matrices at the moment
+	return 0.0; 
+}
+
+template <> value_t ripser<sparse_distance_matrix>::get_vertex_birth(index_t i) {
+	return dist.vertex_births[i];
 }
 
 template <>
