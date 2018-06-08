@@ -526,8 +526,11 @@ public:
 				if (get_diameter(e) != 0) {
 					//Elder rule; youngest class (max birth time of u and v) dies first
 					value_t birth = std::max(dset.get_birth(u), dset.get_birth(v));
-					births_and_deaths_by_dim[0].push_back(birth);
-					births_and_deaths_by_dim[0].push_back((value_t)get_diameter(e));
+					value_t death = get_diameter(e);
+					if (death > birth) {
+						births_and_deaths_by_dim[0].push_back(birth);
+						births_and_deaths_by_dim[0].push_back(death);
+					}
 				}
 				dset.link(u, v);
 			} else
