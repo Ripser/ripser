@@ -38,7 +38,7 @@ class CustomBuildExtCommand(build_ext):
 
 
 setup(name="ripser",
-      version='0.2.3',
+      version='0.2.4',
       description="A Lean Persistent Homology Library for Python",
       long_description=long_description,
       long_description_content_type="text/markdown",
