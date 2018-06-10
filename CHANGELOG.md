@@ -1,3 +1,7 @@
+# 0.2.3:
+    - Support for lower star filtrations
+    - Notebook on lower star filtrations
+
 # 0.2.1:
     - Sparse distance matrix support
     - Two additional notebooks about sparsity
