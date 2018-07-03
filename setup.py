@@ -1,4 +1,5 @@
 import sys
+import os
 
 from setuptools import setup
 from setuptools.extension import Extension
@@ -18,7 +19,12 @@ with open('README.md') as f:
 
 # c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D PRINT_PERSISTENCE_PAIRS
 #options = ["-std=c++11", "-Ofast"]
-options = ["-std=c++11", "-Ofast"]
+# if os.name == 'nt':
+options = ["-std=c++11", "-Ofast", "-D_hypot=hypot"]
+#     options = ["/std:c++latest"]
+# else:
+
+    # options = ["-std=c++11", "-Ofast"]
 
 if sys.version_info[0] == 2:
     options.append("-fpermissive")
