@@ -1157,14 +1157,16 @@ int main(int argc, char** argv) {
 	        max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
 	int num_edges = 0;
 
-	value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
-	for (index_t i = 0; i < dist.size(); ++i) {
-		value_t r_i = -std::numeric_limits<value_t>::infinity();
-		for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
-		enclosing_radius = std::min(enclosing_radius, r_i);
-	}
+	if (threshold == std::numeric_limits<value_t>::max()) {
+		value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
+		for (index_t i = 0; i < dist.size(); ++i) {
+			value_t r_i = -std::numeric_limits<value_t>::infinity();
+			for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
+			enclosing_radius = std::min(enclosing_radius, r_i);
+		}
 
-	if (threshold == std::numeric_limits<value_t>::max()) threshold = enclosing_radius;
+		threshold = enclosing_radius;
+	}
 
 	for (auto d : dist.distances) {
 		min = std::min(min, d);
@@ -1182,7 +1184,7 @@ int main(int argc, char** argv) {
 		    .compute_barcodes();
 	} else {
 		std::cout << "sparse distance matrix with " << dist.size() << " points and " << num_edges
-		          << " entries" << std::endl;
+		          << "/" << (dist.size()*dist.size()-1)/2 << " entries" << std::endl;
 
 		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
 		                               threshold, ratio, modulus)
