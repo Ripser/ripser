@@ -1,13 +1,13 @@
 # Ripser
 
-Copyright © 2015–2016 [Ulrich Bauer].
+Copyright © 2015–2018 [Ulrich Bauer].
 
 
 ### Description
 
 Ripser is a lean C++ code for the computation of Vietoris–Rips persistence barcodes. It can do just this one thing, but does it extremely well.
 
-To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The computation happens inside the browser (using [PNaCl] on Chrome and JavaScript via [Emscripten] on other browsers).
+To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The computation happens inside the browser (using [PNaCl] on Chrome and JavaScript via [Emscripten] on other browsers). 
 
 The main features of Ripser:
 
@@ -26,13 +26,14 @@ Input formats currently supported by Ripser:
   - [DIPHA] distance matrix data
   - point cloud data
 
-Ripser's efficiency is based on a few important concepts and principles:
+Ripser's efficiency is based on a few important concepts and principles, building on key previous and concurrent  developments by other researchers in computational topology:
   
-  - Compute persistent *co*homology
+  - Compute persistent *co*homology (as suggested by [Vin de Silva, Dmitriy Morozov, and Mikael Vejdemo-Johansson](https://doi.org/10.1088/0266-5611/27/12/124003))
   - Don't compute information that is never needed
-    (for the experts: employ the *clearing* optimization, aka *persistence with a twist*)
-  - Don't store information that can be readily recomputed
-  - Take obvious shortcuts (*apparent persistence pairs*)
+    (for the experts: employ the *clearing* optimization, aka *persistence with a twist*, as suggested by [Chao Chen and Michael Kerber](http://www.geometrie.tugraz.at/kerber/kerber_papers/ck-phcwat-11.pdf))
+  - Don't store information that can be readily recomputed (in particular, the boundary matrix and the reduced boundary matrix)
+  - Take computational shortcuts (*apparent* and *emergent persistence pairs*)
+  - If no threshold is specified, choose the *enclosing radius* as the threshold, from which on homology is guaranteed to be trivial (as suggested by [Greg Henselman-Petrusek](https://github.com/Eetion/Eirene.jl))
 
 
 ### Version
