@@ -1,7 +1,11 @@
 build: false
 
 environment: 
-  matrix: 
+  matrix:
+    - PYTHON_VERSION: 3.4
+      MINICONDA: C:\Miniconda3
+    - PYTHON_VERSION: 3.5
+      MINICONDA: C:\Miniconda3
     - PYTHON_VERSION: 3.6
       MINICONDA: C:\Miniconda3
 
@@ -11,14 +15,8 @@ init:
 install: 
   - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%" 
   - conda config --set always_yes yes --set changeps1 no 
-
-
-
-
-
   - conda update -q conda 
   - conda info -a 
-  # - conda config --add channels bashtage 
   - "conda create -q -n test-environment 
   python=%PYTHON_VERSION% numpy pandas scipy matplotlib pytest" 
   - activate test-environment 
