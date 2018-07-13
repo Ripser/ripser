@@ -1,0 +1,27 @@
+build: false
+
+environment: 
+  matrix:
+    - PYTHON_VERSION: 3.5
+      MINICONDA: C:\Miniconda3
+    - PYTHON_VERSION: 3.6
+      MINICONDA: C:\Miniconda3
+
+init: 
+  - "ECHO %PYTHON_VERSION% %MINICONDA%"
+
+install: 
+  - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%" 
+  - conda config --set always_yes yes --set changeps1 no 
+  - conda update -q conda 
+  - conda info -a 
+  - "conda create -q -n test-environment 
+  python=%PYTHON_VERSION% numpy pandas scipy matplotlib pytest" 
+  - activate test-environment 
+  - conda install libpython m2w64-toolchain cython
+  - echo [build] > %CONDA_PREFIX%\Lib\distutils\distutils.cfg
+  - echo compiler = mingw32 >> %CONDA_PREFIX%\Lib\distutils\distutils.cfg
+  - python setup.py install
+
+test_script: 
+  - pytest .

@@ -1,4 +1,5 @@
 import sys
+import os
 
 from setuptools import setup
 from setuptools.extension import Extension
@@ -16,9 +17,7 @@ except:
 with open('README.md') as f:
     long_description = f.read()
 
-# c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D PRINT_PERSISTENCE_PAIRS
-#options = ["-std=c++11", "-Ofast"]
-options = ["-std=c++11", "-Ofast"]
+options = ["-std=c++11", "-Ofast", "-D_hypot=hypot"]
 
 if sys.version_info[0] == 2:
     options.append("-fpermissive")
