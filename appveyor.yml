@@ -2,9 +2,9 @@ build: false
 
 environment: 
   matrix:
-    - PYTHON_VERSION: 3.5
-      MINICONDA: C:\Miniconda3
-    - PYTHON_VERSION: 3.6
+    - PYTHON: C:\Python35-x64
+      PYTHON_VERSION: 3.5
+      PYTHON_ARCH: 64
       MINICONDA: C:\Miniconda3
 
 init: 
