@@ -1,6 +1,6 @@
 [![PyPI version](https://badge.fury.io/py/ripser.svg)](https://badge.fury.io/py/ripser)
 [![Build Status](https://travis-ci.org/ctralie/ripser.svg?branch=master)](https://travis-ci.org/ctralie/ripser)
-[![Build status](https://ci.appveyor.com/api/projects/status/2owvb4vyh68ekcfp?svg=true)](https://ci.appveyor.com/project/ctralie/ripser)
+[![Build status](https://ci.appveyor.com/api/projects/status/sfy7yybs66e5qanu?svg=true)](https://ci.appveyor.com/project/ctralie/ripser)
 [![codecov](https://codecov.io/gh/ctralie/ripser/branch/master/graph/badge.svg)](https://codecov.io/gh/ctralie/ripser)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 
