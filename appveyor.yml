@@ -2,16 +2,16 @@ build: false
 
 environment: 
   matrix:
-    - PYTHON: "C:\\Miniconda36-x64"
-      PYTHON_ARCH: "64"
-      CONDA_PLATFORM: "win-64"
-      CONDA_PYSUFFIX: "py36"
+  
+    - PYTHON_VERSION: 3.6
+      MINICONDA: C:\Miniconda3
+     
 
 platform:
   - x64
-  - x86
 
 init: 
+  - ls C:\
   - "ECHO %PYTHON_VERSION% %MINICONDA%"
 
 install: 
