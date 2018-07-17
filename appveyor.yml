@@ -2,16 +2,19 @@ build: false
 
 environment: 
   matrix:
-    - PYTHON: C:\Python35-x64
-      PYTHON_VERSION: 3.5
-      PYTHON_ARCH: 64
-      MINICONDA: C:\Miniconda3
+    - PYTHON: "C:\\Miniconda36-x64"
+      PYTHON_ARCH: "64"
+      CONDA_PLATFORM: "win-64"
+      CONDA_PYSUFFIX: "py36"
+
 
 init: 
   - "ECHO %PYTHON_VERSION% %MINICONDA%"
 
 install: 
   - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%" 
+  - python --version
+  - python -c "import sys,platform,struct;print(sys.platform, platform.machine(), struct.calcsize('P') * 8, )"
   - conda config --set always_yes yes --set changeps1 no 
   - conda update -q conda 
   - conda info -a 
