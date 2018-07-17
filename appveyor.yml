@@ -2,15 +2,23 @@ build: false
 
 environment: 
   matrix:
-  
-#     - PYTHON_VERSION: 3.6
-#       MINICONDA: C:\Miniconda3
+    - PYTHON_VERSION: 3.5
+      MINICONDA: C:\Miniconda3
+      COMPILER: mingw32
+      
+    - PYTHON_VERSION: 3.5
+      MINICONDA: C:\Miniconda3-x64
+      COMPILER: MinGW-w64
+      
+    - PYTHON_VERSION: 3.6
+      MINICONDA: C:\Miniconda3
+      COMPILER: mingw32
+      
     - PYTHON_VERSION: 3.6
       MINICONDA: C:\Miniconda3-x64
-#       COMPILER: MinGW-w64
+      COMPILER: MinGW-w64
 
 init: 
-  - ls C:\
   - "ECHO %PYTHON_VERSION% %MINICONDA%"
 
 install: 
@@ -25,7 +33,7 @@ install:
   - activate test-environment 
   - conda install libpython m2w64-toolchain cython
   - echo [build] > %CONDA_PREFIX%\Lib\distutils\distutils.cfg
-#   - echo compiler = %COMPILER% >> %CONDA_PREFIX%\Lib\distutils\distutils.cfg
+  - echo compiler = %COMPILER% >> %CONDA_PREFIX%\Lib\distutils\distutils.cfg
   - python setup.py install
 
 test_script: 
