@@ -7,6 +7,9 @@ environment:
       CONDA_PLATFORM: "win-64"
       CONDA_PYSUFFIX: "py36"
 
+platform:
+  - x64
+  - x86
 
 init: 
   - "ECHO %PYTHON_VERSION% %MINICONDA%"
