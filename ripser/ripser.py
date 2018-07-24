@@ -19,11 +19,16 @@ from pyRipser import doRipsFiltrationDM as DRFDM
 from pyRipser import doRipsFiltrationDMSparse as DRFDMSparse
 
 
-def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False,
-           do_cocycles=False, metric='euclidean'):
-    """ Compute persistence diagrams for X data array. If X is not a 
-        distance matrix, it will be converted to a distance matrix using 
-        the chosen metric.
+def ripser(
+    X,
+    maxdim=1,
+    thresh=np.inf,
+    coeff=2,
+    distance_matrix=False,
+    do_cocycles=False,
+    metric="euclidean",
+):
+    """Compute persistence diagrams for X data array. If X is not a distance matrix, it will be converted to a distance matrix using the chosen metric.
 
     Parameters
     ----------
@@ -60,8 +65,8 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False,
         recorded. The callable should take two arrays from X as input and 
         return a value indicating the distance between them.
 
-    Return
-    ------
+    Returns
+    -------
     A dictionary holding all of the results of the computation
 
     {'dgms': list (size maxdim) of ndarray (n_pairs, 2)
@@ -80,69 +85,88 @@ def ripser(X, maxdim=1, thresh=np.inf, coeff=2, distance_matrix=False,
 
     Examples
     --------
+    .. code:: python
 
-    ```
-    from ripser import ripser, plot_dgms
-    from sklearn import datasets
+        from ripser import ripser, plot_dgms
+        from sklearn import datasets
 
-    data = datasets.make_circles(n_samples=110)[0]
-    dgms = ripser(data)['dgms']
-    plot_dgms(dgms)
-    ```
+        data = datasets.make_circles(n_samples=110)[0]
+        dgms = ripser(data)['dgms']
+        plot_dgms(dgms)
 
     """
 
     if not distance_matrix:
         if X.shape[0] == X.shape[1]:
             warnings.warn(
-                "The input matrix is square, but the distance_matrix " +
-                "flag is off.  Did you mean to indicate that " +
-                "this was a distance matrix?")
+                "The input matrix is square, but the distance_matrix "
+                + "flag is off.  Did you mean to indicate that "
+                + "this was a distance matrix?"
+            )
         elif X.shape[0] < X.shape[1]:
             warnings.warn(
-                "The input point cloud has more columns than rows; " +
-                "did you mean to transpose?")
+                "The input point cloud has more columns than rows; "
+                + "did you mean to transpose?"
+            )
         X = pairwise_distances(X, metric=metric)
 
     if not (X.shape[0] == X.shape[1]):
-        raise Exception('Distance matrix is not square')
+        raise Exception("Distance matrix is not square")
     dm = X
     n_points = dm.shape[0]
 
     if sparse.issparse(dm):
         coo = sparse.coo_matrix.astype(dm.tocoo(), dtype=np.float32)
-        res = DRFDMSparse(coo.row, coo.col, coo.data, n_points,
-                          maxdim, thresh, coeff, int(do_cocycles))
+        res = DRFDMSparse(
+            coo.row,
+            coo.col,
+            coo.data,
+            n_points,
+            maxdim,
+            thresh,
+            coeff,
+            int(do_cocycles),
+        )
     else:
         I, J = np.meshgrid(np.arange(n_points), np.arange(n_points))
         DParam = np.array(dm[I > J], dtype=np.float32)
         res = DRFDM(DParam, maxdim, thresh, coeff, int(do_cocycles))
 
     # Unwrap persistence diagrams
-    dgms = res['births_and_deaths_by_dim']
+    dgms = res["births_and_deaths_by_dim"]
     for dim in range(len(dgms)):
-        N = int(len(dgms[dim])/2)
+        N = int(len(dgms[dim]) / 2)
         dgms[dim] = np.reshape(np.array(dgms[dim]), [N, 2])
 
     # Unwrap cocycles
     cocycles = []
-    for dim in range(len(res['cocycles_by_dim'])):
+    for dim in range(len(res["cocycles_by_dim"])):
         cocycles.append([])
-        for j in range(len(res['cocycles_by_dim'][dim])):
-            ccl = res['cocycles_by_dim'][dim][j]
-            n = int(len(ccl)/(dim+2))
-            ccl = np.reshape(np.array(ccl, dtype=np.int64), [n, dim+2])
+        for j in range(len(res["cocycles_by_dim"][dim])):
+            ccl = res["cocycles_by_dim"][dim][j]
+            n = int(len(ccl) / (dim + 2))
+            ccl = np.reshape(np.array(ccl, dtype=np.int64), [n, dim + 2])
             ccl[:, -1] = np.mod(ccl[:, -1], coeff)
             cocycles[dim].append(ccl)
-    ret = {'dgms': dgms, 'cocycles': cocycles,
-           'num_edges': res['num_edges'], 'dm': dm}
+    ret = {"dgms": dgms, "cocycles": cocycles, "num_edges": res["num_edges"], "dm": dm}
     return ret
 
 
-def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
-              labels=None, colormap='default', size=20,
-              ax_color=np.array([0.0, 0.0, 0.0]), colors=None,
-              diagonal=True, lifetime=False, legend=True, show=False):
+def plot_dgms(
+    diagrams,
+    plot_only=None,
+    title=None,
+    xy_range=None,
+    labels=None,
+    colormap="default",
+    size=20,
+    ax_color=np.array([0.0, 0.0, 0.0]),
+    colors=None,
+    diagonal=True,
+    lifetime=False,
+    legend=True,
+    show=False,
+):
     """A helper function to plot persistence diagrams. 
 
     Parameters
@@ -169,16 +193,17 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
     colormap: string, default is 'default'
         Any of matplotlib color palettes. 
         Some options are 'default', 'seaborn', 'sequential'. 
-        See all availble styles with
-        ```
+        See all available styles with
+        
+        .. code:: python
+
             import matplotlib as mpl
             print(mpl.styles.available)
-        ```
 
     size: numeric, default is 20
         Pixel size of each point plotted.
 
-    ax_color: any valid matplitlib color type. 
+    ax_color: any valid matplotlib color type. 
         See [https://matplotlib.org/api/colors_api.html](https://matplotlib.org/api/colors_api.html) for complete API.
 
     diagonal: bool, default is True
@@ -199,8 +224,17 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
 
     if labels is None:
         # Provide default labels for diagrams if using self.dgm_
-        labels = ["$H_0$", "$H_1$", "$H_2$", "$H_3$",
-                  "$H_4$", "$H_5$", "$H_6$", "$H_7$", "$H_8$"]
+        labels = [
+            "$H_0$",
+            "$H_1$",
+            "$H_2$",
+            "$H_3$",
+            "$H_4$",
+            "$H_5$",
+            "$H_6$",
+            "$H_7$",
+            "$H_8$",
+        ]
 
     if not isinstance(diagrams, list):
         # Must have diagrams as a list for processing downstream
@@ -215,8 +249,7 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
 
     if colors is None:
         mpl.style.use(colormap)
-        colors = cycle(['C0', 'C1', 'C2', 'C3', 'C4',
-                        'C5', 'C6', 'C7', 'C8', 'C9'])
+        colors = cycle(["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"])
 
     # Construct copy with proper type of each diagram
     # so we can freely edit them.
@@ -236,7 +269,7 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
         # ax_range=0 when only one point,
         buffer = 1 if ax_range == 0 else ax_range / 5
 
-        ax = ax_min - buffer/2
+        ax = ax_min - buffer / 2
         bx = ax_max + buffer
 
         ay, by = ax, bx
@@ -253,7 +286,7 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
         diagonal = False
 
         # reset y axis so it doesn't go much below zero
-        ay = - buffer/2
+        ay = -buffer / 2
 
         # set custom ylabel
         ylabel = "Lifetime"
@@ -263,15 +296,15 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
             dgm[:, 1] -= dgm[:, 0]
 
         # plot horizon line
-        plt.plot([ax, bx], [0, 0], '--', c=ax_color)
+        plt.plot([ax, bx], [0, 0], "--", c=ax_color)
 
     # Plot diagonal
     if diagonal:
-        plt.plot([ax, bx], [ax, bx], '--', c=ax_color)
+        plt.plot([ax, bx], [ax, bx], "--", c=ax_color)
 
     # Plot inf line
     if has_inf:
-        plt.plot([ax, bx], [b_inf, b_inf], c='k', label=r'$\infty$')
+        plt.plot([ax, bx], [b_inf, b_inf], c="k", label=r"$\infty$")
 
         # convert each inf in each diagram with b_inf
         for dgm in diagrams:
@@ -280,8 +313,7 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
     # Plot each diagram
     for dgm, color, label in zip(diagrams, colors, labels):
         # plot persistence pairs
-        plt.scatter(dgm[:, 0], dgm[:, 1], size,
-                    color, label=label, edgecolor='none')
+        plt.scatter(dgm[:, 0], dgm[:, 1], size, color, label=label, edgecolor="none")
 
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
@@ -293,14 +325,14 @@ def plot_dgms(diagrams, plot_only=None, title=None, xy_range=None,
         plt.title(title)
 
     if legend is True:
-        plt.legend(loc='lower right')
+        plt.legend(loc="lower right")
 
     if show is True:
         plt.show()
 
 
 class Rips(TransformerMixin):
-    """sklearn class wrapper around Uli Bauer's ripser code 
+    """sklearn style class wrapper around Uli Bauer's ripser code 
 
     Parameters
     ----------
@@ -328,18 +360,19 @@ class Rips(TransformerMixin):
 
     Examples
     --------
-    ```
-    from ripser import Rips
-    from sklearn import datasets
-    data = datasets.make_circles(n_samples=110)[0]
-    rips = Rips()
-    rips.transform(data)
-    rips.plot()
-    ```
+     .. code:: python
+
+        from ripser import Rips
+        from sklearn import datasets
+        data = datasets.make_circles(n_samples=110)[0]
+        rips = Rips()
+        rips.transform(data)
+        rips.plot()
     """
 
-    def __init__(self, maxdim=1, thresh=np.inf, coeff=2,
-                 do_cocycles=False, verbose=True):
+    def __init__(
+        self, maxdim=1, thresh=np.inf, coeff=2, do_cocycles=False, verbose=True
+    ):
         self.maxdim = maxdim
         self.thresh = thresh
         self.coeff = coeff
@@ -354,20 +387,29 @@ class Rips(TransformerMixin):
         self.num_edges_ = None  # Number of edges added
 
         if self.verbose:
-            print("Rips(maxdim={}, thresh={}, coeff={}, do_cocycles={}, verbose={})".format(
-                maxdim, thresh, coeff, do_cocycles, verbose))
+            print(
+                "Rips(maxdim={}, thresh={}, coeff={}, do_cocycles={}, verbose={})".format(
+                    maxdim, thresh, coeff, do_cocycles, verbose
+                )
+            )
 
-    def transform(self, X, distance_matrix=False, metric='euclidean'):
-        result = ripser(X, maxdim=self.maxdim, thresh=self.thresh,
-                        coeff=self.coeff, do_cocycles=self.do_cocycles,
-                        distance_matrix=distance_matrix, metric=metric)
-        self.dgms_ = result['dgms']
-        self.num_edges_ = result['num_edges']
-        self.dm_ = result['dm']
-        self.cocycles_ = result['cocycles']
+    def transform(self, X, distance_matrix=False, metric="euclidean"):
+        result = ripser(
+            X,
+            maxdim=self.maxdim,
+            thresh=self.thresh,
+            coeff=self.coeff,
+            do_cocycles=self.do_cocycles,
+            distance_matrix=distance_matrix,
+            metric=metric,
+        )
+        self.dgms_ = result["dgms"]
+        self.num_edges_ = result["num_edges"]
+        self.dm_ = result["dm"]
+        self.cocycles_ = result["cocycles"]
         return self.dgms_
 
-    def fit_transform(self, X, distance_matrix=False, metric='euclidean'):
+    def fit_transform(self, X, distance_matrix=False, metric="euclidean"):
         """
         Compute persistence diagrams for X data array and return the diagrams.
 
@@ -389,8 +431,8 @@ class Rips(TransformerMixin):
             recorded. The callable should take two arrays from X as input and 
             return a value indicating the distance between them.
 
-        Return
-        ------
+        Returns
+        -------
         dgms: list (size maxdim) of ndarray (n_pairs, 2)
             A list of persistence diagrams, one for each dimension less 
             than maxdim. Each diagram is an ndarray of size (n_pairs, 2) with 
@@ -400,10 +442,22 @@ class Rips(TransformerMixin):
         self.transform(X, distance_matrix, metric)
         return self.dgms_
 
-    def plot(self, diagrams=None, plot_only=None, title=None, xy_range=None,
-             labels=None, colormap='default', size=20,
-             ax_color=np.array([0.0, 0.0, 0.0]), colors=None, diagonal=True,
-             lifetime=False, legend=True, show=True):
+    def plot(
+        self,
+        diagrams=None,
+        plot_only=None,
+        title=None,
+        xy_range=None,
+        labels=None,
+        colormap="default",
+        size=20,
+        ax_color=np.array([0.0, 0.0, 0.0]),
+        colors=None,
+        diagonal=True,
+        lifetime=False,
+        legend=True,
+        show=True,
+    ):
         """A helper function to plot persistence diagrams. 
 
         Parameters
@@ -431,11 +485,12 @@ class Rips(TransformerMixin):
         colormap: string, default is 'default'
             Any of matplotlib color palettes. 
             Some options are 'default', 'seaborn', 'sequential'. 
-            See all availble styles with
-            ```
+            See all available styles with
+            
+            .. code:: python
+
                 import matplotlib as mpl
                 print(mpl.styles.available)
-            ```
 
         size: numeric, default is 20
             Pixel size of each point plotted.
@@ -462,8 +517,18 @@ class Rips(TransformerMixin):
         if diagrams is None:
             # Allow using transformed diagrams as default
             diagrams = self.dgms_
-        plot_dgms(diagrams, plot_only=plot_only, title=title,
-                  xy_range=xy_range, labels=labels, colormap=colormap,
-                  size=size, ax_color=ax_color, colors=colors,
-                  diagonal=diagonal, lifetime=lifetime,
-                  legend=legend, show=show)
+        plot_dgms(
+            diagrams,
+            plot_only=plot_only,
+            title=title,
+            xy_range=xy_range,
+            labels=labels,
+            colormap=colormap,
+            size=size,
+            ax_color=ax_color,
+            colors=colors,
+            diagonal=diagonal,
+            lifetime=lifetime,
+            legend=legend,
+            show=show,
+        )

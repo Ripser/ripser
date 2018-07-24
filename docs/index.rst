@@ -54,7 +54,21 @@ Note that there is also a <i>Rips</i> object with the same functionality, which 
     diagram = r.fit_transform(data)
     r.plot(diagram, show=True)
 
+.. toctree::
+    :maxdepth: 2
+    :caption: Usage:
 
+    Ripser Demonstration
+    reference
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Examples:
+
+    Approximate Sparse Filtrations
+    Sparse Distance Matrices
+    Representative Cocycles
+    Lower Star Time Series
 
 .. |PyPI version| image:: https://badge.fury.io/py/ripser.svg
    :target: https://badge.fury.io/py/ripser
@@ -68,23 +82,3 @@ Note that there is also a <i>Rips</i> object with the same functionality, which 
    :target: https://codecov.io/gh/ctralie/ripser
 .. |License: LGPL v3| image:: https://img.shields.io/badge/License-LGPL%20v3-blue.svg
    :target: https://www.gnu.org/licenses/lgpl-3.0
-
-
-
-.. toctree::
-    :maxdepth: 2
-    :caption: Contents:
-
-    Ripser Demonstration
-    Approximate Sparse Filtrations
-    Sparse Distance Matrices
-    Representative Cocycles
-    Lower Star Time Series
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

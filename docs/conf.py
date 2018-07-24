@@ -40,6 +40,7 @@ release = u'0.0.1'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
@@ -49,11 +50,12 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
     'nbsphinx',
-    'IPython.sphinxext.ipython_console_highlighting'
+    'numpydoc',
+    'IPython.sphinxext.ipython_console_highlighting',
 ]
 
 exclude_patterns = ['_build', '**.ipynb_checkpoints']
-
+numpydoc_show_class_members = False
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
