@@ -1,33 +1,14 @@
-ifeq ($(platform), Windows)
-	EXT := .dll
-else
-	EXT := .so
-endif
+# make gh-pages in repo base directory to automatically build and deploy documents to github
 
-build: ripser
+gh-pages:
+	echo "Make gh-pages"
+	# move notebooks to where sphinx can see them
+	cp notebooks/* docs/.
 
-all: ripser ripser-coeff ripser-reduction ripser-coeff-reduction ripser-debug libripser$(EXT)
-
-python: src/ripser.cpp
-	c++ -std=c++11 src/ripser.cpp -c -o ripser -Ofast -D NDEBUG -D PYTHON_EXTENSION
-
-# ripser: ripser.cpp
-# 	c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D PRINT_PERSISTENCE_PAIRS
-
-# ripser-coeff: ripser.cpp
-# 	c++ -std=c++11 ripser.cpp -o ripser-coeff -Ofast -D NDEBUG -D USE_COEFFICIENTS -D PRINT_PERSISTENCE_PAIRS
-
-# ripser-reduction: ripser.cpp
-# 	c++ -std=c++11 ripser.cpp -o ripser-reduction -Ofast -D NDEBUG -D ASSEMBLE_REDUCTION_MATRIX -D PRINT_PERSISTENCE_PAIRS
-
-ripser-coeff-reduction: ripser.cpp
-	c++ -std=c++11 ripser.cpp -o ripser-coeff-reduction -Ofast -D NDEBUG -D USE_COEFFICIENTS -D ASSEMBLE_REDUCTION_MATRIX
-
-ripser-debug: ripser.cpp
-	c++ -std=c++11 ripser.cpp -o ripser-debug -g
-
-libripser: ripser/ripser.cpp
-	c++ -std=c++11 -Ofast -fPIC -shared -L. -D NDEBUG -D USE_COEFFICIENTS -D ASSEMBLE_REDUCTION_MATRIX -D LIBRIPSER ripser/ripser.cpp -o libripser$(EXT)
-
-clean:
-	rm -f ripser ripser-coeff ripser-reduction ripser-coeff-reduction ripser-debug libripser$(EXT)
+	cd docs; make html
+	git checkout gh-pages
+	rm -rf _sources _static _modules _images
+	mv -fv docs/_build/html/* .
+	rm -rf docs
+	git add -A
+	git commit -m "Generated gh-pages for `git log master -1 --pretty=short --abbrev-commit`" && git push origin gh-pages ; git checkout master

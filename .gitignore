@@ -13,3 +13,4 @@ venv/
 .coverage
 .vscode/
 .ipynb_checkpoints
+pyRipser.cpp
