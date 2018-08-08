@@ -1,13 +1,13 @@
 # Ripser
 
-Copyright © 2015–2016 [Ulrich Bauer].
+Copyright © 2015–2018 [Ulrich Bauer].
 
 
 ### Description
 
 Ripser is a lean C++ code for the computation of Vietoris–Rips persistence barcodes. It can do just this one thing, but does it extremely well.
 
-To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The computation happens inside the browser (using [PNaCl] on Chrome and JavaScript via [Emscripten] on other browsers).
+To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The computation happens inside the browser (using [PNaCl] on Chrome and JavaScript via [Emscripten] on other browsers). 
 
 The main features of Ripser:
 
@@ -26,13 +26,14 @@ Input formats currently supported by Ripser:
   - [DIPHA] distance matrix data
   - point cloud data
 
-Ripser's efficiency is based on a few important concepts and principles:
+Ripser's efficiency is based on a few important concepts and principles, building on key previous and concurrent  developments by other researchers in computational topology:
   
-  - Compute persistent *co*homology
+  - Compute persistent *co*homology (as suggested by [Vin de Silva, Dmitriy Morozov, and Mikael Vejdemo-Johansson](https://doi.org/10.1088/0266-5611/27/12/124003))
   - Don't compute information that is never needed
-    (for the experts: employ the *clearing* optimization, aka *persistence with a twist*)
-  - Don't store information that can be readily recomputed
-  - Take obvious shortcuts (*apparent persistence pairs*)
+    (for the experts: employ the *clearing* optimization, aka *persistence with a twist*, as suggested by [Chao Chen and Michael Kerber](http://www.geometrie.tugraz.at/kerber/kerber_papers/ck-phcwat-11.pdf))
+  - Don't store information that can be readily recomputed (in particular, the boundary matrix and the reduced boundary matrix)
+  - Take computational shortcuts (*apparent* and *emergent persistence pairs*)
+  - If no threshold is specified, choose the *enclosing radius* as the threshold, from which on homology is guaranteed to be trivial (as suggested by [Greg Henselman-Petrusek](https://github.com/Eetion/Eirene.jl))
 
 
 ### Version
@@ -74,7 +75,7 @@ The input is given either in a file whose name is passed as an argument, or thro
   - `--format`: use the specified file format for the input.  The following formats are supported:
     - `lower-distance` (default if no format is specified): lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
     - `upper-distance`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB functions `pdist` or  `seqpdist`, exported to a CSV file
-    - `distances`: full distance matrix; similar to the above, but for all entries of the distance matrix
+    - `distance`: full distance matrix; similar to the above, but for all entries of the distance matrix
     - `dipha`: DIPHA distance matrix as described on the [DIPHA] website
     - `point-cloud`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line
   - `--dim k`: compute persistent homology up to dimension *k*
