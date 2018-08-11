@@ -97,7 +97,7 @@ Prototype implementations are already avaliable; please contact the author if on
 
 ### License
 
-Ripser is licensed under the [LGPL] 3.0. Please contact the author if you want to use Ripser in your software under a different license. 
+Ripser is licensed under the [MIT] license. Please contact the author if you want to use Ripser in your software under a different license. 
 
 [Ulrich Bauer]: <http://ulrich-bauer.org>
 [live.ripser.org]: <http://live.ripser.org>
@@ -110,4 +110,4 @@ Ripser is licensed under the [LGPL] 3.0. Please contact the author if you want t
 [Perseus]: <http://www.sas.upenn.edu/~vnanda/perseus/>
 [GUDHI]: <http://gudhi.gforge.inria.fr>
 [sparsehash]: <https://github.com/sparsehash/sparsehash>
-[LGPL]: <https://www.gnu.org/licenses/lgpl>
+[MIT]: <https://opensource.org/licenses/mit-license.php>
