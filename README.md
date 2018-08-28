@@ -97,7 +97,7 @@ Prototype implementations are already avaliable; please contact the author if on
 
 ### License
 
-Ripser is licensed under the [MIT] license. Please contact the author if you want to use Ripser in your software under a different license. 
+Ripser is licensed under the [MIT] license (`COPYING.txt`), with an extra clause (`CONTRIBUTING.txt`) clarifying the license for modifications released without an explicit written license agreement. Please contact the author if you want to use Ripser in your software under a different license. 
 
 [Ulrich Bauer]: <http://ulrich-bauer.org>
 [live.ripser.org]: <http://live.ripser.org>
