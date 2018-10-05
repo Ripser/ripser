@@ -214,14 +214,20 @@ public:
 class sparse_distance_matrix {
 public:
 	std::vector<std::vector<diameter_index_t>> neighbors;
+	
+	index_t num_edges;
+
+	sparse_distance_matrix(std::vector<std::vector<diameter_index_t>>&& _neighbors, index_t _num_edges) : neighbors(std::move(_neighbors)), num_edges(_num_edges) {}
 
 	template <typename DistanceMatrix>
-	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()) {
+	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()), num_edges(0) {
 
 		for (index_t i = 0; i < size(); ++i)
 			for (index_t j = 0; j < size(); ++j)
-				if (i != j && mat(i, j) <= threshold)
+				if (i != j && mat(i, j) <= threshold) {
+					++num_edges;
 					neighbors[i].push_back(std::make_pair(mat(i, j), j));
+				}
 	}
 
 	size_t size() const { return neighbors.size(); }
@@ -944,6 +950,7 @@ enum file_format {
 	DISTANCE_MATRIX,
 	POINT_CLOUD,
 	DIPHA,
+	SPARSE,
 	RIPSER
 };
 
@@ -982,6 +989,38 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 		for (int j = 0; j < i; ++j) distances.push_back(eucl_dist(i, j));
 
 	return compressed_lower_distance_matrix(std::move(distances));
+}
+
+sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
+
+	std::vector<std::vector<diameter_index_t>> neighbors;
+	
+	index_t num_edges = 0;
+
+
+	std::string line;
+	while (std::getline(input_stream, line)) {
+		std::istringstream s(line);
+		size_t i, j;
+		value_t value;
+		s >> i;
+		s >> j;
+		s >> value;
+		if (i != j) {
+			neighbors.resize(std::max({neighbors.size(), i + 1, j + 1}));
+			neighbors[i].push_back(std::make_pair(value, j));
+			neighbors[j].push_back(std::make_pair(value, i));
+			++num_edges;
+		}
+	}
+	
+	for (index_t i = 0; i < neighbors.size(); ++i) {
+		std::sort(neighbors[i].begin(), neighbors[i].end());
+		auto last = std::unique(neighbors[i].begin(), neighbors[i].end());
+		neighbors[i].erase(last, neighbors[i].end());
+	}
+	
+	return sparse_distance_matrix(std::move(neighbors), num_edges);
 }
 
 compressed_lower_distance_matrix read_lower_distance_matrix(std::istream& input_stream) {
@@ -1065,7 +1104,7 @@ compressed_lower_distance_matrix read_file(std::istream& input_stream, file_form
 		return read_point_cloud(input_stream);
 	case DIPHA:
 		return read_dipha(input_stream);
-	case RIPSER:
+	default:
 		return read_ripser(input_stream);
 	}
 }
@@ -1087,6 +1126,7 @@ void print_usage_and_exit(int exit_code) {
 	    << "                     distance       (full distance matrix)" << std::endl
 	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
 	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
+	    << "                     sparse         (sparse distance matrix in Sparse Triplet Matrix file format)"
 	    << "                     ripser         (distance matrix in Ripser binary file format)"
 	    << std::endl
 	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
@@ -1147,6 +1187,8 @@ int main(int argc, char** argv) {
 				format = POINT_CLOUD;
 			else if (parameter == "dipha")
 				format = DIPHA;
+			else if (parameter == "sparse")
+				format = SPARSE;
 			else if (parameter == "ripser")
 				format = RIPSER;
 			else
@@ -1170,43 +1212,53 @@ int main(int argc, char** argv) {
 		exit(-1);
 	}
 
-	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
-
-	value_t min = std::numeric_limits<value_t>::infinity(),
-	        max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
-	int num_edges = 0;
-
-	if (threshold == std::numeric_limits<value_t>::max()) {
-		value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
-		for (index_t i = 0; i < dist.size(); ++i) {
-			value_t r_i = -std::numeric_limits<value_t>::infinity();
-			for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
-			enclosing_radius = std::min(enclosing_radius, r_i);
-		}
-
-		threshold = enclosing_radius;
-	}
-
-	for (auto d : dist.distances) {
-		min = std::min(min, d);
-		max = std::max(max, d);
-		max_finite = d != std::numeric_limits<value_t>::infinity() ? std::max(max, d) : max_finite;
-		if (d <= threshold) ++num_edges;
-	}
-
-	std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
-
-	if (threshold >= max) {
-		std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
-		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
-		                                         modulus)
-		    .compute_barcodes();
+	if (format == SPARSE) {
+		sparse_distance_matrix dist = read_sparse_distance_matrix(filename ? file_stream : std::cin);
+		std::cout << "sparse distance matrix with " << dist.size() << " points and " << dist.num_edges
+		<< "/" << (dist.size()*(dist.size()-1))/2 << " entries" << std::endl;
+		
+		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
+		.compute_barcodes();
 	} else {
-		std::cout << "sparse distance matrix with " << dist.size() << " points and " << num_edges
-		          << "/" << (dist.size()*dist.size()-1)/2 << " entries" << std::endl;
-
-		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
-		                               threshold, ratio, modulus)
-		    .compute_barcodes();
+		
+		compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
+		
+		value_t min = std::numeric_limits<value_t>::infinity(),
+		max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
+		int num_edges = 0;
+		
+		if (threshold == std::numeric_limits<value_t>::max()) {
+			value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
+			for (index_t i = 0; i < dist.size(); ++i) {
+				value_t r_i = -std::numeric_limits<value_t>::infinity();
+				for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
+				enclosing_radius = std::min(enclosing_radius, r_i);
+			}
+			
+			threshold = enclosing_radius;
+		}
+		
+		for (auto d : dist.distances) {
+			min = std::min(min, d);
+			max = std::max(max, d);
+			max_finite = d != std::numeric_limits<value_t>::infinity() ? std::max(max, d) : max_finite;
+			if (d <= threshold) ++num_edges;
+		}
+		
+		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
+		
+		if (threshold >= max) {
+			std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
+			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
+													 modulus)
+			.compute_barcodes();
+		} else {
+			std::cout << "sparse distance matrix with " << dist.size() << " points and " << num_edges
+			<< "/" << (dist.size()*dist.size()-1)/2 << " entries" << std::endl;
+			
+			ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
+										   threshold, ratio, modulus)
+			.compute_barcodes();
+		}
 	}
 }
