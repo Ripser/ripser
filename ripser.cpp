@@ -1019,15 +1019,8 @@ sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 		}
 	}
 
-	for (index_t i = 0; i < neighbors.size(); ++i) {
+	for (index_t i = 0; i < neighbors.size(); ++i)
 		std::sort(neighbors[i].begin(), neighbors[i].end());
-
-		auto last = std::unique(neighbors[i].begin(), neighbors[i].end(),
-		                        [](const index_diameter_t& x, const index_diameter_t& y) {
-			                        return get_index(x) == get_index(y);
-		                        });
-		neighbors[i].erase(last, neighbors[i].end());
-	}
 
 	return sparse_distance_matrix(std::move(neighbors), num_edges);
 }
