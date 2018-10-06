@@ -151,6 +151,10 @@ typedef std::pair<value_t, index_t> diameter_index_t;
 value_t get_diameter(const diameter_index_t& i) { return i.first; }
 index_t get_index(const diameter_index_t& i) { return i.second; }
 
+typedef std::pair<index_t, value_t> index_diameter_t;
+index_t get_index(const index_diameter_t& i) { return i.first; }
+value_t get_diameter(const index_diameter_t& i) { return i.second; }
+
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
 	diameter_entry_t() {}
@@ -213,11 +217,11 @@ public:
 
 class sparse_distance_matrix {
 public:
-	std::vector<std::vector<diameter_index_t>> neighbors;
+	std::vector<std::vector<index_diameter_t>> neighbors;
 	
 	index_t num_edges;
 
-	sparse_distance_matrix(std::vector<std::vector<diameter_index_t>>&& _neighbors, index_t _num_edges) : neighbors(std::move(_neighbors)), num_edges(_num_edges) {}
+	sparse_distance_matrix(std::vector<std::vector<index_diameter_t>>&& _neighbors, index_t _num_edges) : neighbors(std::move(_neighbors)), num_edges(_num_edges) {}
 
 	template <typename DistanceMatrix>
 	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()), num_edges(0) {
@@ -226,7 +230,7 @@ public:
 			for (index_t j = 0; j < size(); ++j)
 				if (i != j && mat(i, j) <= threshold) {
 					++num_edges;
-					neighbors[i].push_back(std::make_pair(mat(i, j), j));
+					neighbors[i].push_back(std::make_pair(j, mat(i, j)));
 				}
 	}
 
@@ -405,8 +409,8 @@ template <typename DistanceMatrix> class ripser {
 	const binomial_coeff_table binomial_coeff;
 	std::vector<coefficient_t> multiplicative_inverse;
 	mutable std::vector<index_t> vertices;
-	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> neighbor_it;
-	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> neighbor_end;
+	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_it;
+	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_end;
 	mutable std::vector<diameter_entry_t> coface_entries;
 
 public:
@@ -780,9 +784,9 @@ private:
 	const binomial_coeff_table& binomial_coeff;
 
 	std::vector<index_t>& vertices;
-	std::vector<std::vector<diameter_index_t>::const_reverse_iterator>& neighbor_it;
-	std::vector<std::vector<diameter_index_t>::const_reverse_iterator>& neighbor_end;
-	diameter_index_t x;
+	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_it;
+	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_end;
+	index_diameter_t x;
 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
@@ -993,7 +997,7 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 
 sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 
-	std::vector<std::vector<diameter_index_t>> neighbors;
+	std::vector<std::vector<index_diameter_t>> neighbors;
 	
 	index_t num_edges = 0;
 
@@ -1008,15 +1012,16 @@ sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 		s >> value;
 		if (i != j) {
 			neighbors.resize(std::max({neighbors.size(), i + 1, j + 1}));
-			neighbors[i].push_back(std::make_pair(value, j));
-			neighbors[j].push_back(std::make_pair(value, i));
+			neighbors[i].push_back(std::make_pair(j, value));
+			neighbors[j].push_back(std::make_pair(i, value));
 			++num_edges;
 		}
 	}
 	
 	for (index_t i = 0; i < neighbors.size(); ++i) {
 		std::sort(neighbors[i].begin(), neighbors[i].end());
-		auto last = std::unique(neighbors[i].begin(), neighbors[i].end());
+		
+		auto last = std::unique(neighbors[i].begin(), neighbors[i].end(), [](const index_diameter_t& x, const index_diameter_t& y) { return get_index(x) == get_index(y); });
 		neighbors[i].erase(last, neighbors[i].end());
 	}
 	
