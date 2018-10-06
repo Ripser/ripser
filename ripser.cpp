@@ -3,19 +3,19 @@
  Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
 
  MIT License
- 
+
  Copyright (c) 2015–2018 Ulrich Bauer
- 
+
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
  in the Software without restriction, including without limitation the rights
  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  copies of the Software, and to permit persons to whom the Software is
  furnished to do so, subject to the following conditions:
- 
+
  The above copyright notice and this permission notice shall be included in all
  copies or substantial portions of the Software.
- 
+
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -35,7 +35,6 @@
  derivative works thereof, in binary and source code form.
 
 */
-
 
 //#define ASSEMBLE_REDUCTION_MATRIX
 //#define USE_COEFFICIENTS
@@ -218,13 +217,16 @@ public:
 class sparse_distance_matrix {
 public:
 	std::vector<std::vector<index_diameter_t>> neighbors;
-	
+
 	index_t num_edges;
 
-	sparse_distance_matrix(std::vector<std::vector<index_diameter_t>>&& _neighbors, index_t _num_edges) : neighbors(std::move(_neighbors)), num_edges(_num_edges) {}
+	sparse_distance_matrix(std::vector<std::vector<index_diameter_t>>&& _neighbors,
+	                       index_t _num_edges)
+	    : neighbors(std::move(_neighbors)), num_edges(_num_edges) {}
 
 	template <typename DistanceMatrix>
-	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()), num_edges(0) {
+	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold)
+	    : neighbors(mat.size()), num_edges(0) {
 
 		for (index_t i = 0; i < size(); ++i)
 			for (index_t j = 0; j < size(); ++j)
@@ -998,9 +1000,8 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 
 	std::vector<std::vector<index_diameter_t>> neighbors;
-	
-	index_t num_edges = 0;
 
+	index_t num_edges = 0;
 
 	std::string line;
 	while (std::getline(input_stream, line)) {
@@ -1017,14 +1018,17 @@ sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 			++num_edges;
 		}
 	}
-	
+
 	for (index_t i = 0; i < neighbors.size(); ++i) {
 		std::sort(neighbors[i].begin(), neighbors[i].end());
-		
-		auto last = std::unique(neighbors[i].begin(), neighbors[i].end(), [](const index_diameter_t& x, const index_diameter_t& y) { return get_index(x) == get_index(y); });
+
+		auto last = std::unique(neighbors[i].begin(), neighbors[i].end(),
+		                        [](const index_diameter_t& x, const index_diameter_t& y) {
+			                        return get_index(x) == get_index(y);
+		                        });
 		neighbors[i].erase(last, neighbors[i].end());
 	}
-	
+
 	return sparse_distance_matrix(std::move(neighbors), num_edges);
 }
 
@@ -1131,7 +1135,8 @@ void print_usage_and_exit(int exit_code) {
 	    << "                     distance       (full distance matrix)" << std::endl
 	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
 	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
-	    << "                     sparse         (sparse distance matrix in Sparse Triplet Matrix file format)"
+	    << "                     sparse         (sparse distance matrix in Sparse Triplet format)"
+	    << std::endl
 	    << "                     ripser         (distance matrix in Ripser binary file format)"
 	    << std::endl
 	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
@@ -1218,20 +1223,23 @@ int main(int argc, char** argv) {
 	}
 
 	if (format == SPARSE) {
-		sparse_distance_matrix dist = read_sparse_distance_matrix(filename ? file_stream : std::cin);
-		std::cout << "sparse distance matrix with " << dist.size() << " points and " << dist.num_edges
-		<< "/" << (dist.size()*(dist.size()-1))/2 << " entries" << std::endl;
-		
+		sparse_distance_matrix dist =
+		    read_sparse_distance_matrix(filename ? file_stream : std::cin);
+		std::cout << "sparse distance matrix with " << dist.size() << " points and "
+		          << dist.num_edges << "/" << (dist.size() * (dist.size() - 1)) / 2 << " entries"
+		          << std::endl;
+
 		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
-		.compute_barcodes();
+		    .compute_barcodes();
 	} else {
-		
-		compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
-		
+
+		compressed_lower_distance_matrix dist =
+		    read_file(filename ? file_stream : std::cin, format);
+
 		value_t min = std::numeric_limits<value_t>::infinity(),
-		max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
+		        max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
 		int num_edges = 0;
-		
+
 		if (threshold == std::numeric_limits<value_t>::max()) {
 			value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
 			for (index_t i = 0; i < dist.size(); ++i) {
@@ -1239,31 +1247,33 @@ int main(int argc, char** argv) {
 				for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
 				enclosing_radius = std::min(enclosing_radius, r_i);
 			}
-			
+
 			threshold = enclosing_radius;
 		}
-		
+
 		for (auto d : dist.distances) {
 			min = std::min(min, d);
 			max = std::max(max, d);
-			max_finite = d != std::numeric_limits<value_t>::infinity() ? std::max(max, d) : max_finite;
+			max_finite =
+			    d != std::numeric_limits<value_t>::infinity() ? std::max(max, d) : max_finite;
 			if (d <= threshold) ++num_edges;
 		}
-		
+
 		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
-		
+
 		if (threshold >= max) {
 			std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
 			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
-													 modulus)
-			.compute_barcodes();
+			                                         modulus)
+			    .compute_barcodes();
 		} else {
-			std::cout << "sparse distance matrix with " << dist.size() << " points and " << num_edges
-			<< "/" << (dist.size()*dist.size()-1)/2 << " entries" << std::endl;
-			
-			ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
-										   threshold, ratio, modulus)
-			.compute_barcodes();
+			std::cout << "sparse distance matrix with " << dist.size() << " points and "
+			          << num_edges << "/" << (dist.size() * dist.size() - 1) / 2 << " entries"
+			          << std::endl;
+
+			ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold),
+			                               dim_max, threshold, ratio, modulus)
+			    .compute_barcodes();
 		}
 	}
 }
