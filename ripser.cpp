@@ -65,8 +65,13 @@ template <class Key, class T> class hash_map : public std::unordered_map<Key, T>
 #endif
 
 typedef float value_t;
-typedef int64_t index_t;
+typedef __int128_t index_t;
 typedef int16_t coefficient_t;
+
+std::ostream& operator<<(std::ostream& stream, const __int128_t& i) {
+	stream << (size_t)(i);
+	return stream;
+}
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
