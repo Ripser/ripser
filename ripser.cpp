@@ -18,10 +18,6 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-
-
-
-
 #define PRINT_PERSISTENCE_PAIRS
 
 #include <cassert>
@@ -345,8 +341,9 @@ public:
 
 		for (index_t index = 0; index < num_simplices; ++index) {
 			if (pivot_column_index.find(index) == pivot_column_index.end()) {
-                if (compute_diameter_sub(index, dim) <= threshold) {
-					columns_to_reduce.push_back(std::make_pair(compute_diameter_sub(index, dim), index));
+				value_t diameter_sub = compute_diameter(index, dim);
+                if (diameter_sub <= threshold) {
+					columns_to_reduce.push_back(std::make_pair(diameter_sub, index));
                 }
 			}
 		}
@@ -387,14 +384,6 @@ public:
 
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
 	                   hash_map<index_t, index_t>& pivot_column_index, index_t dim, bool image) {
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-        if (image) {
-            std::cout << "non-essential persistence intervals in dim " << dim << ":" << std::endl;
-        } else {
-            std::cout << "essential persistence intervals in dim " << dim << ":" << std::endl;
-        }
-#endif
 
 		compressed_sparse_matrix<diameter_index_t> reduction_matrix;
 
@@ -706,6 +695,8 @@ void ripser::compute_barcodes() {
         for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
             if (compute_diameter_sub(index, 1) <= threshold) {
                 edges_down.push_back(std::make_pair(compute_diameter_sub(index, 1), index));
+            }
+            if (compute_diameter(index, 1) <= threshold) {
                 edges_up.push_back(std::make_pair(compute_diameter(index, 1), index));
             }
         }
@@ -757,6 +748,9 @@ void ripser::compute_barcodes() {
 		hash_map<index_t, index_t> pivot_column_index_down;
         hash_map<index_t, index_t> pivot_column_index_image;
         
+#ifdef PRINT_PERSISTENCE_PAIRS
+        std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
+#endif
         //reducing matrix corresponding to lower filtration
         pivot_column_index_down.reserve(columns_to_reduce_down.size());
         compute_pairs(columns_to_reduce_down, pivot_column_index_down, dim, false);
