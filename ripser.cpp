@@ -575,25 +575,14 @@ public:
 			// initialize reduction_matrix as identity matrix
 			reduction_matrix.append_column();
 #endif
-#ifdef USE_COEFFICIENTS
 			reduction_matrix.push_back(diameter_entry_t(column_to_reduce, 1));
-#endif
 
 			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			while (true) {
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-#ifdef USE_COEFFICIENTS
 				auto reduction_column_begin = reduction_matrix.cbegin(index_column_to_add),
 				     reduction_column_end = reduction_matrix.cend(index_column_to_add);
-#else
-				std::vector<diameter_entry_t> coeffs;
-				coeffs.push_back(columns_to_reduce[index_column_to_add]);
-				for (auto it = reduction_matrix.cbegin(index_column_to_add);
-				     it != reduction_matrix.cend(index_column_to_add); ++it)
-					coeffs.push_back(*it);
-				auto reduction_column_begin = coeffs.begin(), reduction_column_end = coeffs.end();
-#endif
 #else
 #ifdef USE_COEFFICIENTS
 				auto reduction_column_begin = &reduction_matrix[index_column_to_add],
@@ -640,11 +629,7 @@ public:
 						// replace current column of reduction_matrix (with a single diagonal 1
 						// entry) by reduction_column (possibly with a different entry on the
 						// diagonal)
-#ifdef USE_COEFFICIENTS
 						reduction_matrix.pop_back();
-#else
-						pop_pivot(working_reduction_column, modulus);
-#endif
 
 						while (true) {
 							diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
