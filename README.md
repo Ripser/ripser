@@ -20,7 +20,7 @@ Currently, Ripser outperforms other codes ([Dionysus], [DIPHA], [GUDHI], [Perseu
 
 Input formats currently supported by Ripser:
 
-  - comma-separated values lower triangular distance matrix (preferred)
+  - comma-separated values lower triangular distance matrix
   - comma-separated values upper triangular distance matrix (MATLAB output from the function `pdist`)
   - comma-separated values full distance matrix
   - [DIPHA] distance matrix data
@@ -73,14 +73,14 @@ A Makefile is provided with some variants of the above options. Use `make all` t
 The input is given either in a file whose name is passed as an argument, or through stdin. The following options are supported at the command line:
 
   - `--format`: use the specified file format for the input.  The following formats are supported:
-    - `lower-distance` (default if no format is specified): lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index
-    - `upper-distance`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB functions `pdist` or  `seqpdist`, exported to a CSV file
-    - `distance`: full distance matrix; similar to the above, but for all entries of the distance matrix
-    - `dipha`: DIPHA distance matrix as described on the [DIPHA] website
-    - `point-cloud`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line
-  - `--dim k`: compute persistent homology up to dimension *k*
-  - `--threshold t`: compute Rips complexes up to diameter *t*
-  - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when built with the option `USE_COEFFICIENTS`)
+    - `lower-distance` (default if no format is specified): lower triangular distance matrix; a comma (or whitespace, or other non-numerical character) separated list of the distance matrix entries below the diagonal, sorted lexicographically by row index, then column index.
+    - `upper-distance`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB functions `pdist` or  `seqpdist`, exported to a CSV file.
+    - `distance`: full distance matrix; similar to the above, but for all entries of the distance matrix. One line per row of the matrix; only the part below the diagonal is actually read.
+    - `dipha`: DIPHA distance matrix as described on the [DIPHA] website.
+    - `point-cloud`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line.
+  - `--dim k`: compute persistent homology up to dimension *k*.
+  - `--threshold t`: compute Rips complexes up to diameter *t*.
+  - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when built with the option `USE_COEFFICIENTS`).
 
 
 
