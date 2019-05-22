@@ -55,9 +55,14 @@
 #include <unordered_map>
 
 #ifdef USE_GOOGLE_HASHMAP
-#include <sparsehash/sparse_hash_map>
-template <class Key, class T> class hash_map : public google::sparse_hash_map<Key, T> {
+#include <sparsehash/dense_hash_map>
+template <class Key, class T> class hash_map : public google::dense_hash_map<Key, T> {
 public:
+	explicit hash_map()
+	: google::dense_hash_map<Key, T>() {
+		this->set_empty_key(-1);
+	}
+	
 	inline void reserve(size_t hint) { this->resize(hint); }
 };
 #else
