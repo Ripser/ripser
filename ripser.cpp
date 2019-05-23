@@ -407,6 +407,21 @@ public:
 	}
 };
 
+template <class Predicate> index_t upper_bound(index_t top, Predicate pred) {
+	if (!pred(top)) {
+		index_t count = top;
+		while (count > 0) {
+			index_t step = count >> 1;
+			if (!pred(top - step)) {
+				top -= step + 1;
+				count -= step + 1;
+			} else
+				count = step;
+		}
+	}
+	return top;
+}
+
 template <typename DistanceMatrix> class ripser {
 	DistanceMatrix dist;
 	index_t n, dim_max;
@@ -429,21 +444,8 @@ public:
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
 	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
-		if (binomial_coeff(v, k) > idx) {
-			index_t count = v;
-			while (count > 0) {
-				index_t i = v;
-				index_t step = count >> 1;
-				i -= step;
-				if (binomial_coeff(i, k) > idx) {
-					v = --i;
-					count -= step + 1;
-				} else
-					count = step;
-			}
-		}
-		assert(binomial_coeff(v, k) <= idx && binomial_coeff(v + 1, k) > idx);
-		return v;
+		return v = upper_bound(
+		           v, [&](const index_t& w) -> bool { return (binomial_coeff(w, k) <= idx); });
 	}
 
 	index_t get_edge_index(const index_t i, const index_t j) const {
