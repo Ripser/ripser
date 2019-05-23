@@ -541,6 +541,8 @@ public:
 #else
 #ifdef USE_COEFFICIENTS
 		std::vector<diameter_entry_t> reduction_matrix;
+#else
+		std::vector<diameter_index_t>& reduction_matrix(columns_to_reduce);
 #endif
 #endif
 
@@ -582,8 +584,10 @@ public:
 			// initialize reduction_matrix as identity matrix
 			reduction_matrix.append_column();
 #endif
+#if defined ASSEMBLE_REDUCTION_MATRIX || defined USE_COEFFICIENTS
 			reduction_matrix.push_back(diameter_entry_t(column_to_reduce, 1));
-
+#endif
+			
 			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			while (true) {
@@ -591,13 +595,8 @@ public:
 				auto reduction_column_begin = reduction_matrix.cbegin(index_column_to_add),
 				     reduction_column_end = reduction_matrix.cend(index_column_to_add);
 #else
-#ifdef USE_COEFFICIENTS
 				auto reduction_column_begin = &reduction_matrix[index_column_to_add],
 				     reduction_column_end = &reduction_matrix[index_column_to_add] + 1;
-#else
-				auto reduction_column_begin = &columns_to_reduce[index_column_to_add],
-				     reduction_column_end = &columns_to_reduce[index_column_to_add] + 1;
-#endif
 #endif
 
 				pivot = add_coboundary_and_get_pivot(
