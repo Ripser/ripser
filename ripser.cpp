@@ -1,20 +1,38 @@
 /*
 
-Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
+ Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
 
-Copyright 2015-2016 Ulrich Bauer.
+ MIT License
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
+ Copyright (c) 2015–2019 Ulrich Bauer
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program.  If not, see <http://www.gnu.org/licenses/>.
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+
+ You are under no obligation whatsoever to provide any bug fixes, patches, or
+ upgrades to the features, functionality or performance of the source code
+ ("Enhancements") to anyone; however, if you choose to make your Enhancements
+ available either publicly, or directly to the author of this software, without
+ imposing a separate written license agreement for such Enhancements, then you
+ hereby grant the following license: a non-exclusive, royalty-free perpetual
+ license to install, use, modify, prepare derivative works, incorporate into
+ other computer software, distribute, and sublicense such enhancements or
+ derivative works thereof, in binary and source code form.
 
 */
 
@@ -53,7 +71,6 @@ public:
 		return B[n][k];
 	}
 };
-
 
 typedef std::pair<value_t, index_t> diameter_index_t;
 value_t get_diameter(const diameter_index_t& i) { return i.first; }
@@ -217,6 +234,21 @@ public:
 	}
 };
 
+template <class Predicate> index_t upper_bound(index_t top, Predicate pred) {
+	if (!pred(top)) {
+		index_t count = top;
+		while (count > 0) {
+			index_t step = count >> 1;
+			if (!pred(top - step)) {
+				top -= step + 1;
+				count -= step + 1;
+			} else
+				count = step;
+		}
+	}
+	return top;
+}
+
 class ripser {
 	compressed_lower_distance_matrix dist;
 	index_t n, dim_max;
@@ -234,21 +266,12 @@ public:
 	      ratio(_ratio), binomial_coeff(n, dim_max + 2) {}
 
 	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
-		if (binomial_coeff(v, k) > idx) {
-			index_t count = v;
-			while (count > 0) {
-				index_t i = v;
-				index_t step = count >> 1;
-				i -= step;
-				if (binomial_coeff(i, k) > idx) {
-					v = --i;
-					count -= step + 1;
-				} else
-					count = step;
-			}
-		}
-		assert(binomial_coeff(v, k) <= idx && binomial_coeff(v + 1, k) > idx);
-		return v;
+		return v = upper_bound(
+		           v, [&](const index_t& w) -> bool { return (binomial_coeff(w, k) <= idx); });
+	}
+
+	index_t get_edge_index(const index_t i, const index_t j) const {
+		return binomial_coeff(i, 2) + j;
 	}
 
 	template <typename OutputIterator>
@@ -282,24 +305,24 @@ public:
 	                                hash_map<index_t, index_t>& pivot_column_index, index_t dim);
 
 	void compute_dim_0_pairs(std::vector<diameter_index_t>& edges,
-							 std::vector<diameter_index_t>& columns_to_reduce) {
+	                         std::vector<diameter_index_t>& columns_to_reduce) {
 		union_find dset(n);
-		
+
 		edges = get_edges();
-		
+
 		std::sort(edges.rbegin(), edges.rend(),
-				  greater_diameter_or_smaller_index<diameter_index_t>());
-		
+		          greater_diameter_or_smaller_index<diameter_index_t>());
+
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim 0:" << std::endl;
 #endif
-		
+
 		std::vector<index_t> vertices_of_edge(2);
 		for (auto e : edges) {
 			vertices_of_edge.clear();
 			get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
-			
+
 			if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 				if (get_diameter(e) != 0)
@@ -310,13 +333,12 @@ public:
 				columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
-		
+
 #ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i)
 			if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
 #endif
 	}
-	
 
 	template <typename Column, typename Iterator>
 	diameter_index_t add_coboundary_and_get_pivot(Iterator column_begin, Iterator column_end,
@@ -353,22 +375,20 @@ public:
 #endif
 
 			index_t index_column_to_add = index_column_to_reduce;
-			
+
 			diameter_index_t pivot;
 
 			// initialize reduction_matrix as identity matrix
 			reduction_matrix.append_column();
 			reduction_matrix.push_back(diameter_index_t(column_to_reduce));
-			
+
 			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			while (true) {
-				pivot = add_coboundary_and_get_pivot(reduction_matrix.cbegin(index_column_to_add),
-													 reduction_matrix.cend(index_column_to_add),
-													 working_reduction_column,
-													 working_coboundary,
-													 dim, pivot_column_index,
-													 might_be_apparent_pair);
+				pivot = add_coboundary_and_get_pivot(
+				    reduction_matrix.cbegin(index_column_to_add),
+				    reduction_matrix.cend(index_column_to_add), working_reduction_column,
+				    working_coboundary, dim, pivot_column_index, might_be_apparent_pair);
 
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_index(pivot));
@@ -386,13 +406,14 @@ public:
 							          << std::flush;
 						}
 #endif
-						pivot_column_index.insert(std::make_pair(get_index(pivot), index_column_to_reduce));
-						
-						// replace current column of reduction_matrix (with a single diagonal 1 entry)
-						// by reduction_column (possibly with a different entry on the diagonal)
-						
+						pivot_column_index.insert(
+						    std::make_pair(get_index(pivot), index_column_to_reduce));
+
+						// replace current column of reduction_matrix (with a single diagonal 1
+						// entry) by reduction_column (possibly with a different entry on the
+						// diagonal)
 						reduction_matrix.pop_back();
-						
+
 						while (true) {
 							diameter_index_t e = pop_pivot(working_reduction_column);
 							if (get_index(e) == -1) break;
@@ -408,26 +429,24 @@ public:
 				}
 			}
 		}
-
 	}
-	
+
 	std::vector<diameter_index_t> get_edges();
-	
+
 	void compute_barcodes() {
-		
+
 		std::vector<diameter_index_t> simplices, columns_to_reduce;
-		
+
 		compute_dim_0_pairs(simplices, columns_to_reduce);
-		
+
 		for (index_t dim = 1; dim <= dim_max; ++dim) {
 			hash_map<index_t, index_t> pivot_column_index;
 			pivot_column_index.reserve(columns_to_reduce.size());
-			
+
 			compute_pairs(columns_to_reduce, pivot_column_index, dim);
-			
+
 			if (dim < dim_max) {
-				assemble_columns_to_reduce(columns_to_reduce, pivot_column_index,
-										   dim + 1);
+				assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, dim + 1);
 			}
 		}
 	}
@@ -471,8 +490,7 @@ public:
 
 template <typename Column, typename Iterator>
 diameter_index_t ripser::add_coboundary_and_get_pivot(
-    Iterator column_begin, Iterator column_end,
-    Column& working_reduction_column,
+    Iterator column_begin, Iterator column_end, Column& working_reduction_column,
     Column& working_coboundary, const index_t& dim, hash_map<index_t, index_t>& pivot_column_index,
     bool& might_be_apparent_pair) {
 	for (auto it = column_begin; it != column_end; ++it) {
@@ -546,12 +564,7 @@ void ripser::assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_t
 #endif
 }
 
-enum file_format {
-	LOWER_DISTANCE_MATRIX,
-	DISTANCE_MATRIX,
-	POINT_CLOUD,
-	RIPSER
-};
+enum file_format { LOWER_DISTANCE_MATRIX, DISTANCE_MATRIX, POINT_CLOUD, RIPSER };
 
 template <typename T> T read(std::istream& s) {
 	T result;
