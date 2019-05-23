@@ -58,11 +58,8 @@
 #include <sparsehash/dense_hash_map>
 template <class Key, class T> class hash_map : public google::dense_hash_map<Key, T> {
 public:
-	explicit hash_map()
-	: google::dense_hash_map<Key, T>() {
-		this->set_empty_key(-1);
-	}
-	
+	explicit hash_map() : google::dense_hash_map<Key, T>() { this->set_empty_key(-1); }
+
 	inline void reserve(size_t hint) { this->resize(hint); }
 };
 #else
@@ -587,7 +584,7 @@ public:
 #if defined ASSEMBLE_REDUCTION_MATRIX || defined USE_COEFFICIENTS
 			reduction_matrix.push_back(diameter_entry_t(column_to_reduce, 1));
 #endif
-			
+
 			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			while (true) {
