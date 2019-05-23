@@ -96,8 +96,8 @@ public:
 
 bool is_prime(const coefficient_t n) {
 	if (!(n & 1) || n < 2) return n == 2;
-	for (coefficient_t p = 3, q = n / p, r = n % p; p <= q; p += 2, q = n / p, r = n % p)
-		if (!r) return false;
+	for (coefficient_t p = 3; p <= n / p; p += 2)
+		if (!(n % p)) return false;
 	return true;
 }
 
