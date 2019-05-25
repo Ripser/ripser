@@ -543,8 +543,6 @@ public:
 #endif
 #endif
 
-		std::vector<diameter_entry_t> coface_entries;
-
 		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
 			auto column_to_reduce = columns_to_reduce[index_column_to_reduce];
