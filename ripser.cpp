@@ -36,7 +36,6 @@
 
 */
 
-#define ASSEMBLE_REDUCTION_MATRIX
 #define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
@@ -519,9 +518,7 @@ public:
 	template <typename Column, typename Iterator>
 	diameter_entry_t add_coboundary_and_get_pivot(Iterator column_begin, Iterator column_end,
 	                                              coefficient_t factor_column_to_add,
-#ifdef ASSEMBLE_REDUCTION_MATRIX
 	                                              Column& working_reduction_column,
-#endif
 	                                              Column& working_coboundary, const index_t& dim,
 	                                              hash_map<index_t, index_t>& pivot_column_index,
 	                                              bool& might_be_apparent_pair);
@@ -533,25 +530,15 @@ public:
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
 
-#ifdef ASSEMBLE_REDUCTION_MATRIX
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
-#else
-#ifdef USE_COEFFICIENTS
-		std::vector<diameter_entry_t> reduction_matrix;
-#else
-		std::vector<diameter_index_t>& reduction_matrix(columns_to_reduce);
-#endif
-#endif
 
 		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
 			auto column_to_reduce = columns_to_reduce[index_column_to_reduce];
 
-#ifdef ASSEMBLE_REDUCTION_MATRIX
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
 			    working_reduction_column;
-#endif
 
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
@@ -575,31 +562,20 @@ public:
 			// with the coboundary of the simplex with index column_to_reduce
 			coefficient_t factor_column_to_add = 1;
 
-#ifdef ASSEMBLE_REDUCTION_MATRIX
 			// initialize reduction_matrix as identity matrix
 			reduction_matrix.append_column();
-#endif
-#if defined ASSEMBLE_REDUCTION_MATRIX || defined USE_COEFFICIENTS
 			reduction_matrix.push_back(diameter_entry_t(column_to_reduce, 1));
-#endif
 
 			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			while (true) {
-#ifdef ASSEMBLE_REDUCTION_MATRIX
 				auto reduction_column_begin = reduction_matrix.cbegin(index_column_to_add),
 				     reduction_column_end = reduction_matrix.cend(index_column_to_add);
-#else
-				auto reduction_column_begin = &reduction_matrix[index_column_to_add],
-				     reduction_column_end = &reduction_matrix[index_column_to_add] + 1;
-#endif
 
-				pivot = add_coboundary_and_get_pivot(
-				    reduction_column_begin, reduction_column_end, factor_column_to_add,
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-				    working_reduction_column,
-#endif
-				    working_coboundary, dim, pivot_column_index, might_be_apparent_pair);
+				pivot = add_coboundary_and_get_pivot(reduction_column_begin, reduction_column_end,
+				                                     factor_column_to_add, working_reduction_column,
+				                                     working_coboundary, dim, pivot_column_index,
+				                                     might_be_apparent_pair);
 
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_index(pivot));
@@ -626,7 +602,6 @@ public:
 						    multiplicative_inverse[get_coefficient(pivot)];
 #endif
 
-#ifdef ASSEMBLE_REDUCTION_MATRIX
 						// replace current column of reduction_matrix (with a single diagonal 1
 						// entry) by reduction_column (possibly with a different entry on the
 						// diagonal)
@@ -641,12 +616,7 @@ public:
 #endif
 							reduction_matrix.push_back(e);
 						}
-#else
-#ifdef USE_COEFFICIENTS
-						reduction_matrix.pop_back();
-						reduction_matrix.push_back(diameter_entry_t(column_to_reduce, inverse));
-#endif
-#endif
+
 						break;
 					}
 				} else {
@@ -728,18 +698,14 @@ template <typename DistanceMatrix>
 template <typename Column, typename Iterator>
 diameter_entry_t ripser<DistanceMatrix>::add_coboundary_and_get_pivot(
     Iterator column_begin, Iterator column_end, coefficient_t factor_column_to_add,
-#ifdef ASSEMBLE_REDUCTION_MATRIX
     Column& working_reduction_column,
-#endif
     Column& working_coboundary, const index_t& dim, hash_map<index_t, index_t>& pivot_column_index,
     bool& might_be_apparent_pair) {
 	for (auto it = column_begin; it != column_end; ++it) {
 		diameter_entry_t simplex = *it;
 		set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
 
-#ifdef ASSEMBLE_REDUCTION_MATRIX
 		working_reduction_column.push(simplex);
-#endif
 
 		coface_entries.clear();
 		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
