@@ -1,25 +1,43 @@
 /*
 
-Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
+ Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
 
-Copyright 2015-2016 Ulrich Bauer.
+ MIT License
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
+ Copyright (c) 2015–2019 Ulrich Bauer
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program.  If not, see <http://www.gnu.org/licenses/>.
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+
+ You are under no obligation whatsoever to provide any bug fixes, patches, or
+ upgrades to the features, functionality or performance of the source code
+ ("Enhancements") to anyone; however, if you choose to make your Enhancements
+ available either publicly, or directly to the author of this software, without
+ imposing a separate written license agreement for such Enhancements, then you
+ hereby grant the following license: a non-exclusive, royalty-free perpetual
+ license to install, use, modify, prepare derivative works, incorporate into
+ other computer software, distribute, and sublicense such enhancements or
+ derivative works thereof, in binary and source code form.
 
 */
 
-//#define ASSEMBLE_REDUCTION_MATRIX
-//#define USE_COEFFICIENTS
+#define ASSEMBLE_REDUCTION_MATRIX
+#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
@@ -39,9 +57,11 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "prettyprint.hpp"
 
 #ifdef USE_GOOGLE_HASHMAP
-#include <sparsehash/sparse_hash_map>
-template <class Key, class T> class hash_map : public google::sparse_hash_map<Key, T> {
+#include <sparsehash/dense_hash_map>
+template <class Key, class T> class hash_map : public google::dense_hash_map<Key, T> {
 public:
+	explicit hash_map() : google::dense_hash_map<Key, T>() { this->set_empty_key(-1); }
+
 	inline void reserve(size_t hint) { this->resize(hint); }
 };
 #else
@@ -75,8 +95,8 @@ public:
 
 bool is_prime(const coefficient_t n) {
 	if (!(n & 1) || n < 2) return n == 2;
-	for (coefficient_t p = 3, q = n / p, r = n % p; p <= q; p += 2, q = n / p, r = n % p)
-		if (!r) return false;
+	for (coefficient_t p = 3; p <= n / p; p += 2)
+		if (!(n % p)) return false;
 	return true;
 }
 
@@ -137,6 +157,10 @@ const entry_t& get_entry(const entry_t& e) { return e; }
 typedef std::pair<value_t, index_t> diameter_index_t;
 value_t get_diameter(const diameter_index_t& i) { return i.first; }
 index_t get_index(const diameter_index_t& i) { return i.second; }
+
+typedef std::pair<index_t, value_t> index_diameter_t;
+index_t get_index(const index_diameter_t& i) { return i.first; }
+value_t get_diameter(const index_diameter_t& i) { return i.second; }
 
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
@@ -200,15 +224,24 @@ public:
 
 class sparse_distance_matrix {
 public:
-	std::vector<std::vector<diameter_index_t>> neighbors;
+	std::vector<std::vector<index_diameter_t>> neighbors;
+
+	index_t num_edges;
+
+	sparse_distance_matrix(std::vector<std::vector<index_diameter_t>>&& _neighbors,
+	                       index_t _num_edges)
+	    : neighbors(std::move(_neighbors)), num_edges(_num_edges) {}
 
 	template <typename DistanceMatrix>
-	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()) {
+	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold)
+	    : neighbors(mat.size()), num_edges(0) {
 
 		for (index_t i = 0; i < size(); ++i)
 			for (index_t j = 0; j < size(); ++j)
-				if (i != j && mat(i, j) <= threshold)
-					neighbors[i].push_back(std::make_pair(mat(i, j), j));
+				if (i != j && mat(i, j) <= threshold) {
+					++num_edges;
+					neighbors[i].push_back(std::make_pair(j, mat(i, j)));
+				}
 	}
 
 	size_t size() const { return neighbors.size(); }
@@ -377,6 +410,21 @@ public:
 	}
 };
 
+template <class Predicate> index_t upper_bound(index_t top, Predicate pred) {
+	if (!pred(top)) {
+		index_t count = top;
+		while (count > 0) {
+			index_t step = count >> 1;
+			if (!pred(top - step)) {
+				top -= step + 1;
+				count -= step + 1;
+			} else
+				count = step;
+		}
+	}
+	return top;
+}
+
 template <typename DistanceMatrix> class ripser {
 	DistanceMatrix dist;
 	index_t n, dim_max;
@@ -386,8 +434,8 @@ template <typename DistanceMatrix> class ripser {
 	const binomial_coeff_table binomial_coeff;
 	std::vector<coefficient_t> multiplicative_inverse;
 	mutable std::vector<index_t> vertices;
-	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> neighbor_it;
-	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> neighbor_end;
+	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_it;
+	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_end;
 	mutable std::vector<diameter_entry_t> coface_entries;
 
 public:
@@ -399,21 +447,8 @@ public:
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
 	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
-		if (binomial_coeff(v, k) > idx) {
-			index_t count = v;
-			while (count > 0) {
-				index_t i = v;
-				index_t step = count >> 1;
-				i -= step;
-				if (binomial_coeff(i, k) > idx) {
-					v = --i;
-					count -= step + 1;
-				} else
-					count = step;
-			}
-		}
-		assert(binomial_coeff(v, k) <= idx && binomial_coeff(v + 1, k) > idx);
-		return v;
+		return v = upper_bound(
+		           v, [&](const index_t& w) -> bool { return (binomial_coeff(w, k) <= idx); });
 	}
 
 	index_t get_edge_index(const index_t i, const index_t j) const {
@@ -568,10 +603,10 @@ public:
 #else
 #ifdef USE_COEFFICIENTS
 		std::vector<diameter_entry_t> reduction_matrix;
+#else
+		std::vector<diameter_index_t>& reduction_matrix(columns_to_reduce);
 #endif
 #endif
-
-		std::vector<diameter_entry_t> coface_entries;
 
 		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
@@ -609,7 +644,7 @@ public:
 			// initialize reduction_matrix as identity matrix
 			reduction_matrix.append_column();
 #endif
-#ifdef USE_COEFFICIENTS
+#if defined ASSEMBLE_REDUCTION_MATRIX || defined USE_COEFFICIENTS
 			reduction_matrix.push_back(diameter_entry_t(column_to_reduce, 1));
 #endif
 
@@ -617,25 +652,11 @@ public:
 
 			while (true) {
 #ifdef ASSEMBLE_REDUCTION_MATRIX
-#ifdef USE_COEFFICIENTS
 				auto reduction_column_begin = reduction_matrix.cbegin(index_column_to_add),
 				     reduction_column_end = reduction_matrix.cend(index_column_to_add);
 #else
-				std::vector<diameter_entry_t> coeffs;
-				coeffs.push_back(columns_to_reduce[index_column_to_add]);
-				for (auto it = reduction_matrix.cbegin(index_column_to_add);
-				     it != reduction_matrix.cend(index_column_to_add); ++it)
-					coeffs.push_back(*it);
-				auto reduction_column_begin = coeffs.begin(), reduction_column_end = coeffs.end();
-#endif
-#else
-#ifdef USE_COEFFICIENTS
 				auto reduction_column_begin = &reduction_matrix[index_column_to_add],
 				     reduction_column_end = &reduction_matrix[index_column_to_add] + 1;
-#else
-				auto reduction_column_begin = &columns_to_reduce[index_column_to_add],
-				     reduction_column_end = &columns_to_reduce[index_column_to_add] + 1;
-#endif
 #endif
 
 				pivot = add_coboundary_and_get_pivot(
@@ -675,11 +696,7 @@ public:
 						// replace current column of reduction_matrix (with a single diagonal 1
 						// entry) by reduction_column (possibly with a different entry on the
 						// diagonal)
-#ifdef USE_COEFFICIENTS
 						reduction_matrix.pop_back();
-#else
-						pop_pivot(working_reduction_column, modulus);
-#endif
 
 						while (true) {
 							diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
@@ -827,9 +844,9 @@ private:
 	const binomial_coeff_table& binomial_coeff;
 
 	std::vector<index_t>& vertices;
-	std::vector<std::vector<diameter_index_t>::const_reverse_iterator>& neighbor_it;
-	std::vector<std::vector<diameter_index_t>::const_reverse_iterator>& neighbor_end;
-	diameter_index_t x;
+	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_it;
+	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_end;
+	index_diameter_t x;
 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
@@ -997,6 +1014,7 @@ enum file_format {
 	DISTANCE_MATRIX,
 	POINT_CLOUD,
 	DIPHA,
+	SPARSE,
 	RIPSER
 };
 
@@ -1035,6 +1053,34 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 		for (int j = 0; j < i; ++j) distances.push_back(eucl_dist(i, j));
 
 	return compressed_lower_distance_matrix(std::move(distances));
+}
+
+sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
+
+	std::vector<std::vector<index_diameter_t>> neighbors;
+
+	index_t num_edges = 0;
+
+	std::string line;
+	while (std::getline(input_stream, line)) {
+		std::istringstream s(line);
+		size_t i, j;
+		value_t value;
+		s >> i;
+		s >> j;
+		s >> value;
+		if (i != j) {
+			neighbors.resize(std::max({neighbors.size(), i + 1, j + 1}));
+			neighbors[i].push_back(std::make_pair(j, value));
+			neighbors[j].push_back(std::make_pair(i, value));
+			++num_edges;
+		}
+	}
+
+	for (index_t i = 0; i < neighbors.size(); ++i)
+		std::sort(neighbors[i].begin(), neighbors[i].end());
+
+	return sparse_distance_matrix(std::move(neighbors), num_edges);
 }
 
 compressed_lower_distance_matrix read_lower_distance_matrix(std::istream& input_stream) {
@@ -1118,7 +1164,7 @@ compressed_lower_distance_matrix read_file(std::istream& input_stream, file_form
 		return read_point_cloud(input_stream);
 	case DIPHA:
 		return read_dipha(input_stream);
-	case RIPSER:
+	default:
 		return read_ripser(input_stream);
 	}
 }
@@ -1140,6 +1186,8 @@ void print_usage_and_exit(int exit_code) {
 	    << "                     distance       (full distance matrix)" << std::endl
 	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
 	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
+	    << "                     sparse         (sparse distance matrix in Sparse Triplet format)"
+	    << std::endl
 	    << "                     ripser         (distance matrix in Ripser binary file format)"
 	    << std::endl
 	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
@@ -1200,6 +1248,8 @@ int main(int argc, char** argv) {
 				format = POINT_CLOUD;
 			else if (parameter == "dipha")
 				format = DIPHA;
+			else if (parameter == "sparse")
+				format = SPARSE;
 			else if (parameter == "ripser")
 				format = RIPSER;
 			else
@@ -1223,41 +1273,58 @@ int main(int argc, char** argv) {
 		exit(-1);
 	}
 
-	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
+	if (format == SPARSE) {
+		sparse_distance_matrix dist =
+		    read_sparse_distance_matrix(filename ? file_stream : std::cin);
+		std::cout << "sparse distance matrix with " << dist.size() << " points and "
+		          << dist.num_edges << "/" << (dist.size() * (dist.size() - 1)) / 2 << " entries"
+		          << std::endl;
 
-	value_t min = std::numeric_limits<value_t>::infinity(),
-	        max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
-	int num_edges = 0;
-
-	value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
-	for (index_t i = 0; i < dist.size(); ++i) {
-		value_t r_i = -std::numeric_limits<value_t>::infinity();
-		for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
-		enclosing_radius = std::min(enclosing_radius, r_i);
-	}
-
-	if (threshold == std::numeric_limits<value_t>::max()) threshold = enclosing_radius;
-
-	for (auto d : dist.distances) {
-		min = std::min(min, d);
-		max = std::max(max, d);
-		max_finite = d != std::numeric_limits<value_t>::infinity() ? std::max(max, d) : max_finite;
-		if (d <= threshold) ++num_edges;
-	}
-
-	std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
-
-	if (threshold >= max) {
-		std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
-		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
-		                                         modulus)
+		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
 		    .compute_barcodes();
 	} else {
-		std::cout << "sparse distance matrix with " << dist.size() << " points and " << num_edges
-		          << " entries" << std::endl;
 
-		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
-		                               threshold, ratio, modulus)
-		    .compute_barcodes();
+		compressed_lower_distance_matrix dist =
+		    read_file(filename ? file_stream : std::cin, format);
+
+		value_t min = std::numeric_limits<value_t>::infinity(),
+		        max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
+		int num_edges = 0;
+
+		if (threshold == std::numeric_limits<value_t>::max()) {
+			value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
+			for (index_t i = 0; i < dist.size(); ++i) {
+				value_t r_i = -std::numeric_limits<value_t>::infinity();
+				for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
+				enclosing_radius = std::min(enclosing_radius, r_i);
+			}
+
+			threshold = enclosing_radius;
+		}
+
+		for (auto d : dist.distances) {
+			min = std::min(min, d);
+			max = std::max(max, d);
+			max_finite =
+			    d != std::numeric_limits<value_t>::infinity() ? std::max(max, d) : max_finite;
+			if (d <= threshold) ++num_edges;
+		}
+
+		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
+
+		if (threshold >= max) {
+			std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
+			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
+			                                         modulus)
+			    .compute_barcodes();
+		} else {
+			std::cout << "sparse distance matrix with " << dist.size() << " points and "
+			          << num_edges << "/" << (dist.size() * dist.size() - 1) / 2 << " entries"
+			          << std::endl;
+
+			ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold),
+			                               dim_max, threshold, ratio, modulus)
+			    .compute_barcodes();
+		}
 	}
 }
