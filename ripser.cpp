@@ -564,7 +564,7 @@ public:
 	                                              bool& might_be_apparent_pair);
 	
 	template<typename Chain>
-	void print_chain(Chain& cycle, index_t dim) {
+	void print_chain(Chain cycle, index_t dim) {
 		diameter_entry_t e;
 		
 		std::cout << "{";
@@ -581,7 +581,7 @@ public:
 			}
 			std::cout << "]";
 #ifdef USE_COEFFICIENTS
-			std::cout << ":" << normalize(get_coefficient(e), modulus);
+			if (modulus != 2) std::cout << ":" << normalize(get_coefficient(e), modulus);
 #endif
 			cycle.pop();
 			if (get_index(e = get_pivot(cycle, modulus)) != -1)
