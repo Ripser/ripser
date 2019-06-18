@@ -109,13 +109,13 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 }
 
 #ifdef USE_COEFFICIENTS
+
 struct __attribute__((packed)) entry_t {
 	index_t index : 8 * (sizeof(index_t) - sizeof(coefficient_t));
 	coefficient_t coefficient;
 	entry_t(index_t _index, coefficient_t _coefficient)
 	    : index(_index), coefficient(_coefficient) {}
-	entry_t(index_t _index) : index(_index), coefficient(1) {}
-	entry_t() : index(0), coefficient(1) {}
+	entry_t() : index(0), coefficient(0) {}
 };
 
 static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
@@ -159,14 +159,13 @@ value_t get_diameter(const index_diameter_t& i) { return i.second; }
 class diameter_entry_t : public std::pair<value_t, entry_t> {
 public:
 	diameter_entry_t() {}
-	diameter_entry_t(const entry_t& e) : std::pair<value_t, entry_t>(0, e) {}
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
 	    : std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
 	diameter_entry_t(const diameter_index_t& _diameter_index, coefficient_t _coefficient)
 	    : std::pair<value_t, entry_t>(get_diameter(_diameter_index),
 	                                  make_entry(get_index(_diameter_index), _coefficient)) {}
-	diameter_entry_t(const diameter_index_t& _diameter_index)
-	    : diameter_entry_t(_diameter_index, 1) {}
+	diameter_entry_t(const index_t& _index)
+	    : diameter_entry_t(0, _index, 0) {}
 };
 
 const entry_t& get_entry(const diameter_entry_t& p) { return p.second; }
@@ -322,39 +321,34 @@ public:
 };
 
 template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
-	if (column.empty())
-		return diameter_entry_t(-1);
-	else {
-		auto pivot = column.top();
-
 #ifdef USE_COEFFICIENTS
-		coefficient_t coefficient = 0;
-		do {
-			coefficient = (coefficient + get_coefficient(column.top())) % modulus;
-			column.pop();
-
-			if (coefficient == 0) {
-				if (column.empty())
-					return diameter_entry_t(-1);
-				else
-					pivot = column.top();
-			}
-		} while (!column.empty() && get_index(column.top()) == get_index(pivot));
-		if (get_index(pivot) != -1) { set_coefficient(pivot, coefficient); }
-#else
+	diameter_entry_t pivot(-1);
+	while (!column.empty()) {
+		if (get_coefficient(pivot) == 0)
+			pivot = column.top();
+		else if (get_index(column.top()) != get_index(pivot))
+			break;
+		else
+			set_coefficient(pivot, (get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
 		column.pop();
-		while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
-			column.pop();
-			if (column.empty())
-				return diameter_entry_t(-1);
-			else {
-				pivot = column.top();
-				column.pop();
-			}
-		}
-#endif
-		return pivot;
 	}
+	if (get_coefficient(pivot) == 0) pivot = -1;
+#else
+	if (column.empty()) return diameter_entry_t(-1);
+	
+	auto pivot = column.top();
+	column.pop();
+	while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
+		column.pop();
+		if (column.empty())
+			return diameter_entry_t(-1);
+		else {
+			pivot = column.top();
+			column.pop();
+		}
+	}
+#endif
+	return pivot;
 }
 
 template <typename Heap> diameter_entry_t get_pivot(Heap& column, coefficient_t modulus) {
@@ -909,7 +903,7 @@ void ripser<sparse_distance_matrix>::assemble_columns_to_reduce(
 	std::vector<diameter_index_t> next_simplices;
 
 	for (diameter_index_t simplex : simplices) {
-		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
+		simplex_coboundary_enumerator cofaces(diameter_entry_t(simplex, 1), dim, *this);
 
 		while (cofaces.has_next(false)) {
 			auto coface = cofaces.next();
