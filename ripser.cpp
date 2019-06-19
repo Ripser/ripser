@@ -36,8 +36,6 @@
 
 */
 
-#define USE_COEFFICIENTS
-
 //#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
@@ -107,8 +105,6 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 	return inverse;
 }
 
-#ifdef USE_COEFFICIENTS
-
 struct __attribute__((packed)) entry_t {
 	index_t index : 8 * (sizeof(index_t) - sizeof(coefficient_t));
 	coefficient_t coefficient;
@@ -134,16 +130,6 @@ std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
 	stream << get_index(e) << ":" << get_coefficient(e);
 	return stream;
 }
-
-#else
-
-typedef index_t entry_t;
-const index_t get_index(const entry_t& i) { return i; }
-index_t get_coefficient(const entry_t& i) { return 1; }
-entry_t make_entry(index_t _index, coefficient_t _value) { return entry_t(_index); }
-void set_coefficient(entry_t& e, const coefficient_t c) {}
-
-#endif
 
 const entry_t& get_entry(const entry_t& e) { return e; }
 
@@ -319,7 +305,6 @@ public:
 };
 
 template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
-#ifdef USE_COEFFICIENTS
 	diameter_entry_t pivot(-1);
 	while (!column.empty()) {
 		if (get_coefficient(pivot) == 0)
@@ -332,21 +317,6 @@ template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t 
 		column.pop();
 	}
 	if (get_coefficient(pivot) == 0) pivot = -1;
-#else
-	if (column.empty()) return diameter_entry_t(-1);
-
-	auto pivot = column.top();
-	column.pop();
-	while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
-		column.pop();
-		if (column.empty())
-			return diameter_entry_t(-1);
-		else {
-			pivot = column.top();
-			column.pop();
-		}
-	}
-#endif
 	return pivot;
 }
 
@@ -589,10 +559,8 @@ public:
 						pivot_column_index.insert(
 						    std::make_pair(get_index(pivot), index_column_to_reduce));
 
-#ifdef USE_COEFFICIENTS
 						const coefficient_t inverse =
 						    multiplicative_inverse[get_coefficient(pivot)];
-#endif
 
 						// replace current column of reduction_matrix (with a single diagonal 1
 						// entry) by reduction_column (possibly with a different entry on the
@@ -602,10 +570,8 @@ public:
 						while (true) {
 							diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
 							if (get_index(e) == -1) break;
-#ifdef USE_COEFFICIENTS
 							set_coefficient(e, inverse * get_coefficient(e) % modulus);
 							assert(get_coefficient(e) > 0);
-#endif
 							reduction_matrix.push_back(e);
 						}
 						break;
@@ -1076,9 +1042,7 @@ void print_usage_and_exit(int exit_code) {
 	    << std::endl
 	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
 	    << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
-#ifdef USE_COEFFICIENTS
 	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/<p>Z"
-#endif
 	    << std::endl;
 
 	exit(exit_code);
@@ -1095,11 +1059,7 @@ int main(int argc, char** argv) {
 
 	float ratio = 1;
 
-#ifdef USE_COEFFICIENTS
 	coefficient_t modulus = 2;
-#else
-	const coefficient_t modulus = 2;
-#endif
 
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
@@ -1138,13 +1098,11 @@ int main(int argc, char** argv) {
 				format = RIPSER;
 			else
 				print_usage_and_exit(-1);
-#ifdef USE_COEFFICIENTS
 		} else if (arg == "--modulus") {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			modulus = std::stol(parameter, &next_pos);
 			if (next_pos != parameter.size() || !is_prime(modulus)) print_usage_and_exit(-1);
-#endif
 		} else {
 			if (filename) { print_usage_and_exit(-1); }
 			filename = argv[i];
