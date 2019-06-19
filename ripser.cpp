@@ -168,23 +168,20 @@ public:
 };
 
 template <typename Heap> diameter_index_t pop_pivot(Heap& column) {
-	if (column.empty())
-		return diameter_index_t(0, -1);
-	else {
-		auto pivot = column.top();
-
-		column.pop();
-		while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
-			column.pop();
-			if (column.empty())
-				return diameter_index_t(0, -1);
-			else {
-				pivot = column.top();
-				column.pop();
-			}
-		}
-		return pivot;
-	}
+    if (column.empty()) return diameter_index_t(0, -1);
+    
+    auto pivot = column.top();
+    column.pop();
+    while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
+        column.pop();
+        if (column.empty())
+            return diameter_index_t(0, -1);
+        else {
+            pivot = column.top();
+            column.pop();
+        }
+    }
+    return pivot;
 }
 
 template <typename Heap> diameter_index_t get_pivot(Heap& column) {
