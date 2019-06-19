@@ -565,7 +565,8 @@ public:
 			while (true) {
 				pivot = add_coboundary_and_get_pivot(
 				    reduction_matrix.cbegin(index_column_to_add),
-				    reduction_matrix.cend(index_column_to_add), working_reduction_column,
+				    reduction_matrix.cend(index_column_to_add),
+					factor_column_to_add, working_reduction_column,
 				    working_coboundary, dim, pivot_column_index, might_be_apparent_pair);
 
 				if (get_index(pivot) != -1) {
