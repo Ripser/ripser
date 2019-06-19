@@ -163,8 +163,7 @@ public:
 	diameter_entry_t(const diameter_index_t& _diameter_index, coefficient_t _coefficient)
 	    : std::pair<value_t, entry_t>(get_diameter(_diameter_index),
 	                                  make_entry(get_index(_diameter_index), _coefficient)) {}
-	diameter_entry_t(const index_t& _index)
-	    : diameter_entry_t(0, _index, 0) {}
+	diameter_entry_t(const index_t& _index) : diameter_entry_t(0, _index, 0) {}
 };
 
 const entry_t& get_entry(const diameter_entry_t& p) { return p.second; }
@@ -328,13 +327,14 @@ template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t 
 		else if (get_index(column.top()) != get_index(pivot))
 			break;
 		else
-			set_coefficient(pivot, (get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
+			set_coefficient(pivot,
+			                (get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
 		column.pop();
 	}
 	if (get_coefficient(pivot) == 0) pivot = -1;
 #else
 	if (column.empty()) return diameter_entry_t(-1);
-	
+
 	auto pivot = column.top();
 	column.pop();
 	while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
@@ -563,13 +563,10 @@ public:
 			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			while (true) {
-				auto reduction_column_begin = reduction_matrix.cbegin(index_column_to_add),
-				     reduction_column_end = reduction_matrix.cend(index_column_to_add);
-
-				pivot = add_coboundary_and_get_pivot(reduction_column_begin, reduction_column_end,
-				                                     factor_column_to_add, working_reduction_column,
-				                                     working_coboundary, dim, pivot_column_index,
-				                                     might_be_apparent_pair);
+				pivot = add_coboundary_and_get_pivot(
+				    reduction_matrix.cbegin(index_column_to_add),
+				    reduction_matrix.cend(index_column_to_add), working_reduction_column,
+				    working_coboundary, dim, pivot_column_index, might_be_apparent_pair);
 
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_index(pivot));
@@ -610,7 +607,6 @@ public:
 #endif
 							reduction_matrix.push_back(e);
 						}
-
 						break;
 					}
 				} else {
@@ -692,9 +688,8 @@ template <typename DistanceMatrix>
 template <typename Column, typename Iterator>
 diameter_entry_t ripser<DistanceMatrix>::add_coboundary_and_get_pivot(
     Iterator column_begin, Iterator column_end, coefficient_t factor_column_to_add,
-    Column& working_reduction_column,
-    Column& working_coboundary, const index_t& dim, hash_map<index_t, index_t>& pivot_column_index,
-    bool& might_be_apparent_pair) {
+    Column& working_reduction_column, Column& working_coboundary, const index_t& dim,
+    hash_map<index_t, index_t>& pivot_column_index, bool& might_be_apparent_pair) {
 	for (auto it = column_begin; it != column_end; ++it) {
 		diameter_entry_t simplex = *it;
 		set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
