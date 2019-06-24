@@ -1,6 +1,6 @@
 # Ripser
 
-Copyright © 2015–2018 [Ulrich Bauer].
+Copyright © 2015–2019 [Ulrich Bauer].
 
 
 ### Description
@@ -24,6 +24,8 @@ Input formats currently supported by Ripser:
   - comma-separated values upper triangular distance matrix (MATLAB output from the function `pdist`)
   - comma-separated values full distance matrix
   - [DIPHA] distance matrix data
+  - sparse distance matrix in Sparse Triplet format
+  - binary lower triangular distance matrix
   - point cloud data
 
 Ripser's efficiency is based on a few important concepts and principles, building on key previous and concurrent  developments by other researchers in computational topology:
@@ -37,7 +39,7 @@ Ripser's efficiency is based on a few important concepts and principles, buildin
 
 
 ### Version
-[Latest release][latest-release]: 1.0.1 (September 2016)
+[Latest release][latest-release]: 1.1 (June 2019)
 
 
 ### Building
@@ -56,16 +58,14 @@ make
 
 Ripser supports several compile-time options. They are switched on by defining the C preprocessor macros listed below, either using `#define` in the code or by passing an argument to the compiler. The following options are supported:
 
-  - `ASSEMBLE_REDUCTION_MATRIX`: store the reduction matrix; may affect computation time but also memory usage; recommended for large and difficult problem instances
-  - `USE_COEFFICIENTS`: enable support for coefficients in a prime field
   - `INDICATE_PROGRESS`: indicate the current progress in the console
   - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default in the code; comment out to disable)
   - `USE_GOOGLE_HASHMAP`: enable support for Google's [sparsehash] data structure; may further reduce memory footprint
 
-For example, to build Ripser with support for coefficients:
+For example, to build Ripser with support for Google's hashmap:
 
 ```sh
-$ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D USE_COEFFICIENTS
+$ c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG -D USE_GOOGLE_HASHMAP
 ```
 
 A Makefile is provided with some variants of the above options. Use `make all` to build them. The default `make` builds a binary with the default options.
@@ -78,19 +78,20 @@ The input is given either in a file whose name is passed as an argument, or thro
     - `distance`: full distance matrix; similar to the above, but for all entries of the distance matrix. One line per row of the matrix; only the part below the diagonal is actually read.
     - `dipha`: DIPHA distance matrix as described on the [DIPHA] website.
     - `point-cloud`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line.
+    - `sparse`: sparse distance matrix in Sparse Triplet format
+    - `binary`: lower distance matrix in binary file format; a sequence of the distance matrix entries below the diagonal in 64 bit double format (IEEE 754, little endian).
   - `--dim k`: compute persistent homology up to dimension *k*.
   - `--threshold t`: compute Rips complexes up to diameter *t*.
-  - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when built with the option `USE_COEFFICIENTS`).
+  - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z.
+  - `--ratio <r>`: only show persistence pairs with death/birth ratio > *r*.
 
 
 
-
-### Planned features
+### Experimental features
 
 The following features are currently planned for future versions:
 
  - computation of representative cycles for persistent homology (currenly only *co*cycles are computed)
- - support for sparse distance matrices
 
 Prototype implementations are already avaliable; please contact the author if one of these features might be relevant for your research.
 

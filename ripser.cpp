@@ -41,9 +41,6 @@
 
 //#define USE_GOOGLE_HASHMAP
 
-#include <algorithm>
-#include <cassert>
-#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -141,8 +138,7 @@ typedef std::pair<index_t, value_t> index_diameter_t;
 index_t get_index(const index_diameter_t& i) { return i.first; }
 value_t get_diameter(const index_diameter_t& i) { return i.second; }
 
-class diameter_entry_t : public std::pair<value_t, entry_t> {
-public:
+struct diameter_entry_t : std::pair<value_t, entry_t> {
 	diameter_entry_t() {}
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
 	    : std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
@@ -172,8 +168,7 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 
 enum compressed_matrix_layout { LOWER_TRIANGULAR, UPPER_TRIANGULAR };
 
-template <compressed_matrix_layout Layout> class compressed_distance_matrix {
-public:
+template <compressed_matrix_layout Layout> struct compressed_distance_matrix {
 	std::vector<value_t> distances;
 	std::vector<value_t*> rows;
 
@@ -199,8 +194,7 @@ public:
 	size_t size() const { return rows.size(); }
 };
 
-class sparse_distance_matrix {
-public:
+struct sparse_distance_matrix {
 	std::vector<std::vector<index_diameter_t>> neighbors;
 
 	index_t num_edges;
@@ -258,8 +252,7 @@ value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(const index_t i
 typedef compressed_distance_matrix<LOWER_TRIANGULAR> compressed_lower_distance_matrix;
 typedef compressed_distance_matrix<UPPER_TRIANGULAR> compressed_upper_distance_matrix;
 
-class euclidean_distance_matrix {
-public:
+struct euclidean_distance_matrix {
 	std::vector<std::vector<value_t>> points;
 
 	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points)
@@ -393,7 +386,6 @@ template <typename DistanceMatrix> class ripser {
 	coefficient_t modulus;
 	const binomial_coeff_table binomial_coeff;
 	std::vector<coefficient_t> multiplicative_inverse;
-	mutable std::vector<index_t> vertices;
 	mutable std::vector<diameter_entry_t> coface_entries;
 
 public:
@@ -474,7 +466,6 @@ public:
 		union_find dset(n);
 
 		edges = get_edges();
-
 		std::sort(edges.rbegin(), edges.rend(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
 
@@ -553,11 +544,7 @@ public:
 
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
-			    working_reduction_column;
-
-			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-			                    greater_diameter_or_smaller_index<diameter_entry_t>>
-			    working_coboundary;
+			    working_reduction_column, working_coboundary;
 
 			value_t diameter = get_diameter(column_to_reduce);
 
@@ -644,7 +631,6 @@ public:
 	std::vector<diameter_index_t> get_edges();
 
 	void compute_barcodes() {
-
 		std::vector<diameter_index_t> simplices, columns_to_reduce;
 
 		compute_dim_0_pairs(simplices, columns_to_reduce);
@@ -655,16 +641,14 @@ public:
 
 			compute_pairs(columns_to_reduce, pivot_column_index, dim);
 
-			if (dim < dim_max) {
+			if (dim < dim_max)
 				assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index,
 				                           dim + 1);
-			}
 		}
 	}
 };
 
 template <> class ripser<compressed_lower_distance_matrix>::simplex_coboundary_enumerator {
-private:
 	index_t idx_below, idx_above, v, k;
 	std::vector<index_t> vertices;
 	const diameter_entry_t simplex;
@@ -704,16 +688,15 @@ public:
 };
 
 template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator {
-private:
 	const ripser& parent;
 
 	index_t idx_below, idx_above, v, k, max_vertex_below;
+	std::vector<index_t> vertices;
 	const diameter_entry_t simplex;
 	const coefficient_t modulus;
 	const sparse_distance_matrix& dist;
 	const binomial_coeff_table& binomial_coeff;
 
-	std::vector<index_t> vertices;
 	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_it;
 	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_end;
 	index_diameter_t x;
@@ -800,7 +783,7 @@ enum file_format {
 	POINT_CLOUD,
 	DIPHA,
 	SPARSE,
-	RIPSER
+	BINARY
 };
 
 template <typename T> T read(std::istream& s) {
@@ -841,9 +824,7 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 }
 
 sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
-
 	std::vector<std::vector<index_diameter_t>> neighbors;
-
 	index_t num_edges = 0;
 
 	std::string line;
@@ -931,7 +912,7 @@ compressed_lower_distance_matrix read_dipha(std::istream& input_stream) {
 	return compressed_lower_distance_matrix(std::move(distances));
 }
 
-compressed_lower_distance_matrix read_ripser(std::istream& input_stream) {
+compressed_lower_distance_matrix read_binary(std::istream& input_stream) {
 	std::vector<value_t> distances;
 	while (!input_stream.eof()) distances.push_back(read<value_t>(input_stream));
 	return compressed_lower_distance_matrix(std::move(distances));
@@ -950,7 +931,7 @@ compressed_lower_distance_matrix read_file(std::istream& input_stream, file_form
 	case DIPHA:
 		return read_dipha(input_stream);
 	default:
-		return read_ripser(input_stream);
+		return read_binary(input_stream);
 	}
 }
 
@@ -973,18 +954,19 @@ void print_usage_and_exit(int exit_code) {
 	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
 	    << "                     sparse         (sparse distance matrix in Sparse Triplet format)"
 	    << std::endl
-	    << "                     ripser         (distance matrix in Ripser binary file format)"
+	    << "                     binary         (lower triangular distance matrix in binary format)"
 	    << std::endl
-	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
-	    << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
-	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/<p>Z"
+	    << "  --dim <k>        compute persistent homology up to dimension k" << std::endl
+	    << "  --threshold <t>  compute Rips complexes up to diameter t" << std::endl
+	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ"
+	    << std::endl
+	    << "  --ratio <r>      only show persistence pairs with death/birth ratio > r"
 	    << std::endl;
 
 	exit(exit_code);
 }
 
 int main(int argc, char** argv) {
-
 	const char* filename = nullptr;
 
 	file_format format = DISTANCE_MATRIX;
@@ -1017,20 +999,20 @@ int main(int argc, char** argv) {
 			if (next_pos != parameter.size()) print_usage_and_exit(-1);
 		} else if (arg == "--format") {
 			std::string parameter = std::string(argv[++i]);
-			if (parameter == "lower-distance")
+			if (parameter.rfind("lower", 0) == 0)
 				format = LOWER_DISTANCE_MATRIX;
-			else if (parameter == "upper-distance")
+			else if (parameter.rfind("upper", 0) == 0)
 				format = UPPER_DISTANCE_MATRIX;
-			else if (parameter == "distance")
+			else if (parameter.rfind("dist", 0) == 0)
 				format = DISTANCE_MATRIX;
-			else if (parameter == "point-cloud")
+			else if (parameter.rfind("point", 0) == 0)
 				format = POINT_CLOUD;
 			else if (parameter == "dipha")
 				format = DIPHA;
 			else if (parameter == "sparse")
 				format = SPARSE;
-			else if (parameter == "ripser")
-				format = RIPSER;
+			else if (parameter == "binary")
+				format = BINARY;
 			else
 				print_usage_and_exit(-1);
 		} else if (arg == "--modulus") {
