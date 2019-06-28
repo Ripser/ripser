@@ -62,7 +62,7 @@ template <class Key, class T> class hash_map : public std::unordered_map<Key, T>
 
 typedef float value_t;
 typedef int64_t index_t;
-typedef int16_t coefficient_t;
+typedef uint16_t coefficient_t;
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
@@ -670,7 +670,7 @@ public:
 		for (index_t w : vertices) coface_diameter = std::max(coface_diameter, dist(v, w));
 		index_t coface_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
 		coefficient_t coface_coefficient =
-		    (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
+		    (k & 1 ? modulus - 1 : 1) * get_coefficient(simplex) % modulus;
 		return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
 	}
 };
@@ -733,7 +733,7 @@ public:
 		value_t coface_diameter = std::max(get_diameter(simplex), get_diameter(neighbor));
 		index_t coface_index = idx_above + binomial_coeff(get_index(neighbor), k + 1) + idx_below;
 		coefficient_t coface_coefficient =
-		    (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
+		    (k & 1 ? modulus - 1 : 1) * get_coefficient(simplex) % modulus;
 		return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
 	}
 };
