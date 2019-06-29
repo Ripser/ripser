@@ -499,7 +499,7 @@ public:
 	                                              Column& working_reduction_column,
 	                                              Column& working_coboundary, const index_t& dim,
 	                                              hash_map<index_t, index_t>& pivot_column_index,
-	                                              bool& looking_for_emgergent_pair) {
+	                                              bool& check_for_emergent_pair) {
 		for (auto it = column_begin; it != column_end; ++it) {
 			diameter_entry_t simplex = *it;
 			set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
@@ -512,10 +512,11 @@ public:
 				diameter_entry_t coface = cofaces.next();
 				if (get_diameter(coface) <= threshold) {
 					coface_entries.push_back(coface);
-					if (looking_for_emgergent_pair && (get_diameter(simplex) == get_diameter(coface))) {
+					if (check_for_emergent_pair &&
+					    (get_diameter(simplex) == get_diameter(coface))) {
 						if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end())
 							return coface;
-						looking_for_emgergent_pair = false;
+						check_for_emergent_pair = false;
 					}
 				}
 			}
@@ -559,14 +560,14 @@ public:
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
 			    working_reduction_column, working_coboundary;
-			bool looking_for_emgergent_pair = (index_column_to_reduce == index_column_to_add);
+			bool check_for_emergent_pair = (index_column_to_reduce == index_column_to_add);
 			diameter_entry_t pivot;
 			while (true) {
 				pivot = add_coboundary_and_get_pivot(reduction_matrix.cbegin(index_column_to_add),
 				                                     reduction_matrix.cend(index_column_to_add),
 				                                     factor_column_to_add, working_reduction_column,
 				                                     working_coboundary, dim, pivot_column_index,
-				                                     looking_for_emgergent_pair);
+				                                     check_for_emergent_pair);
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_index(pivot));
 					if (pair != pivot_column_index.end()) {
