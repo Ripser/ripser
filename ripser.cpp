@@ -50,14 +50,16 @@
 
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/dense_hash_map>
-template <class Key, class T> class hash_map : public google::dense_hash_map<Key, T> {
+template <class Key, class T, class H, class E>
+class hash_map : public google::dense_hash_map<Key, T, H, E> {
 public:
-	explicit hash_map() : google::dense_hash_map<Key, T>() { this->set_empty_key(-1); }
+	explicit hash_map() : google::dense_hash_map<Key, T, H, E>() { this->set_empty_key(-1); }
 
 	inline void reserve(size_t hint) { this->resize(hint); }
 };
 #else
-template <class Key, class T> class hash_map : public std::unordered_map<Key, T> {};
+template <class Key, class T, class H, class E>
+class hash_map : public std::unordered_map<Key, T, H, E> {};
 #endif
 
 typedef float value_t;
@@ -128,6 +130,18 @@ std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
 }
 
 const entry_t& get_entry(const entry_t& e) { return e; }
+
+struct entry_hash {
+	std::size_t operator()(const entry_t& e) const { return std::hash<index_t>()(get_index(e)); }
+};
+
+struct equal_index {
+	bool operator()(const entry_t& e, const entry_t& f) const {
+		return get_index(e) == get_index(f);
+	}
+};
+
+typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
 
 typedef std::pair<value_t, index_t> diameter_index_t;
 value_t get_diameter(const diameter_index_t& i) { return i.first; }
@@ -414,9 +428,9 @@ public:
 
 	class simplex_coboundary_enumerator;
 
-	void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
-	                                std::vector<diameter_index_t>& columns_to_reduce,
-	                                hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
+	void assemble_columns_to_reduce(
+	    std::vector<diameter_index_t>& simplices, std::vector<diameter_index_t>& columns_to_reduce,
+	    entry_hash_map& pivot_column_index, index_t dim) {
 
 #ifdef INDICATE_PROGRESS
 		std::cout << "\033[K"
@@ -437,7 +451,7 @@ public:
 
 				next_simplices.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
 
-				if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end())
+				if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end())
 					columns_to_reduce.push_back(
 					    std::make_pair(get_diameter(coface), get_index(coface)));
 			}
@@ -492,9 +506,9 @@ public:
 	}
 
 	template <typename Column>
-	diameter_entry_t init_coboundary_and_get_pivot(diameter_entry_t simplex,
-	                                               Column& working_coboundary, const index_t& dim,
-	                                               hash_map<index_t, index_t>& pivot_column_index) {
+	diameter_entry_t init_coboundary_and_get_pivot(
+	    diameter_entry_t simplex, Column& working_coboundary, const index_t& dim,
+	    entry_hash_map& pivot_column_index) {
 		bool check_for_emergent_pair = true;
 		coface_entries.clear();
 		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
@@ -503,7 +517,7 @@ public:
 			if (get_diameter(coface) <= threshold) {
 				coface_entries.push_back(coface);
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(coface))) {
-					if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end())
+					if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end())
 						return coface;
 					check_for_emergent_pair = false;
 				}
@@ -532,7 +546,8 @@ public:
 	}
 
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
-	                   hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
+	                   entry_hash_map& pivot_column_index,
+	                   index_t dim) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
@@ -565,10 +580,11 @@ public:
 
 			while (true) {
 				if (get_index(pivot) != -1) {
-					auto pair = pivot_column_index.find(get_index(pivot));
+					auto pair = pivot_column_index.find(get_entry(pivot));
 					if (pair != pivot_column_index.end()) {
 						index_t index_column_to_add = pair->second;
-						coefficient_t factor_column_to_add = modulus - get_coefficient(pivot);
+						entry_t other_pivot = pair->first;
+						coefficient_t factor_column_to_add = modulus - get_coefficient(pivot) * multiplicative_inverse[get_coefficient(other_pivot)] % modulus;
 
 						add_coboundary(reduction_matrix.cbegin(index_column_to_add),
 						               reduction_matrix.cend(index_column_to_add),
@@ -586,17 +602,14 @@ public:
 							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 						}
 #endif
-						pivot_column_index.insert(
-						    std::make_pair(get_index(pivot), index_column_to_reduce));
+						pivot_column_index.insert(std::make_pair(get_entry(pivot),
+						                                         index_column_to_reduce));
 
 						reduction_matrix.append_column();
 
-						const coefficient_t inverse =
-						    multiplicative_inverse[get_coefficient(pivot)];
 						while (true) {
 							diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
 							if (get_index(e) == -1) break;
-							set_coefficient(e, inverse * get_coefficient(e) % modulus);
 							assert(get_coefficient(e) > 0);
 							reduction_matrix.push_back(e);
 						}
@@ -623,7 +636,7 @@ public:
 		compute_dim_0_pairs(simplices, columns_to_reduce);
 
 		for (index_t dim = 1; dim <= dim_max; ++dim) {
-			hash_map<index_t, index_t> pivot_column_index;
+			entry_hash_map pivot_column_index;
 			pivot_column_index.reserve(columns_to_reduce.size());
 
 			compute_pairs(columns_to_reduce, pivot_column_index, dim);
