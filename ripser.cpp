@@ -428,9 +428,9 @@ public:
 
 	class simplex_coboundary_enumerator;
 
-	void assemble_columns_to_reduce(
-	    std::vector<diameter_index_t>& simplices, std::vector<diameter_index_t>& columns_to_reduce,
-	    entry_hash_map& pivot_column_index, index_t dim) {
+	void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
+	                                std::vector<diameter_index_t>& columns_to_reduce,
+	                                entry_hash_map& pivot_column_index, index_t dim) {
 
 #ifdef INDICATE_PROGRESS
 		std::cout << "\033[K"
@@ -506,9 +506,9 @@ public:
 	}
 
 	template <typename Column>
-	diameter_entry_t init_coboundary_and_get_pivot(
-	    diameter_entry_t simplex, Column& working_coboundary, const index_t& dim,
-	    entry_hash_map& pivot_column_index) {
+	diameter_entry_t init_coboundary_and_get_pivot(diameter_entry_t simplex,
+	                                               Column& working_coboundary, const index_t& dim,
+	                                               entry_hash_map& pivot_column_index) {
 		bool check_for_emergent_pair = true;
 		coface_entries.clear();
 		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
@@ -527,27 +527,39 @@ public:
 		return get_pivot(working_coboundary, modulus);
 	}
 
-	template <typename Column, typename Iterator>
-	void add_coboundary(Iterator column_begin, Iterator column_end,
-	                    coefficient_t factor_column_to_add, Column& working_reduction_column,
-	                    Column& working_coboundary, const index_t& dim) {
-		coface_entries.clear();
+	template <typename Column>
+	void add_coboundary(diameter_entry_t simplex, coefficient_t factor, Column& working_coboundary,
+	                    const index_t& dim) {
+		set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
+
+		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
+		while (cofaces.has_next()) {
+			diameter_entry_t coface = cofaces.next();
+			if (get_diameter(coface) <= threshold) working_coboundary.push(coface);
+		}
+	}
+
+	template <typename Column>
+	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
+	                    index_t index_column_to_add, coefficient_t factor,
+	                    Column& working_reduction_column, Column& working_coboundary,
+	                    const index_t& dim) {
+		auto column_begin = reduction_matrix.cbegin(index_column_to_add),
+		     column_end = reduction_matrix.cend(index_column_to_add);
 		for (auto it = column_begin; it != column_end; ++it) {
 			diameter_entry_t simplex = *it;
-			set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
+			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 			working_reduction_column.push(simplex);
 			simplex_coboundary_enumerator cofaces(simplex, dim, *this);
 			while (cofaces.has_next()) {
 				diameter_entry_t coface = cofaces.next();
-				if (get_diameter(coface) <= threshold) coface_entries.push_back(coface);
+				if (get_diameter(coface) <= threshold) working_coboundary.push(coface);
 			}
 		}
-		for (auto coface : coface_entries) working_coboundary.push(coface);
 	}
 
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
-	                   entry_hash_map& pivot_column_index,
-	                   index_t dim) {
+	                   entry_hash_map& pivot_column_index, index_t dim) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
@@ -573,7 +585,7 @@ public:
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
 			    working_reduction_column, working_coboundary;
 
-			working_reduction_column.push(column_to_reduce);
+			//			working_reduction_column.push(column_to_reduce);
 
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
@@ -582,14 +594,18 @@ public:
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_entry(pivot));
 					if (pair != pivot_column_index.end()) {
-						index_t index_column_to_add = pair->second;
 						entry_t other_pivot = pair->first;
-						coefficient_t factor_column_to_add = modulus - get_coefficient(pivot) * multiplicative_inverse[get_coefficient(other_pivot)] % modulus;
+						index_t index_column_to_add = pair->second;
+						diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], 1);
 
-						add_coboundary(reduction_matrix.cbegin(index_column_to_add),
-						               reduction_matrix.cend(index_column_to_add),
-						               factor_column_to_add, working_reduction_column,
-						               working_coboundary, dim);
+						coefficient_t factor =
+						    modulus - get_coefficient(pivot) *
+						                  multiplicative_inverse[get_coefficient(other_pivot)] %
+						                  modulus;
+
+						add_coboundary(column_to_add, factor, working_coboundary, dim);
+						add_coboundary(reduction_matrix, index_column_to_add, factor,
+						               working_reduction_column, working_coboundary, dim);
 
 						pivot = get_pivot(working_coboundary, modulus);
 					} else {
@@ -602,8 +618,8 @@ public:
 							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 						}
 #endif
-						pivot_column_index.insert(std::make_pair(get_entry(pivot),
-						                                         index_column_to_reduce));
+						pivot_column_index.insert(
+						    std::make_pair(get_entry(pivot), index_column_to_reduce));
 
 						reduction_matrix.append_column();
 
