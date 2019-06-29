@@ -69,13 +69,12 @@ class binomial_coeff_table {
 
 public:
 	binomial_coeff_table(index_t n, index_t k) : B(n + 1) {
-		for (index_t i = 0; i <= n; i++) {
-			B[i].resize(k + 1);
-			for (index_t j = 0; j <= std::min(i, k); j++)
-				if (j == 0 || j == i)
-					B[i][j] = 1;
-				else
-					B[i][j] = B[i - 1][j - 1] + B[i - 1][j];
+		for (index_t i = 0; i <= n; ++i) {
+			B[i].resize(k + 1, 0);
+			B[i][0] = 1;
+			if (i <= k) B[i][i] = 1;
+			for (index_t j = 1; j < std::min(i, k + 1); ++j)
+				B[i][j] = B[i - 1][j - 1] + B[i - 1][j];
 		}
 	}
 
@@ -97,7 +96,7 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 	inverse[1] = 1;
 	// m = a * (m / a) + m % a
 	// Multipying with inverse(a) * inverse(m % a):
-	// 0 = inverse(m % a) * (m / a)  + inverse(a)  (mod m)
+	// 0 = inverse(m % a) * (m / a) + inverse(a)  (mod m)
 	for (coefficient_t a = 2; a < m; ++a) inverse[a] = m - (inverse[m % a] * (m / a)) % m;
 	return inverse;
 }
@@ -395,9 +394,8 @@ public:
 	      ratio(_ratio), modulus(_modulus), binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
-	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
-		return v = upper_bound(
-		           v, [&](const index_t& w) -> bool { return (binomial_coeff(w, k) <= idx); });
+	index_t get_max_vertex(const index_t idx, const index_t k, const index_t n) const {
+		return upper_bound(n, [&](index_t w) -> bool { return (binomial_coeff(w, k) <= idx); });
 	}
 
 	index_t get_edge_index(const index_t i, const index_t j) const {
@@ -405,13 +403,13 @@ public:
 	}
 
 	template <typename OutputIterator>
-	OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t v,
+	OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t n,
 	                                    OutputIterator out) const {
-		--v;
+		--n;
 		for (index_t k = dim + 1; k > 0; --k) {
-			get_next_vertex(v, idx, k);
-			*out++ = v;
-			idx -= binomial_coeff(v, k);
+			n = get_max_vertex(idx, k, n);
+			*out++ = n;
+			idx -= binomial_coeff(n, k);
 		}
 		return out;
 	}
@@ -501,7 +499,7 @@ public:
 	                                              Column& working_reduction_column,
 	                                              Column& working_coboundary, const index_t& dim,
 	                                              hash_map<index_t, index_t>& pivot_column_index,
-	                                              bool& might_be_apparent_pair) {
+	                                              bool& looking_for_emgergent_pair) {
 		for (auto it = column_begin; it != column_end; ++it) {
 			diameter_entry_t simplex = *it;
 			set_coefficient(simplex, get_coefficient(simplex) * factor_column_to_add % modulus);
@@ -514,10 +512,10 @@ public:
 				diameter_entry_t coface = cofaces.next();
 				if (get_diameter(coface) <= threshold) {
 					coface_entries.push_back(coface);
-					if (might_be_apparent_pair && (get_diameter(simplex) == get_diameter(coface))) {
+					if (looking_for_emgergent_pair && (get_diameter(simplex) == get_diameter(coface))) {
 						if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end())
 							return coface;
-						might_be_apparent_pair = false;
+						looking_for_emgergent_pair = false;
 					}
 				}
 			}
@@ -561,14 +559,14 @@ public:
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
 			    working_reduction_column, working_coboundary;
-			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
+			bool looking_for_emgergent_pair = (index_column_to_reduce == index_column_to_add);
 			diameter_entry_t pivot;
 			while (true) {
 				pivot = add_coboundary_and_get_pivot(reduction_matrix.cbegin(index_column_to_add),
 				                                     reduction_matrix.cend(index_column_to_add),
 				                                     factor_column_to_add, working_reduction_column,
 				                                     working_coboundary, dim, pivot_column_index,
-				                                     might_be_apparent_pair);
+				                                     looking_for_emgergent_pair);
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_index(pivot));
 					if (pair != pivot_column_index.end()) {
