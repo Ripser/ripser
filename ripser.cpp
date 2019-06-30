@@ -528,10 +528,9 @@ public:
 	}
 
 	template <typename Column>
-	void add_coboundary(diameter_entry_t simplex, coefficient_t factor, Column& working_coboundary,
-	                    const index_t& dim) {
-		set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
-
+	void add_coboundary(diameter_entry_t simplex, Column& working_reduction_column,
+						Column& working_coboundary, const index_t& dim) {
+		working_reduction_column.push(simplex);
 		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
 		while (cofaces.has_next()) {
 			diameter_entry_t coface = cofaces.next();
@@ -544,17 +543,12 @@ public:
 	                    index_t index_column_to_add, coefficient_t factor,
 	                    Column& working_reduction_column, Column& working_coboundary,
 	                    const index_t& dim) {
-		auto column_begin = reduction_matrix.cbegin(index_column_to_add),
-		     column_end = reduction_matrix.cend(index_column_to_add);
-		for (auto it = column_begin; it != column_end; ++it) {
+		for (auto it = reduction_matrix.cbegin(index_column_to_add);
+		     it != reduction_matrix.cend(index_column_to_add); ++it) {
 			diameter_entry_t simplex = *it;
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 			working_reduction_column.push(simplex);
-			simplex_coboundary_enumerator cofaces(simplex, dim, *this);
-			while (cofaces.has_next()) {
-				diameter_entry_t coface = cofaces.next();
-				if (get_diameter(coface) <= threshold) working_coboundary.push(coface);
-			}
+			add_coboundary(simplex, working_reduction_column, working_coboundary, dim);
 		}
 	}
 
@@ -596,14 +590,13 @@ public:
 					if (pair != pivot_column_index.end()) {
 						entry_t other_pivot = pair->first;
 						index_t index_column_to_add = pair->second;
-						diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], 1);
-
 						coefficient_t factor =
 						    modulus - get_coefficient(pivot) *
 						                  multiplicative_inverse[get_coefficient(other_pivot)] %
 						                  modulus;
+						diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
 
-						add_coboundary(column_to_add, factor, working_coboundary, dim);
+						add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
 						add_coboundary(reduction_matrix, index_column_to_add, factor,
 						               working_reduction_column, working_coboundary, dim);
 
