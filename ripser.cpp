@@ -247,7 +247,7 @@ struct sparse_distance_matrix {
 	    : neighbors(std::move(_neighbors)), num_edges(_num_edges) {}
 
 	template <typename DistanceMatrix>
-	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold)
+	sparse_distance_matrix(const DistanceMatrix& mat, const value_t threshold)
 	    : neighbors(mat.size()), num_edges(0) {
 
 		for (index_t i = 0; i < size(); ++i)
@@ -285,7 +285,7 @@ class union_find {
 	std::vector<uint8_t> rank;
 
 public:
-	union_find(index_t n) : parent(n), rank(n, 0) {
+	union_find(const index_t n) : parent(n), rank(n, 0) {
 		for (index_t i = 0; i < n; ++i) parent[i] = i;
 	}
 
@@ -326,7 +326,7 @@ template <typename Column> diameter_entry_t pop_pivot(Column& column, coefficien
 	return pivot;
 }
 
-template <typename Column> diameter_entry_t get_pivot(Column& column, coefficient_t modulus) {
+template <typename Column> diameter_entry_t get_pivot(Column& column, const coefficient_t modulus) {
 	diameter_entry_t result = pop_pivot(column, modulus);
 	if (get_index(result) != -1) column.push(result);
 	return result;
@@ -344,7 +344,7 @@ public:
 		return index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1];
 	}
 
-	typename std::vector<ValueType>::const_iterator cend(size_t index) const {
+	typename std::vector<ValueType>::const_iterator cend(const size_t index) const {
 		assert(index < size());
 		return entries.cbegin() + bounds[index];
 	}
@@ -356,7 +356,7 @@ public:
 
 	void append_column() { bounds.push_back(entries.size()); }
 
-	void push_back(ValueType e) {
+	void push_back(const ValueType e) {
 		assert(0 < size());
 		entries.push_back(e);
 		++bounds.back();
@@ -373,7 +373,8 @@ public:
 	}
 };
 
-template <class Predicate> index_t get_max(index_t top, index_t bottom, const Predicate pred) {
+template <class Predicate>
+index_t get_max(index_t top, const index_t bottom, const Predicate pred) {
 	if (!pred(top)) {
 		index_t count = top - bottom;
 		while (count > 0) {
@@ -506,7 +507,7 @@ public:
 	}
 
 	template <typename Column>
-	diameter_entry_t init_coboundary_and_get_pivot(diameter_entry_t simplex,
+	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
 		bool check_for_emergent_pair = true;
@@ -528,8 +529,8 @@ public:
 	}
 
 	template <typename Column>
-	void add_coboundary(diameter_entry_t simplex, Column& working_reduction_column,
-						Column& working_coboundary, const index_t& dim) {
+	void add_coboundary(const diameter_entry_t simplex, Column& working_reduction_column,
+	                    Column& working_coboundary, const index_t& dim) {
 		working_reduction_column.push(simplex);
 		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
 		while (cofaces.has_next()) {
@@ -540,7 +541,7 @@ public:
 
 	template <typename Column>
 	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
-	                    index_t index_column_to_add, coefficient_t factor,
+	                    const index_t index_column_to_add, const coefficient_t factor,
 	                    Column& working_reduction_column, Column& working_coboundary,
 	                    const index_t& dim) {
 		for (auto it = reduction_matrix.cbegin(index_column_to_add);
@@ -553,7 +554,7 @@ public:
 	}
 
 	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
-	                   entry_hash_map& pivot_column_index, index_t dim) {
+	                   entry_hash_map& pivot_column_index, const index_t dim) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
@@ -594,9 +595,11 @@ public:
 						    modulus - get_coefficient(pivot) *
 						                  multiplicative_inverse[get_coefficient(other_pivot)] %
 						                  modulus;
-						diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
+						diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add],
+						                               factor);
 
-						add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
+						add_coboundary(column_to_add, working_reduction_column, working_coboundary,
+						               dim);
 						add_coboundary(reduction_matrix, index_column_to_add, factor,
 						               working_reduction_column, working_coboundary, dim);
 
@@ -709,7 +712,7 @@ template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator 
 	index_diameter_t neighbor;
 
 public:
-	simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
+	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
 	                              const ripser& _parent)
 	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1),
 	      k(_dim + 1), max_vertex_below(parent.n - 1), simplex(_simplex), modulus(parent.modulus),
@@ -919,7 +922,7 @@ compressed_lower_distance_matrix read_binary(std::istream& input_stream) {
 	return compressed_lower_distance_matrix(std::move(distances));
 }
 
-compressed_lower_distance_matrix read_file(std::istream& input_stream, file_format format) {
+compressed_lower_distance_matrix read_file(std::istream& input_stream, const file_format format) {
 	switch (format) {
 	case LOWER_DISTANCE_MATRIX:
 		return read_lower_distance_matrix(input_stream);
