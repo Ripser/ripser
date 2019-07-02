@@ -333,6 +333,13 @@ template <typename Column> diameter_entry_t get_pivot(Column& column, const coef
 	return result;
 }
 
+template <typename Iterator> struct iterator_range {
+	Iterator b, e;
+	iterator_range(Iterator _b, Iterator _e) : b(_b), e(_e) {}
+	Iterator begin() const { return b; }
+	Iterator end() const { return e; }
+};
+
 template <typename ValueType> class compressed_sparse_matrix {
 	std::vector<size_t> bounds;
 	std::vector<ValueType> entries;
@@ -345,14 +352,10 @@ public:
 		return index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1];
 	}
 
-	typename std::vector<ValueType>::const_iterator cend(const size_t index) const {
-		assert(index < size());
-		return entries.cbegin() + bounds[index];
-	}
-
-	template <typename Iterator> void append_column(const Iterator begin, const Iterator end) {
-		for (Iterator it = begin; it != end; ++it) { entries.push_back(*it); }
-		bounds.push_back(entries.size());
+	iterator_range<typename std::vector<ValueType>::const_iterator> subrange(const index_t index) {
+		return iterator_range<typename std::vector<ValueType>::const_iterator>(
+		    index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1],
+		    entries.cbegin() + bounds[index]);
 	}
 
 	void append_column() { bounds.push_back(entries.size()); }
@@ -549,9 +552,7 @@ public:
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
 		add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
 
-		for (auto it = reduction_matrix.cbegin(index_column_to_add);
-		     it != reduction_matrix.cend(index_column_to_add); ++it) {
-			diameter_entry_t simplex = *it;
+		for (auto simplex : reduction_matrix.subrange(index_column_to_add)) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 			working_reduction_column.push(simplex);
 			add_coboundary(simplex, working_reduction_column, working_coboundary, dim);
