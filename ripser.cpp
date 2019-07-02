@@ -554,6 +554,8 @@ public:
 				          << "\r" << std::flush;
 #endif
 
+			reduction_matrix.append_column();
+
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
 			    working_reduction_column, working_coboundary;
@@ -588,8 +590,6 @@ public:
 #endif
 						pivot_column_index.insert(
 						    std::make_pair(get_index(pivot), index_column_to_reduce));
-
-						reduction_matrix.append_column();
 
 						const coefficient_t inverse =
 						    multiplicative_inverse[get_coefficient(pivot)];
