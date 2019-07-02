@@ -333,6 +333,13 @@ template <typename Column> diameter_entry_t get_pivot(Column& column, const coef
 	return result;
 }
 
+template <typename Iterator> struct iterator_range {
+	Iterator b, e;
+	iterator_range(Iterator _b, Iterator _e) : b(_b), e(_e) {}
+	Iterator begin() const { return b; }
+	Iterator end() const { return e; }
+};
+
 template <typename ValueType> class compressed_sparse_matrix {
 	std::vector<size_t> bounds;
 	std::vector<ValueType> entries;
@@ -345,14 +352,10 @@ public:
 		return index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1];
 	}
 
-	typename std::vector<ValueType>::const_iterator cend(const size_t index) const {
-		assert(index < size());
-		return entries.cbegin() + bounds[index];
-	}
-
-	template <typename Iterator> void append_column(const Iterator begin, const Iterator end) {
-		for (Iterator it = begin; it != end; ++it) { entries.push_back(*it); }
-		bounds.push_back(entries.size());
+	iterator_range<typename std::vector<ValueType>::const_iterator> subrange(const index_t index) {
+		return iterator_range<typename std::vector<ValueType>::const_iterator>(
+		    index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1],
+		    entries.cbegin() + bounds[index]);
 	}
 
 	void append_column() { bounds.push_back(entries.size()); }
@@ -539,21 +542,17 @@ public:
 			if (get_diameter(coface) <= threshold) working_coboundary.push(coface);
 		}
 	}
-	
+
 	template <typename Column>
 	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
-						std::vector<diameter_index_t>& columns_to_reduce,
-						const index_t index_column_to_add, const coefficient_t factor,
-						Column& working_reduction_column, Column& working_coboundary,
-						const index_t& dim) {
-		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add],
-									   factor);
-		add_coboundary(column_to_add, working_reduction_column, working_coboundary,
-					   dim);
-		
-		for (auto it = reduction_matrix.cbegin(index_column_to_add);
-		     it != reduction_matrix.cend(index_column_to_add); ++it) {
-			diameter_entry_t simplex = *it;
+	                    std::vector<diameter_index_t>& columns_to_reduce,
+	                    const index_t index_column_to_add, const coefficient_t factor,
+	                    Column& working_reduction_column, Column& working_coboundary,
+	                    const index_t& dim) {
+		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
+		add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
+
+		for (auto simplex : reduction_matrix.subrange(index_column_to_add)) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 			working_reduction_column.push(simplex);
 			add_coboundary(simplex, working_reduction_column, working_coboundary, dim);
@@ -604,8 +603,8 @@ public:
 						    modulus - get_coefficient(pivot) *
 						                  multiplicative_inverse[get_coefficient(other_pivot)] %
 						                  modulus;
-						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add, factor,
-						               working_reduction_column, working_coboundary, dim);
+						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
+						               factor, working_reduction_column, working_coboundary, dim);
 
 						pivot = get_pivot(working_coboundary, modulus);
 					} else {
