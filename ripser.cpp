@@ -108,6 +108,7 @@ struct __attribute__((packed)) entry_t {
 	coefficient_t coefficient;
 	entry_t(index_t _index, coefficient_t _coefficient)
 	    : index(_index), coefficient(_coefficient) {}
+	entry_t(index_t _index) : index(_index), coefficient(0) {}
 	entry_t() : index(0), coefficient(0) {}
 };
 
