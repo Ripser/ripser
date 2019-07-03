@@ -588,8 +588,6 @@ public:
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
 			    working_reduction_column, working_coboundary;
 
-			//			working_reduction_column.push(column_to_reduce);
-
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
 
@@ -621,8 +619,6 @@ public:
 						pivot_column_index.insert(
 						    std::make_pair(get_entry(pivot), index_column_to_reduce));
 
-						const coefficient_t inverse =
-						    multiplicative_inverse[get_coefficient(pivot)];
 						while (true) {
 							diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
 							if (get_index(e) == -1) break;
