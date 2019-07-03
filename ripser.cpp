@@ -69,6 +69,8 @@ typedef uint16_t coefficient_t;
 
 static const std::chrono::milliseconds time_step(40);
 
+static const std::string clear_line("\r\033[K");
+
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
 
@@ -421,7 +423,7 @@ public:
 	                                entry_hash_map& pivot_column_index, index_t dim) {
 
 #ifdef INDICATE_PROGRESS
-		std::cerr << "\r\033[K"
+		std::cerr << clear_line
 		          << "assembling columns"
 		          << std::flush;
 #endif
@@ -442,7 +444,7 @@ public:
 			while (cofaces.has_next(false)) {
 #ifdef INDICATE_PROGRESS
 				if (std::chrono::steady_clock::now() > next) {
-					std::cerr << "\r\033[K"
+					std::cerr << clear_line
 					<< "assembling " << next_simplices.size() << " columns (processing "
 					<< std::distance(&simplices[0], &simplex) << "/" << simplices.size() << " simplices)"
 					<< std::flush;
@@ -461,7 +463,7 @@ public:
 		simplices.swap(next_simplices);
 
 #ifdef INDICATE_PROGRESS
-		std::cerr << "\r\033[K"
+		std::cerr << clear_line
 		          << "sorting " << columns_to_reduce.size() << " columns"
 		          << std::flush;
 #endif
@@ -469,7 +471,7 @@ public:
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
 #ifdef INDICATE_PROGRESS
-		std::cerr << "\r\033[K";
+		std::cerr << clear_line << std::flush;
 #endif
 	}
 
@@ -584,7 +586,7 @@ public:
 			while (true) {
 #ifdef INDICATE_PROGRESS
 				if (std::chrono::steady_clock::now() > next) {
-					std::cerr << "\r\033[K"
+					std::cerr << clear_line
 					<< "reducing column " << index_column_to_reduce + 1 << "/"
 					<< columns_to_reduce.size() << " (diameter " << diameter << ")"
 					<< std::flush;
@@ -610,7 +612,7 @@ public:
 						value_t death = get_diameter(pivot);
 						if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
-							std::cerr << "\r\033[K";
+							std::cerr << clear_line << std::flush;
 #endif
 							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 						}
@@ -627,6 +629,9 @@ public:
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
+#ifdef INDICATE_PROGRESS
+					std::cerr << clear_line << std::flush;
+#endif
 					std::cout << " [" << diameter << ", )" << std::endl;
 #endif
 					break;
@@ -634,7 +639,7 @@ public:
 			}
 		}
 #ifdef INDICATE_PROGRESS
-		std::cerr << "\r\033[K" << std::flush;
+		std::cerr << clear_line << std::flush;
 #endif
 	}
 
