@@ -39,7 +39,7 @@
 #define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
-//#define USE_GOOGLE_HASHMAP
+#include "robin_hood.h"
 
 #include <fstream>
 #include <iostream>
@@ -49,19 +49,11 @@
 #include <unordered_map>
 #include <chrono>
 
-#ifdef USE_GOOGLE_HASHMAP
-#include <sparsehash/dense_hash_map>
 template <class Key, class T, class H, class E>
-class hash_map : public google::dense_hash_map<Key, T, H, E> {
-public:
-	explicit hash_map() : google::dense_hash_map<Key, T, H, E>() { this->set_empty_key(-1); }
+class hash_map : public robin_hood::unordered_flat_map<Key, T, H, E> {};
+template <class Key>
+class hash : public robin_hood::hash<Key> {};
 
-	inline void reserve(size_t hint) { this->resize(hint); }
-};
-#else
-template <class Key, class T, class H, class E>
-class hash_map : public std::unordered_map<Key, T, H, E> {};
-#endif
 
 typedef float value_t;
 typedef int64_t index_t;
@@ -133,7 +125,7 @@ std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
 const entry_t& get_entry(const entry_t& e) { return e; }
 
 struct entry_hash {
-	std::size_t operator()(const entry_t& e) const { return std::hash<index_t>()(get_index(e)); }
+	std::size_t operator()(const entry_t& e) const { return hash<index_t>()(get_index(e)); }
 };
 
 struct equal_index {
