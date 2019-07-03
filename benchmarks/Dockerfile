@@ -52,7 +52,7 @@ RUN curl -LO https://raw.githubusercontent.com/Ripser/ripser/dev/benchmarks/sphe
 && curl -LO https://github.com/n-otter/PH-roadmap/raw/master/data_sets/roadmap_datasets_point_cloud/random_point_cloud_50_16_.txt \
 && curl -LO https://github.com/n-otter/PH-roadmap/raw/master/data_sets/roadmap_datasets_distmat/dipha/random_50_16.bin
 
-
+COPY o3_1024.txt .
 
 FROM benchmark-setup as benchmark-ripser
 
@@ -65,10 +65,11 @@ ENV PATH="${PATH}:/ripser/ripser"
 
 WORKDIR /benchmark
 RUN time -v -o sphere_3_192.ripser.txt    ripser sphere_3_192.distance_matrix --dim 2
-RUN time -v -o random.ripser.txt    ripser random_point_cloud_50_16_.txt --dim 7
+RUN time -v -o random.ripser.txt    ripser random_point_cloud_50_16_.txt --format point-cloud --dim 7
 RUN time -v -o fractal-r.ripser.txt    ripser fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt --dim 2
-RUN time -v -o dragon-2.ripser.txt    ripser dragon_vrip.ply.txt_2000_.txt --dim 1
+RUN time -v -o dragon-2.ripser.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
 # RUN time -v -o genome.ripser.txt    ripser human_gene_distmat.txt --dim 1
+RUN time -v -o o3_1024.ripser.txt    ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2
 
 
 
@@ -175,8 +176,13 @@ RUN time -v -o fractal-r.eirene.txt \
 	julia --eval 'using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed eirene(transpose(readdlm("fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt")), record="none", maxdim=2))' >fractal-r.eirene.out.txt
 #RUN time -v -o random.eirene.txt  \
 #	julia --eval 'using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed eirene(transpose(readdlm("random_point_cloud_50_16_.txt")), model="pc", record="none", maxdim=7))' >random.eirene.out.txt
-
-
+RUN time -v -o o3_1024.eirene.txt \
+	julia --eval 'using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed eirene(transpose(readdlm("o3_1024.txt")), model="pc", record="none", maxdim=3, maxrad=1.8))' > o3_1024.eirene.out.txt
+#
+# using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed result=eirene(transpose(readdlm("/Users/uli/Bitbucket/ripser/examples/o3_1024.txt")), model="pc", record="none", maxdim=3, maxrad=1.8))
+# using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed result=eirene(transpose(readdlm("/Users/uli/Bitbucket/ripser/examples/o3_2048.txt")), model="pc", record="none", maxdim=3, maxrad=1.6))
+# using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed result=eirene(transpose(readdlm("/Users/uli/Bitbucket/ripser/examples/o3_4096.txt")), model="pc", record="none", maxdim=3, maxrad=1.4))
+#
 
 FROM benchmark-setup as benchmark-dionysus2
 
