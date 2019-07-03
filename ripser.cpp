@@ -36,7 +36,7 @@
 
 */
 
-//#define INDICATE_PROGRESS
+#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
@@ -47,6 +47,7 @@
 #include <queue>
 #include <sstream>
 #include <unordered_map>
+#include <chrono>
 
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/dense_hash_map>
@@ -65,6 +66,8 @@ class hash_map : public std::unordered_map<Key, T, H, E> {};
 typedef float value_t;
 typedef int64_t index_t;
 typedef uint16_t coefficient_t;
+
+static const std::chrono::milliseconds time_step(40);
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
@@ -418,42 +421,55 @@ public:
 	                                entry_hash_map& pivot_column_index, index_t dim) {
 
 #ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
+		std::cerr << "\r\033[K"
 		          << "assembling columns"
-		          << "\r" << std::flush;
+		          << std::flush;
 #endif
+		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 
 		--dim;
 		columns_to_reduce.clear();
 
 		std::vector<diameter_index_t> next_simplices;
+		
+		index_t i = 0;
 
-		for (diameter_index_t simplex : simplices) {
+		for (diameter_index_t& simplex : simplices) {
+			++i;
+			
 			simplex_coboundary_enumerator cofaces(diameter_entry_t(simplex, 1), dim, *this);
 
 			while (cofaces.has_next(false)) {
+#ifdef INDICATE_PROGRESS
+				if (std::chrono::steady_clock::now() > next) {
+					std::cerr << "\r\033[K"
+					<< "assembling " << next_simplices.size() << " columns (processing "
+					<< std::distance(&simplices[0], &simplex) << "/" << simplices.size() << " simplices)"
+					<< std::flush;
+					next = std::chrono::steady_clock::now() + time_step;
+				}
+#endif
 				auto coface = cofaces.next();
 
-				next_simplices.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
+				next_simplices.push_back({get_diameter(coface), get_index(coface)});
 
 				if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end())
-					columns_to_reduce.push_back(
-					    std::make_pair(get_diameter(coface), get_index(coface)));
+					columns_to_reduce.push_back({get_diameter(coface), get_index(coface)});
 			}
 		}
 
 		simplices.swap(next_simplices);
 
 #ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
+		std::cerr << "\r\033[K"
 		          << "sorting " << columns_to_reduce.size() << " columns"
-		          << "\r" << std::flush;
+		          << std::flush;
 #endif
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
 #ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+		std::cerr << "\r\033[K";
 #endif
 	}
 
@@ -547,20 +563,14 @@ public:
 #endif
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
+		
+		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 
 		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
 
 			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
 			value_t diameter = get_diameter(column_to_reduce);
-
-#ifdef INDICATE_PROGRESS
-			if ((index_column_to_reduce + 1) % 1000000 == 0)
-				std::cout << "\033[K"
-				          << "reducing column " << index_column_to_reduce + 1 << "/"
-				          << columns_to_reduce.size() << " (diameter " << diameter << ")"
-				          << "\r" << std::flush;
-#endif
 
 			reduction_matrix.append_column();
 
@@ -572,6 +582,15 @@ public:
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
 
 			while (true) {
+#ifdef INDICATE_PROGRESS
+				if (std::chrono::steady_clock::now() > next) {
+					std::cerr << "\r\033[K"
+					<< "reducing column " << index_column_to_reduce + 1 << "/"
+					<< columns_to_reduce.size() << " (diameter " << diameter << ")"
+					<< std::flush;
+					next = std::chrono::steady_clock::now() + time_step;
+				}
+#endif
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_entry(pivot));
 					if (pair != pivot_column_index.end()) {
@@ -591,13 +610,12 @@ public:
 						value_t death = get_diameter(pivot);
 						if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
-							std::cout << "\033[K";
+							std::cerr << "\r\033[K";
 #endif
 							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 						}
 #endif
-						pivot_column_index.insert(
-						    std::make_pair(get_entry(pivot), index_column_to_reduce));
+						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 
 						while (true) {
 							diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
@@ -616,7 +634,7 @@ public:
 			}
 		}
 #ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+		std::cerr << "\r\033[K" << std::flush;
 #endif
 	}
 
