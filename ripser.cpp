@@ -114,9 +114,6 @@ struct __attribute__((packed)) entry_t {
 
 static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
 
-entry_t make_entry(index_t _index, coefficient_t _coefficient) {
-	return entry_t(_index, _coefficient);
-}
 index_t get_index(const entry_t& e) { return e.index; }
 index_t get_coefficient(const entry_t& e) { return e.coefficient; }
 void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
@@ -153,12 +150,12 @@ index_t get_index(const index_diameter_t& i) { return i.first; }
 value_t get_diameter(const index_diameter_t& i) { return i.second; }
 
 struct diameter_entry_t : std::pair<value_t, entry_t> {
-	diameter_entry_t() {}
+	using std::pair<value_t, entry_t>::pair;
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
-	    : std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
+	    : diameter_entry_t(_diameter, {_index, _coefficient}) {}
 	diameter_entry_t(const diameter_index_t& _diameter_index, coefficient_t _coefficient)
-	    : std::pair<value_t, entry_t>(get_diameter(_diameter_index),
-	                                  make_entry(get_index(_diameter_index), _coefficient)) {}
+	    : diameter_entry_t(get_diameter(_diameter_index),
+	                       {get_index(_diameter_index), _coefficient}) {}
 	diameter_entry_t(const index_t& _index) : diameter_entry_t(0, _index, 0) {}
 };
 
@@ -255,7 +252,7 @@ struct sparse_distance_matrix {
 			for (index_t j = 0; j < size(); ++j)
 				if (i != j && mat(i, j) <= threshold) {
 					++num_edges;
-					neighbors[i].push_back(std::make_pair(j, mat(i, j)));
+					neighbors[i].push_back({j, mat(i, j)});
 				}
 	}
 
@@ -333,29 +330,22 @@ template <typename Column> diameter_entry_t get_pivot(Column& column, const coef
 	return result;
 }
 
-template <typename Iterator> struct iterator_range {
-	Iterator b, e;
-	iterator_range(Iterator _b, Iterator _e) : b(_b), e(_e) {}
-	Iterator begin() const { return b; }
-	Iterator end() const { return e; }
-};
+template <typename T> T begin(std::pair<T, T>& p) { return p.first; }
+template <typename T> T end(std::pair<T, T>& p) { return p.second; }
 
 template <typename ValueType> class compressed_sparse_matrix {
 	std::vector<size_t> bounds;
 	std::vector<ValueType> entries;
 
+	typedef typename std::vector<ValueType>::iterator iterator;
+	typedef std::pair<iterator, iterator> iterator_pair;
+
 public:
 	size_t size() const { return bounds.size(); }
 
-	typename std::vector<ValueType>::const_iterator cbegin(const size_t index) const {
-		assert(index < size());
-		return index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1];
-	}
-
-	iterator_range<typename std::vector<ValueType>::const_iterator> subrange(const index_t index) {
-		return iterator_range<typename std::vector<ValueType>::const_iterator>(
-		    index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1],
-		    entries.cbegin() + bounds[index]);
+	iterator_pair subrange(const index_t index) {
+		return {entries.begin() + (index == 0 ? 0 : bounds[index - 1]),
+		        entries.begin() + bounds[index]};
 	}
 
 	void append_column() { bounds.push_back(entries.size()); }
@@ -364,16 +354,6 @@ public:
 		assert(0 < size());
 		entries.push_back(e);
 		++bounds.back();
-	}
-
-	void pop_back() {
-		assert(0 < size());
-		entries.pop_back();
-		--bounds.back();
-	}
-
-	template <typename Collection> void append_column(const Collection collection) {
-		append_column(collection.cbegin(), collection.cend());
 	}
 };
 
@@ -768,7 +748,7 @@ template <> std::vector<diameter_index_t> ripser<compressed_lower_distance_matri
 	for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
 		get_simplex_vertices(index, 1, dist.size(), vertices.rbegin());
 		value_t length = dist(vertices[0], vertices[1]);
-		if (length <= threshold) edges.push_back(std::make_pair(length, index));
+		if (length <= threshold) edges.push_back({length, index});
 	}
 	return edges;
 }
@@ -778,7 +758,7 @@ template <> std::vector<diameter_index_t> ripser<sparse_distance_matrix>::get_ed
 	for (index_t i = 0; i < n; ++i)
 		for (auto n : dist.neighbors[i]) {
 			index_t j = get_index(n);
-			if (i > j) edges.push_back(std::make_pair(get_diameter(n), get_edge_index(i, j)));
+			if (i > j) edges.push_back({get_diameter(n), get_edge_index(i, j)});
 		}
 	return edges;
 }
@@ -841,8 +821,8 @@ sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 		s >> value;
 		if (i != j) {
 			neighbors.resize(std::max({neighbors.size(), i + 1, j + 1}));
-			neighbors[i].push_back(std::make_pair(j, value));
-			neighbors[j].push_back(std::make_pair(i, value));
+			neighbors[i].push_back({j, value});
+			neighbors[j].push_back({i, value});
 			++num_edges;
 		}
 	}
