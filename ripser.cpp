@@ -43,13 +43,13 @@
 
 //#define USE_GOOGLE_HASHMAP
 
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <numeric>
 #include <queue>
 #include <sstream>
 #include <unordered_map>
-#include <chrono>
 
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/dense_hash_map>
@@ -73,6 +73,21 @@ static const std::chrono::milliseconds time_step(40);
 
 static const std::string clear_line("\r\033[K");
 
+static const index_t max_simplex_index =
+    (1l << (8 * (sizeof(index_t) - sizeof(coefficient_t)) - 1)) - 1;
+
+void check_overflow(index_t i) {
+	if
+#ifdef USE_COEFFICIENTS
+	    (i > max_simplex_index)
+#else
+	    (i < 0)
+#endif
+		throw std::overflow_error("simplex index " + std::to_string((uint64_t)i) +
+		                          " in filtration is larger than maximum index" +
+		                          std::to_string(max_simplex_index));
+}
+
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
 
@@ -81,9 +96,10 @@ public:
 		for (index_t i = 0; i <= n; ++i) {
 			B[i].resize(k + 1, 0);
 			B[i][0] = 1;
-			if (i <= k) B[i][i] = 1;
 			for (index_t j = 1; j < std::min(i, k + 1); ++j)
 				B[i][j] = B[i - 1][j - 1] + B[i - 1][j];
+			if (i <= k) B[i][i] = 1;
+			check_overflow(B[i][std::min(i >> 1, k)]);
 		}
 	}
 
@@ -123,6 +139,7 @@ struct __attribute__((packed)) entry_t {
 
 static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
 
+entry_t make_entry(index_t i, coefficient_t c) { return entry_t(i, c); }
 index_t get_index(const entry_t& e) { return e.index; }
 index_t get_coefficient(const entry_t& e) { return e.coefficient; }
 void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
@@ -171,10 +188,10 @@ value_t get_diameter(const index_diameter_t& i) { return i.second; }
 struct diameter_entry_t : std::pair<value_t, entry_t> {
 	using std::pair<value_t, entry_t>::pair;
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
-	    : diameter_entry_t(_diameter, {_index, _coefficient}) {}
+	    : diameter_entry_t(_diameter, make_entry(_index, _coefficient)) {}
 	diameter_entry_t(const diameter_index_t& _diameter_index, coefficient_t _coefficient)
 	    : diameter_entry_t(get_diameter(_diameter_index),
-	                       {get_index(_diameter_index), _coefficient}) {}
+	                       make_entry(get_index(_diameter_index), _coefficient)) {}
 	diameter_entry_t(const index_t& _index) : diameter_entry_t(0, _index, 0) {}
 };
 
@@ -453,31 +470,23 @@ public:
 	                                entry_hash_map& pivot_column_index, index_t dim) {
 
 #ifdef INDICATE_PROGRESS
-		std::cerr << clear_line
-		          << "assembling columns"
-		          << std::flush;
+		std::cerr << clear_line << "assembling columns" << std::flush;
 #endif
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 
 		--dim;
 		columns_to_reduce.clear();
-
 		std::vector<diameter_index_t> next_simplices;
-		
-		index_t i = 0;
 
 		for (diameter_index_t& simplex : simplices) {
-			++i;
-			
 			simplex_coboundary_enumerator cofaces(diameter_entry_t(simplex, 1), dim, *this);
 
 			while (cofaces.has_next(false)) {
 #ifdef INDICATE_PROGRESS
 				if (std::chrono::steady_clock::now() > next) {
-					std::cerr << clear_line
-					<< "assembling " << next_simplices.size() << " columns (processing "
-					<< std::distance(&simplices[0], &simplex) << "/" << simplices.size() << " simplices)"
-					<< std::flush;
+					std::cerr << clear_line << "assembling " << next_simplices.size()
+					          << " columns (processing " << std::distance(&simplices[0], &simplex)
+					          << "/" << simplices.size() << " simplices)" << std::flush;
 					next = std::chrono::steady_clock::now() + time_step;
 				}
 #endif
@@ -493,8 +502,7 @@ public:
 		simplices.swap(next_simplices);
 
 #ifdef INDICATE_PROGRESS
-		std::cerr << clear_line
-		          << "sorting " << columns_to_reduce.size() << " columns"
+		std::cerr << clear_line << "sorting " << columns_to_reduce.size() << " columns"
 		          << std::flush;
 #endif
 
@@ -595,7 +603,7 @@ public:
 #endif
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
-		
+
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 
 		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
@@ -616,10 +624,9 @@ public:
 			while (true) {
 #ifdef INDICATE_PROGRESS
 				if (std::chrono::steady_clock::now() > next) {
-					std::cerr << clear_line
-					<< "reducing column " << index_column_to_reduce + 1 << "/"
-					<< columns_to_reduce.size() << " (diameter " << diameter << ")"
-					<< std::flush;
+					std::cerr << clear_line << "reducing column " << index_column_to_reduce + 1
+					          << "/" << columns_to_reduce.size() << " (diameter " << diameter << ")"
+					          << std::flush;
 					next = std::chrono::steady_clock::now() + time_step;
 				}
 #endif
