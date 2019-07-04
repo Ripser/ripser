@@ -36,9 +36,9 @@
 
 */
 
-#define USE_COEFFICIENTS
+//#define USE_COEFFICIENTS
 
-//#define INDICATE_PROGRESS
+#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
@@ -345,8 +345,8 @@ public:
 };
 
 template <typename Column> diameter_entry_t pop_pivot(Column& column, coefficient_t modulus) {
-#ifdef USE_COEFFICIENTS
 	diameter_entry_t pivot(-1);
+#ifdef USE_COEFFICIENTS
 	while (!column.empty()) {
 		if (get_coefficient(pivot) == 0)
 			pivot = column.top();
@@ -359,19 +359,16 @@ template <typename Column> diameter_entry_t pop_pivot(Column& column, coefficien
 	}
 	if (get_coefficient(pivot) == 0) pivot = -1;
 #else
-	if (column.empty()) return diameter_entry_t(-1);
-
-	auto pivot = column.top();
-	column.pop();
-	while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
+	while (!column.empty()) {
+		pivot = column.top();
 		column.pop();
-		if (column.empty())
-			return diameter_entry_t(-1);
-		else {
-			pivot = column.top();
+		if (!column.empty()) {
+			if (get_index(column.top()) != get_index(pivot))
+				return pivot;
 			column.pop();
 		}
 	}
+	pivot = -1;
 #endif
 	return pivot;
 }
