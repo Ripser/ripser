@@ -1,0 +1,23 @@
+	Command being timed: "julia --eval maxdim = 2; using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed (d = readdlm("sphere_3_192.distance_matrix"); result = eirene(d, record="none", maxdim=maxdim))); for i in 0:maxdim print("dim $(i): "); show(stdout, "text/plain", (barcode(result , dim = i))); println(); end"
+	User time (seconds): 42.89
+	System time (seconds): 1.35
+	Percent of CPU this job got: 100%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:44.01
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 1629496
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 4
+	Minor (reclaiming a frame) page faults: 854253
+	Voluntary context switches: 33
+	Involuntary context switches: 299444
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 4272
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
