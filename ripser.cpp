@@ -36,7 +36,7 @@
 
 */
 
-//#define USE_COEFFICIENTS
+#define USE_COEFFICIENTS
 
 #define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
@@ -73,8 +73,10 @@ static const std::chrono::milliseconds time_step(40);
 
 static const std::string clear_line("\r\033[K");
 
+static const size_t num_coefficient_bits = 8;
+
 static const index_t max_simplex_index =
-    (1l << (8 * (sizeof(index_t) - sizeof(coefficient_t)) - 1)) - 1;
+    (1l << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
 
 void check_overflow(index_t i) {
 	if
@@ -84,7 +86,7 @@ void check_overflow(index_t i) {
 	    (i < 0)
 #endif
 		throw std::overflow_error("simplex index " + std::to_string((uint64_t)i) +
-		                          " in filtration is larger than maximum index" +
+		                          " in filtration is larger than maximum index " +
 		                          std::to_string(max_simplex_index));
 }
 
@@ -129,8 +131,8 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 #ifdef USE_COEFFICIENTS
 
 struct __attribute__((packed)) entry_t {
-	index_t index : 8 * (sizeof(index_t) - sizeof(coefficient_t));
-	coefficient_t coefficient;
+	index_t index : 8 * sizeof(index_t) - num_coefficient_bits;
+	coefficient_t coefficient : num_coefficient_bits;
 	entry_t(index_t _index, coefficient_t _coefficient)
 	    : index(_index), coefficient(_coefficient) {}
 	entry_t(index_t _index) : index(_index), coefficient(0) {}
@@ -363,8 +365,7 @@ template <typename Column> diameter_entry_t pop_pivot(Column& column, coefficien
 		pivot = column.top();
 		column.pop();
 		if (!column.empty()) {
-			if (get_index(column.top()) != get_index(pivot))
-				return pivot;
+			if (get_index(column.top()) != get_index(pivot)) return pivot;
 			column.pop();
 		}
 	}
@@ -488,11 +489,13 @@ public:
 				}
 #endif
 				auto coface = cofaces.next();
+				if (get_diameter(coface) <= threshold) {
 
-				next_simplices.push_back({get_diameter(coface), get_index(coface)});
+					next_simplices.push_back({get_diameter(coface), get_index(coface)});
 
-				if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end())
-					columns_to_reduce.push_back({get_diameter(coface), get_index(coface)});
+					if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end())
+						columns_to_reduce.push_back({get_diameter(coface), get_index(coface)});
+				}
 			}
 		}
 
@@ -1123,5 +1126,6 @@ int main(int argc, char** argv) {
 			                               dim_max, threshold, ratio, modulus)
 			    .compute_barcodes();
 		}
+		exit(0);
 	}
 }
