@@ -546,8 +546,9 @@ public:
 	
 	template <typename Column>
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
-	                                               Column& working_coboundary, const index_t& dim,
-	                                               entry_hash_map& pivot_column_index) {
+												   Column& working_coboundary, const index_t& dim,
+												   entry_hash_map& pivot_column_index,
+												   int& num_emergent_pairs) {
 		bool check_for_emergent_pair = true;
 		coface_entries.clear();
 		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
@@ -556,8 +557,10 @@ public:
 			if (get_diameter(coface) <= threshold) {
 				coface_entries.push_back(coface);
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(coface))) {
-					if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end())
+					if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end()) {
+						++num_emergent_pairs;
 						return coface;
+					}
 					check_for_emergent_pair = false;
 				}
 			}
@@ -597,9 +600,11 @@ public:
 	                   entry_hash_map& pivot_column_index, const index_t dim) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
+		std::cout << "dim " << dim << ":" << std::endl;
 #endif
 
+		int num_emergent_pairs = 0, num_zero_pairs = 0, num_modified_columns = 0;
+	
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
 
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
@@ -615,9 +620,11 @@ public:
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
 			    working_reduction_column, working_coboundary;
-
+			
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
-			    column_to_reduce, working_coboundary, dim, pivot_column_index);
+			    column_to_reduce, working_coboundary, dim, pivot_column_index, num_emergent_pairs);
+			
+			bool column_addition_performed = false;
 
 			while (true) {
 #ifdef INDICATE_PROGRESS
@@ -640,16 +647,20 @@ public:
 
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
 						               factor, working_reduction_column, working_coboundary, dim);
+						
+						column_addition_performed = true;
 
 						pivot = get_pivot(working_coboundary);
 					} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 						value_t death = get_diameter(pivot);
+						if (death == diameter) ++num_zero_pairs;
+						
 						if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
 							std::cerr << clear_line << std::flush;
 #endif
-							std::cout << " [" << diameter << "," << death << ")" << std::endl;
+//							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 						}
 #endif
 						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
@@ -667,15 +678,25 @@ public:
 #ifdef INDICATE_PROGRESS
 					std::cerr << clear_line << std::flush;
 #endif
-					std::cout << " [" << diameter << ", )" << std::endl;
+//					std::cout << " [" << diameter << ", )" << std::endl;
 #endif
 					break;
 				}
 			}
+			
+			if (column_addition_performed) ++num_modified_columns;
+			
 		}
 #ifdef INDICATE_PROGRESS
 		std::cerr << clear_line << std::flush;
 #endif
+		std::cout
+		<< columns_to_reduce.size() - num_zero_pairs << "/"
+		<< columns_to_reduce.size() - num_emergent_pairs << "/"
+		<< num_modified_columns << "/"
+		<< columns_to_reduce.size()
+		<< "  non-zero / non-emergent / modified / total columns"
+		<< std::endl;
 	}
 
 	std::vector<diameter_index_t> get_edges();
