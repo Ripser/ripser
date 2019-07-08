@@ -39,7 +39,7 @@ Ripser's efficiency is based on a few important concepts and principles, buildin
 
 
 ### Version
-[Latest release][latest-release]: 1.1 (June 2019)
+[Latest release][latest-release]: 1.1 (July 2019)
 
 
 ### Building
@@ -89,9 +89,11 @@ The input is given either in a file whose name is passed as an argument, or thro
 
 ### Experimental features
 
-The following features are currently planned for future versions:
+The following experimental features are currently available in separate branches:
 
- - computation of representative cycles for persistent homology (currenly only *co*cycles are computed)
+- `representative-cocycles`: output of representative cocycles for persistent cohomology.
+- `representative-cycles`: computation and output of representative cycles for persistent homology (in the standard version, only *co*cycles are computed).
+- `simple`: a simplified version of Ripser, without support for sparse distance matrices and coefficients.  This might be a good starting point for exploring the code.
 
 Prototype implementations are already avaliable; please contact the author if one of these features might be relevant for your research.
 
