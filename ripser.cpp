@@ -569,29 +569,16 @@ public:
 	}
 
 	template <typename Column>
-	void add_coboundary(const diameter_entry_t simplex, Column& working_reduction_column,
-	                    Column& working_coboundary, const index_t& dim) {
-		working_reduction_column.push(simplex);
-		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
-		while (cofaces.has_next()) {
-			diameter_entry_t coface = cofaces.next();
-			if (get_diameter(coface) <= threshold) working_coboundary.push(coface);
-		}
-	}
-
-	template <typename Column>
-	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
+	void add_column(compressed_sparse_matrix<diameter_entry_t>& reduced_matrix,
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
 	                    const index_t index_column_to_add, const coefficient_t factor,
-	                    Column& working_reduction_column, Column& working_coboundary,
+	                    Column& working_coboundary,
 	                    const index_t& dim) {
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
-		add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
 
-		for (auto simplex : reduction_matrix.subrange(index_column_to_add)) {
+		for (auto simplex : reduced_matrix.subrange(index_column_to_add)) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
-			working_reduction_column.push(simplex);
-			add_coboundary(simplex, working_reduction_column, working_coboundary, dim);
+			working_coboundary.push(simplex);
 		}
 	}
 
@@ -616,7 +603,7 @@ public:
 
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
-			    working_reduction_column, working_coboundary;
+				working_coboundary;
 
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
@@ -640,8 +627,8 @@ public:
 						                  multiplicative_inverse[get_coefficient(other_pivot)] %
 						                  modulus;
 
-						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-						               factor, working_reduction_column, working_coboundary, dim);
+						add_column(reduced_matrix, columns_to_reduce, index_column_to_add,
+						               factor, working_coboundary, dim);
 
 						pivot = get_pivot(working_coboundary);
 					} else {
@@ -655,13 +642,6 @@ public:
 						}
 #endif
 						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
-
-						while (true) {
-							diameter_entry_t e = pop_pivot(working_reduction_column);
-							if (get_index(e) == -1) break;
-							assert(get_coefficient(e) > 0);
-							reduction_matrix.push_back(e);
-						}
 
 #ifdef STORE_REDUCED_MATRIX
 						reduced_matrix.append_column();
