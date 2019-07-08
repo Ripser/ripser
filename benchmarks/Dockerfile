@@ -69,6 +69,7 @@ FROM benchmark-setup as benchmark-ripser
 WORKDIR /ripser
 RUN git clone https://github.com/Ripser/ripser.git \
 && cd ripser \
+&& git checkout c0b508 \
 && make
 
 ENV PATH="${PATH}:/ripser/ripser"
