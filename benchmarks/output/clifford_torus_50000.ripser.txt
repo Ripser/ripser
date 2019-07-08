@@ -1,18 +1,18 @@
-	Command being timed: "ripser clifford_torus_50000.points.csv --format point-cloud --dim 2 --threshold .11 --ratio 2"
-	User time (seconds): 73.43
-	System time (seconds): 8.52
+	Command being timed: "ripser clifford_torus_50000.points.txt --format point-cloud --dim 2 --threshold .15 --ratio 2"
+	User time (seconds): 199.60
+	System time (seconds): 6.94
 	Percent of CPU this job got: 99%
-	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:22.04
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:26.57
 	Average shared text size (kbytes): 0
 	Average unshared data size (kbytes): 0
 	Average stack size (kbytes): 0
 	Average total size (kbytes): 0
-	Maximum resident set size (kbytes): 8395660
+	Maximum resident set size (kbytes): 8395736
 	Average resident set size (kbytes): 0
 	Major (requiring I/O) page faults: 0
-	Minor (reclaiming a frame) page faults: 3697156
-	Voluntary context switches: 11
-	Involuntary context switches: 1647
+	Minor (reclaiming a frame) page faults: 4756609
+	Voluntary context switches: 5
+	Involuntary context switches: 1490
 	Swaps: 0
 	File system inputs: 0
 	File system outputs: 0

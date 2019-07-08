@@ -1,18 +1,18 @@
 	Command being timed: "julia --eval maxdim = 2; using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed (d = (m->(m+transpose(m))/2)(readdlm("fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt")); result = eirene(d, record="none", maxdim=maxdim))); for i in 0:maxdim print("dim $(i): "); show(stdout, "text/plain", (barcode(result , dim = i))); println(); end"
-	User time (seconds): 60.84
-	System time (seconds): 4.54
+	User time (seconds): 59.19
+	System time (seconds): 4.32
 	Percent of CPU this job got: 100%
-	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:05.01
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:03.17
 	Average shared text size (kbytes): 0
 	Average unshared data size (kbytes): 0
 	Average stack size (kbytes): 0
 	Average total size (kbytes): 0
-	Maximum resident set size (kbytes): 5893804
+	Maximum resident set size (kbytes): 5896564
 	Average resident set size (kbytes): 0
 	Major (requiring I/O) page faults: 4
-	Minor (reclaiming a frame) page faults: 4231703
-	Voluntary context switches: 37
-	Involuntary context switches: 374724
+	Minor (reclaiming a frame) page faults: 4232730
+	Voluntary context switches: 39
+	Involuntary context switches: 306873
 	Swaps: 0
 	File system inputs: 0
 	File system outputs: 4336

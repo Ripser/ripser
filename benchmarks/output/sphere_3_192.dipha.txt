@@ -1,18 +1,18 @@
 	Command being timed: "dipha --dual --benchmark --upper_dim 3 sphere_3_192.complex sphere_3_192.dipha.diagram"
-	User time (seconds): 47.37
-	System time (seconds): 5.09
-	Percent of CPU this job got: 99%
-	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:52.71
+	User time (seconds): 46.61
+	System time (seconds): 4.79
+	Percent of CPU this job got: 98%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:51.94
 	Average shared text size (kbytes): 0
 	Average unshared data size (kbytes): 0
 	Average stack size (kbytes): 0
 	Average total size (kbytes): 0
-	Maximum resident set size (kbytes): 5728596
+	Maximum resident set size (kbytes): 5728728
 	Average resident set size (kbytes): 0
 	Major (requiring I/O) page faults: 0
-	Minor (reclaiming a frame) page faults: 5510171
-	Voluntary context switches: 716
-	Involuntary context switches: 181
+	Minor (reclaiming a frame) page faults: 5510161
+	Voluntary context switches: 709
+	Involuntary context switches: 226
 	Swaps: 0
 	File system inputs: 0
 	File system outputs: 56
