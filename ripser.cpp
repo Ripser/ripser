@@ -548,7 +548,7 @@ public:
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
-		bool check_for_emergent_pair = true;
+		bool check_for_emergent_pair = false;
 		coface_entries.clear();
 		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
 		while (cofaces.has_next()) {
