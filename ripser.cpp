@@ -146,9 +146,6 @@ index_t get_index(const entry_t& e) { return e.index; }
 index_t get_coefficient(const entry_t& e) { return e.coefficient; }
 void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
 
-bool operator==(const entry_t& e1, const entry_t& e2) {
-	return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
-}
 
 std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
 	stream << get_index(e) << ":" << get_coefficient(e);
@@ -166,18 +163,6 @@ void set_coefficient(entry_t& e, const coefficient_t c) {}
 #endif
 
 const entry_t& get_entry(const entry_t& e) { return e; }
-
-struct entry_hash {
-	std::size_t operator()(const entry_t& e) const { return std::hash<index_t>()(get_index(e)); }
-};
-
-struct equal_index {
-	bool operator()(const entry_t& e, const entry_t& f) const {
-		return get_index(e) == get_index(f);
-	}
-};
-
-typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
 
 typedef std::pair<value_t, index_t> diameter_index_t;
 value_t get_diameter(const diameter_index_t& i) { return i.first; }
@@ -346,40 +331,6 @@ public:
 	}
 };
 
-template <typename Column> diameter_entry_t pop_pivot(Column& column, coefficient_t modulus) {
-	diameter_entry_t pivot(-1);
-#ifdef USE_COEFFICIENTS
-	while (!column.empty()) {
-		if (get_coefficient(pivot) == 0)
-			pivot = column.top();
-		else if (get_index(column.top()) != get_index(pivot))
-			break;
-		else
-			set_coefficient(pivot,
-			                (get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
-		column.pop();
-	}
-	if (get_coefficient(pivot) == 0) pivot = -1;
-#else
-	while (!column.empty()) {
-		pivot = column.top();
-		column.pop();
-		if (!column.empty()) {
-			if (get_index(column.top()) != get_index(pivot)) return pivot;
-			column.pop();
-		}
-	}
-	pivot = -1;
-#endif
-	return pivot;
-}
-
-template <typename Column> diameter_entry_t get_pivot(Column& column, const coefficient_t modulus) {
-	diameter_entry_t result = pop_pivot(column, modulus);
-	if (get_index(result) != -1) column.push(result);
-	return result;
-}
-
 template <typename T> T begin(std::pair<T, T>& p) { return p.first; }
 template <typename T> T end(std::pair<T, T>& p) { return p.second; }
 
@@ -432,6 +383,19 @@ template <typename DistanceMatrix> class ripser {
 	const binomial_coeff_table binomial_coeff;
 	const std::vector<coefficient_t> multiplicative_inverse;
 	mutable std::vector<diameter_entry_t> coface_entries;
+	
+	struct entry_hash {
+		std::size_t operator()(const entry_t& e) const { return std::hash<index_t>()(::get_index(e)); }
+	};
+	
+	struct equal_index {
+		bool operator()(const entry_t& e, const entry_t& f) const {
+			return ::get_index(e) == ::get_index(f);
+		}
+	};
+	
+	typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
+
 
 public:
 	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
@@ -546,6 +510,40 @@ public:
 #endif
 	}
 
+	template <typename Column> diameter_entry_t pop_pivot(Column& column) {
+		diameter_entry_t pivot(-1);
+#ifdef USE_COEFFICIENTS
+		while (!column.empty()) {
+			if (get_coefficient(pivot) == 0)
+				pivot = column.top();
+			else if (get_index(column.top()) != get_index(pivot))
+				break;
+			else
+				set_coefficient(pivot,
+								(get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
+			column.pop();
+		}
+		if (get_coefficient(pivot) == 0) pivot = -1;
+#else
+		while (!column.empty()) {
+			pivot = column.top();
+			column.pop();
+			if (!column.empty()) {
+				if (get_index(column.top()) != get_index(pivot)) return pivot;
+				column.pop();
+			}
+		}
+		pivot = -1;
+#endif
+		return pivot;
+	}
+	
+	template <typename Column> diameter_entry_t get_pivot(Column& column) {
+		diameter_entry_t result = pop_pivot(column);
+		if (get_index(result) != -1) column.push(result);
+		return result;
+	}
+	
 	template <typename Column>
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
@@ -565,7 +563,7 @@ public:
 			}
 		}
 		for (auto coface : coface_entries) working_coboundary.push(coface);
-		return get_pivot(working_coboundary, modulus);
+		return get_pivot(working_coboundary);
 	}
 
 	template <typename Column>
@@ -643,7 +641,7 @@ public:
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
 						               factor, working_reduction_column, working_coboundary, dim);
 
-						pivot = get_pivot(working_coboundary, modulus);
+						pivot = get_pivot(working_coboundary);
 					} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 						value_t death = get_diameter(pivot);
@@ -657,7 +655,7 @@ public:
 						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 
 						while (true) {
-							diameter_entry_t e = pop_pivot(working_reduction_column, modulus);
+							diameter_entry_t e = pop_pivot(working_reduction_column);
 							if (get_index(e) == -1) break;
 							assert(get_coefficient(e) > 0);
 							reduction_matrix.push_back(e);
