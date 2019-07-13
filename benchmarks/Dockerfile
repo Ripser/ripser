@@ -88,7 +88,7 @@ RUN time -v -o dragon-2.ripser.txt    ripser dragon_vrip.ply.txt_2000_.txt --for
 FROM benchmark-ripser as benchmark-ripser-no-emergent
 
 WORKDIR /ripser/ripser
-RUN git checkout benchmarks/disable-emergent-pairs \
+RUN git pull && git checkout benchmarks/disable-emergent-pairs \
 && make
 
 WORKDIR /benchmark
@@ -103,7 +103,7 @@ RUN time -v -o o3_1024.ripser-no-emergent.txt    ripser o3_1024.txt --format poi
 FROM benchmark-ripser as benchmark-ripser-store-reduced
 
 WORKDIR /ripser/ripser
-RUN git checkout benchmarks/store-reduced-matrix \
+RUN git pull && git checkout benchmarks/store-reduced-matrix \
 && make
 
 WORKDIR /benchmark
@@ -118,7 +118,7 @@ RUN time -v -o o3_1024.ripser-store-reduced.txt    ripser o3_1024.txt --format p
 FROM benchmark-ripser as benchmark-ripser-use-reduced
 
 WORKDIR /ripser/ripser
-RUN git checkout benchmarks/use-reduced-matrix \
+RUN git pull && git checkout benchmarks/use-reduced-matrix \
 && make
 
 WORKDIR /benchmark
