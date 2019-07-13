@@ -43,6 +43,8 @@
 
 //#define USE_GOOGLE_HASHMAP
 
+#include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -145,7 +147,6 @@ entry_t make_entry(index_t i, coefficient_t c) { return entry_t(i, c); }
 index_t get_index(const entry_t& e) { return e.index; }
 index_t get_coefficient(const entry_t& e) { return e.coefficient; }
 void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
-
 
 std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
 	stream << get_index(e) << ":" << get_coefficient(e);
@@ -383,19 +384,20 @@ template <typename DistanceMatrix> class ripser {
 	const binomial_coeff_table binomial_coeff;
 	const std::vector<coefficient_t> multiplicative_inverse;
 	mutable std::vector<diameter_entry_t> coface_entries;
-	
+
 	struct entry_hash {
-		std::size_t operator()(const entry_t& e) const { return std::hash<index_t>()(::get_index(e)); }
+		std::size_t operator()(const entry_t& e) const {
+			return std::hash<index_t>()(::get_index(e));
+		}
 	};
-	
+
 	struct equal_index {
 		bool operator()(const entry_t& e, const entry_t& f) const {
 			return ::get_index(e) == ::get_index(f);
 		}
 	};
-	
-	typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
 
+	typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
 
 public:
 	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
@@ -520,7 +522,7 @@ public:
 				break;
 			else
 				set_coefficient(pivot,
-								(get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
+				                (get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
 			column.pop();
 		}
 		if (get_coefficient(pivot) == 0) pivot = -1;
@@ -537,13 +539,13 @@ public:
 #endif
 		return pivot;
 	}
-	
+
 	template <typename Column> diameter_entry_t get_pivot(Column& column) {
 		diameter_entry_t result = pop_pivot(column);
 		if (get_index(result) != -1) column.push(result);
 		return result;
 	}
-	
+
 	template <typename Column>
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
