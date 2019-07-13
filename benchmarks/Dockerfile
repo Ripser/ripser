@@ -98,6 +98,8 @@ RUN time -v -o fractal-r.ripser-no-emergent.txt    ripser fractal_9_5_2_random_e
 RUN time -v -o dragon-2.ripser-no-emergent.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
 # RUN time -v -o genome.ripser-no-emergent.txt    ripser human_gene_distmat.txt --dim 1
 RUN time -v -o o3_1024.ripser-no-emergent.txt    ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2
+RUN time -v -o o3_4096.ripser-no-emergent.txt    ripser o3_4096.txt --format point-cloud --dim 3 --threshold 1.4 --ratio 2
+RUN time -v -o clifford_torus_50000.ripser-no-emergent.txt    ripser clifford_torus_50000.points.txt --format point-cloud --dim 2 --threshold .15 --ratio 2
 
 
 FROM benchmark-ripser as benchmark-ripser-store-reduced
@@ -113,6 +115,8 @@ RUN time -v -o fractal-r.ripser-store-reduced.txt    ripser fractal_9_5_2_random
 RUN time -v -o dragon-2.ripser-store-reduced.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
 # RUN time -v -o genome.ripser-store-reduced.txt    ripser human_gene_distmat.txt --dim 1
 RUN time -v -o o3_1024.ripser-store-reduced.txt    ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2
+RUN time -v -o o3_4096.ripser-store-reduced.txt    ripser o3_4096.txt --format point-cloud --dim 3 --threshold 1.4 --ratio 2
+# RUN time -v -o clifford_torus_50000.ripser-store-reduced.txt    ripser clifford_torus_50000.points.txt --format point-cloud --dim 2 --threshold .15 --ratio 2
 
 
 FROM benchmark-ripser as benchmark-ripser-use-reduced
@@ -128,6 +132,8 @@ RUN time -v -o fractal-r.ripser-use-reduced.txt    ripser fractal_9_5_2_random_e
 RUN time -v -o dragon-2.ripser-use-reduced.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
 # RUN time -v -o genome.ripser-use-reduced.txt    ripser human_gene_distmat.txt --dim 1
 RUN time -v -o o3_1024.ripser-use-reduced.txt    ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2
+RUN time -v -o o3_4096.ripser-use-reduced.txt    ripser o3_4096.txt --format point-cloud --dim 3 --threshold 1.4 --ratio 2
+# RUN time -v -o clifford_torus_50000.ripser-use-reduced.txt    ripser clifford_torus_50000.points.txt --format point-cloud --dim 2 --threshold .15 --ratio 2
 
 
 FROM benchmark-setup as benchmark-gudhi
