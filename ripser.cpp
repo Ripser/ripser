@@ -546,7 +546,7 @@ public:
 			reduction_matrix.push_back(diameter_entry_t(column_to_reduce, 1));
 #endif
 
-			bool might_be_apparent_pair = false && (index_column_to_reduce == index_column_to_add);
+			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			while (true) {
 #ifdef ASSEMBLE_REDUCTION_MATRIX
