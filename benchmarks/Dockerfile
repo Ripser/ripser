@@ -112,10 +112,10 @@ WORKDIR /benchmark
 RUN time -v -o sphere_3_192.ripser-store-reduced.txt    ripser sphere_3_192.distance_matrix --dim 2
 RUN time -v -o random.ripser-store-reduced.txt    ripser random_point_cloud_50_16_.txt --format point-cloud --dim 7
 # RUN time -v -o fractal-r.ripser-store-reduced.txt    ripser fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt --dim 2
-RUN time -v -o dragon-2.ripser-store-reduced.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
+# RUN time -v -o dragon-2.ripser-store-reduced.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
 # RUN time -v -o genome.ripser-store-reduced.txt    ripser human_gene_distmat.txt --dim 1
 RUN time -v -o o3_1024.ripser-store-reduced.txt    ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2
-RUN time -v -o o3_4096.ripser-store-reduced.txt    ripser o3_4096.txt --format point-cloud --dim 3 --threshold 1.4 --ratio 2
+# RUN time -v -o o3_4096.ripser-store-reduced.txt    ripser o3_4096.txt --format point-cloud --dim 3 --threshold 1.4 --ratio 2
 # RUN time -v -o clifford_torus_50000.ripser-store-reduced.txt    ripser clifford_torus_50000.points.txt --format point-cloud --dim 2 --threshold .15 --ratio 2
 
 
