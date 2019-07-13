@@ -601,7 +601,10 @@ public:
 			value_t diameter = get_diameter(column_to_reduce);
 
 			reduction_matrix.append_column();
-
+#ifdef STORE_REDUCED_MATRIX
+			reduced_matrix.append_column();
+#endif
+			
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
 				working_coboundary;
@@ -645,7 +648,6 @@ public:
 						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 
 #ifdef STORE_REDUCED_MATRIX
-						reduced_matrix.append_column();
 						while (true) {
 							diameter_entry_t e = pop_pivot(working_coboundary);
 							if (get_index(e) == -1) break;
