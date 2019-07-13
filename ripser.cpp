@@ -414,23 +414,6 @@ public:
 	    : filtration(std::move(_filtration)), dim_max(_dim_max), n(_n), threshold(_threshold),
 	      ratio(_ratio), modulus(_modulus), binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
-
-//	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
-//		if ((v != -1) && (binomial_coeff(v, k) > idx)) {
-//			index_t count = v;
-//			while (count > 0) {
-//				index_t i = v;
-//				index_t step = count >> 1;
-//				i -= step;
-//				if (binomial_coeff(i, k) > idx) {
-//					v = --i;
-//					count -= step + 1;
-//				} else
-//					count = step;
-//			}
-//		}
-//		return v;
-//	}
 	
 	index_t get_max_vertex(const index_t idx, const index_t k, const index_t n) const {
 		return get_max(n, k - 1, [&](index_t w) -> bool { return (binomial_coeff(w, k) <= idx); });
@@ -683,7 +666,7 @@ public:
 					} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 						value_t birth = get_diameter(pivot);
-						if (diameter != birth) {
+						if (birth * ratio < diameter) {
 #ifdef INDICATE_PROGRESS
 							std::cerr << clear_line << std::flush;
 #endif
@@ -737,51 +720,6 @@ public:
 
 	}
 };
-
-/*
-class ripser::simplex_coboundary_enumerator {
-private:
-    index_t idx_below, idx_above, v, k, coface_dim;
-    std::vector<index_t> vertices;
-    const diameter_entry_t simplex;
-    const coefficient_t modulus;
-    const ripser& parent;
-    const binomial_coeff_table& binomial_coeff;
-    
-public:
-    simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
-                                  const ripser& _parent)
-    : idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1), coface_dim(_dim + 1),
-    vertices(_dim + 1), simplex(_simplex), modulus(_parent.modulus),
-    parent(_parent), binomial_coeff(parent.binomial_coeff) {
-        parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
-    }
-    
-    bool has_next() {
-        while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
-            idx_below -= binomial_coeff(v, k);
-            idx_above += binomial_coeff(v, k + 1);
-            --v;
-            --k;
-            assert(k != -1);
-        }
-        return v != -1;
-    }
-    
-    diameter_entry_t next() {
-        index_t coface_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
-        
-        value_t coface_diameter = parent.compute_diameter(coface_index, coface_dim);
-        
-        coefficient_t coface_coefficient =
-        (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
-        return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
-    }
-};
-*/
-
-
-
 
 std::vector<diameter_index_t> ripser::get_edges() {
 	std::vector<diameter_index_t> edges;
@@ -846,17 +784,6 @@ void print_usage_and_exit(int exit_code) {
 	    << "Options:" << std::endl
 	    << std::endl
 	    << "  --help           print this screen" << std::endl
-	    << "  --format         use the specified file format for the input. Options are:"
-	    << std::endl
-	    << "                     lower-distance (lower triangular distance matrix; default)"
-	    << std::endl
-	    << "                     upper-distance (upper triangular distance matrix)" << std::endl
-	    << "                     distance       (full distance matrix)" << std::endl
-	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
-	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
-	    << "                     ripser         (distance matrix in Ripser binary file format)"
-	    << std::endl
-	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
 	    << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
 #ifdef USE_COEFFICIENTS
 	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ"
@@ -924,6 +851,11 @@ int main(int argc, const char* argv[]) {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			threshold = std::stof(parameter, &next_pos);
+			if (next_pos != parameter.size()) print_usage_and_exit(-1);
+		} else if (arg == "--ratio") {
+			std::string parameter = std::string(argv[++i]);
+			size_t next_pos;
+			ratio = std::stof(parameter, &next_pos);
 			if (next_pos != parameter.size()) print_usage_and_exit(-1);
 #ifdef USE_COEFFICIENTS
 		} else if (arg == "--modulus") {
