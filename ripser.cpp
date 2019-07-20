@@ -129,7 +129,9 @@ Module* CreateModule() { return new RipserModule(); }
 } // namespace pp
 #endif
 
+#ifdef INDICATE_PROGRESS
 static const std::chrono::milliseconds time_step(40);
+#endif
 
 static const std::string clear_line("\r\033[K");
 
@@ -493,8 +495,8 @@ public:
 
 #ifdef INDICATE_PROGRESS
 		std::cerr << clear_line << "assembling columns" << std::flush;
-#endif
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
+#endif
 
 		--dim;
 		columns_to_reduce.clear();
@@ -703,8 +705,9 @@ public:
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
 
+#ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
-
+#endif
 		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
 
@@ -868,7 +871,7 @@ public:
 
 template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator {
 	const ripser& parent;
-	index_t idx_below, idx_above, v, k, max_vertex_below;
+	index_t idx_below, idx_above, k;
 	std::vector<index_t> vertices;
 	const diameter_entry_t simplex;
 	const coefficient_t modulus;
@@ -881,9 +884,9 @@ template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
 	                              const ripser& _parent)
-	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1),
-	      k(_dim + 1), max_vertex_below(parent.n - 1), simplex(_simplex), modulus(parent.modulus),
-	      dist(parent.dist), binomial_coeff(parent.binomial_coeff), vertices(_dim + 1),
+	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0),
+	      k(_dim + 1),
+	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist), binomial_coeff(parent.binomial_coeff),
 	      neighbor_it(dist.neighbor_it), neighbor_end(dist.neighbor_end) {
 		neighbor_it.clear();
 		neighbor_end.clear();
