@@ -165,7 +165,7 @@ function handleMessage(message) {
 	} else if (message.data.type == "distance-matrix") {
 		log.innerHTML += "distance matrix with " + message.data.size + " points\n" +
 		"value range: [" + chop(message.data.min) + "," + chop(message.data.max) + "]\n";
-		range = [0, Math.min(message.data.max,parseFloat(threshold.value)||Infinity)];
+		range = [0, parseFloat(threshold.value)||message.data.max];
 	} else if (typeof message.data == "string") {
 		log.innerHTML += message.data;
     }
