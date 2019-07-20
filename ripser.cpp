@@ -1,24 +1,41 @@
 /*
 
-Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
+ Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
 
-Copyright 2015-2016 Ulrich Bauer.
+ MIT License
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the
-Free Software Foundation, either version 3 of the License, or (at your option)
-any later version.
+ Copyright (c) 2015–2019 Ulrich Bauer
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details.
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
 
-You should have received a copy of the GNU Lesser General Public License along
-with this program.  If not, see <http://www.gnu.org/licenses/>.
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+
+ You are under no obligation whatsoever to provide any bug fixes, patches, or
+ upgrades to the features, functionality or performance of the source code
+ ("Enhancements") to anyone; however, if you choose to make your Enhancements
+ available either publicly, or directly to the author of this software, without
+ imposing a separate written license agreement for such Enhancements, then you
+ hereby grant the following license: a non-exclusive, royalty-free perpetual
+ license to install, use, modify, prepare derivative works, incorporate into
+ other computer software, distribute, and sublicense such enhancements or
+ derivative works thereof, in binary and source code form.
 
 */
 
-//#define ASSEMBLE_REDUCTION_MATRIX
 //#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
@@ -35,6 +52,7 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -49,20 +67,22 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #ifdef USE_GOOGLE_HASHMAP
-#include <sparsehash/sparse_hash_map>
-template <class Key, class T> class hash_map : public google::sparse_hash_map<Key, T> {
+#include <sparsehash/dense_hash_map>
+template <class Key, class T, class H, class E>
+class hash_map : public google::dense_hash_map<Key, T, H, E> {
 public:
+	explicit hash_map() : google::dense_hash_map<Key, T, H, E>() { this->set_empty_key(-1); }
+
 	inline void reserve(size_t hint) { this->resize(hint); }
 };
 #else
-template <class Key, class T> class hash_map : public std::unordered_map<Key, T> {};
+template <class Key, class T, class H, class E>
+class hash_map : public std::unordered_map<Key, T, H, E> {};
 #endif
 
 typedef float value_t;
-// typedef uint16_t value_t;
-
 typedef int64_t index_t;
-typedef short coefficient_t;
+typedef uint16_t coefficient_t;
 
 #ifdef __native_client__
 class RipserInstance;
@@ -109,31 +129,52 @@ Module* CreateModule() { return new RipserModule(); }
 } // namespace pp
 #endif
 
+static const std::chrono::milliseconds time_step(40);
+
+static const std::string clear_line("\r\033[K");
+
+static const size_t num_coefficient_bits = 8;
+
+static const index_t max_simplex_index =
+    (1ll << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
+
+void check_overflow(index_t i) {
+	if
+#ifdef USE_COEFFICIENTS
+	    (i > max_simplex_index)
+#else
+	    (i < 0)
+#endif
+		throw std::overflow_error("simplex index " + std::to_string((uint64_t)i) +
+		                          " in filtration is larger than maximum index " +
+		                          std::to_string(max_simplex_index));
+}
+
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
 
 public:
 	binomial_coeff_table(index_t n, index_t k) : B(n + 1) {
-		for (index_t i = 0; i <= n; i++) {
-			B[i].resize(k + 1);
-			for (index_t j = 0; j <= std::min(i, k); j++)
-				if (j == 0 || j == i)
-					B[i][j] = 1;
-				else
-					B[i][j] = B[i - 1][j - 1] + B[i - 1][j];
+		for (index_t i = 0; i <= n; ++i) {
+			B[i].resize(k + 1, 0);
+			B[i][0] = 1;
+			for (index_t j = 1; j < std::min(i, k + 1); ++j)
+				B[i][j] = B[i - 1][j - 1] + B[i - 1][j];
+			if (i <= k) B[i][i] = 1;
+			check_overflow(B[i][std::min(i >> 1, k)]);
 		}
 	}
 
 	index_t operator()(index_t n, index_t k) const {
-		assert(n < B.size() && k < B[n].size());
+		assert(n < B.size() && k < B[n].size() && n >= k - 1);
 		return B[n][k];
 	}
 };
 
 bool is_prime(const coefficient_t n) {
 	if (!(n & 1) || n < 2) return n == 2;
-	for (coefficient_t p = 3, q = n / p, r = n % p; p <= q; p += 2, q = n / p, r = n % p)
-		if (!r) return false;
+	for (coefficient_t p = 3; p <= n / p; p += 2)
+		if (!(n % p)) return false;
 	return true;
 }
 
@@ -142,33 +183,28 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 	inverse[1] = 1;
 	// m = a * (m / a) + m % a
 	// Multipying with inverse(a) * inverse(m % a):
-	// 0 = inverse(m % a) * (m / a)  + inverse(a)  (mod m)
+	// 0 = inverse(m % a) * (m / a) + inverse(a)  (mod m)
 	for (coefficient_t a = 2; a < m; ++a) inverse[a] = m - (inverse[m % a] * (m / a)) % m;
 	return inverse;
 }
 
 #ifdef USE_COEFFICIENTS
+
 struct __attribute__((packed)) entry_t {
-	index_t index : 8 * (sizeof(index_t) - sizeof(coefficient_t));
-	coefficient_t coefficient;
+	index_t index : 8 * sizeof(index_t) - num_coefficient_bits;
+	coefficient_t coefficient : num_coefficient_bits;
 	entry_t(index_t _index, coefficient_t _coefficient)
 	    : index(_index), coefficient(_coefficient) {}
-	entry_t(index_t _index) : index(_index), coefficient(1) {}
-	entry_t() : index(0), coefficient(1) {}
+	entry_t(index_t _index) : index(_index), coefficient(0) {}
+	entry_t() : index(0), coefficient(0) {}
 };
 
 static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
 
-entry_t make_entry(index_t _index, coefficient_t _coefficient) {
-	return entry_t(_index, _coefficient);
-}
+entry_t make_entry(index_t i, coefficient_t c) { return entry_t(i, c); }
 index_t get_index(const entry_t& e) { return e.index; }
 index_t get_coefficient(const entry_t& e) { return e.coefficient; }
 void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
-
-bool operator==(const entry_t& e1, const entry_t& e2) {
-	return get_index(e1) == get_index(e2) && get_coefficient(e1) == get_coefficient(e2);
-}
 
 std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
 	stream << get_index(e) << ":" << get_coefficient(e);
@@ -187,25 +223,22 @@ void set_coefficient(entry_t& e, const coefficient_t c) {}
 
 const entry_t& get_entry(const entry_t& e) { return e; }
 
-class diameter_index_t : public std::pair<value_t, index_t> {
-public:
-	diameter_index_t() : std::pair<value_t, index_t>() {}
-	diameter_index_t(std::pair<value_t, index_t>&& p) : std::pair<value_t, index_t>(std::move(p)) {}
-};
+typedef std::pair<value_t, index_t> diameter_index_t;
 value_t get_diameter(const diameter_index_t& i) { return i.first; }
 index_t get_index(const diameter_index_t& i) { return i.second; }
 
-class diameter_entry_t : public std::pair<value_t, entry_t> {
-public:
-	diameter_entry_t(std::pair<value_t, entry_t> p) : std::pair<value_t, entry_t>(p) {}
-	diameter_entry_t(entry_t&& e) : std::pair<value_t, entry_t>(0, std::move(e)) {}
-	diameter_entry_t() : diameter_entry_t(entry_t()) {}
+typedef std::pair<index_t, value_t> index_diameter_t;
+index_t get_index(const index_diameter_t& i) { return i.first; }
+value_t get_diameter(const index_diameter_t& i) { return i.second; }
+
+struct diameter_entry_t : std::pair<value_t, entry_t> {
+	using std::pair<value_t, entry_t>::pair;
 	diameter_entry_t(value_t _diameter, index_t _index, coefficient_t _coefficient)
-	    : std::pair<value_t, entry_t>(_diameter, make_entry(_index, _coefficient)) {}
+	    : diameter_entry_t(_diameter, make_entry(_index, _coefficient)) {}
 	diameter_entry_t(const diameter_index_t& _diameter_index, coefficient_t _coefficient)
-	    : std::pair<value_t, entry_t>(get_diameter(_diameter_index),
-	                                  make_entry(get_index(_diameter_index), _coefficient)) {}
-	diameter_entry_t(const diameter_index_t& _diameter_index) : diameter_entry_t(_diameter_index, 1) {}
+	    : diameter_entry_t(get_diameter(_diameter_index),
+	                       make_entry(get_index(_diameter_index), _coefficient)) {}
+	diameter_entry_t(const index_t& _index) : diameter_entry_t(0, _index, 0) {}
 };
 
 const entry_t& get_entry(const diameter_entry_t& p) { return p.second; }
@@ -228,12 +261,9 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 
 enum compressed_matrix_layout { LOWER_TRIANGULAR, UPPER_TRIANGULAR };
 
-template <compressed_matrix_layout Layout> class compressed_distance_matrix {
-public:
+template <compressed_matrix_layout Layout> struct compressed_distance_matrix {
 	std::vector<value_t> distances;
 	std::vector<value_t*> rows;
-
-	void init_rows();
 
 	compressed_distance_matrix(std::vector<value_t>&& _distances)
 	    : distances(std::move(_distances)), rows((1 + std::sqrt(1 + 8 * distances.size())) / 2) {
@@ -251,27 +281,14 @@ public:
 	}
 
 	value_t operator()(const index_t i, const index_t j) const;
-
 	size_t size() const { return rows.size(); }
+	void init_rows();
 };
 
-class sparse_distance_matrix {
-public:
-	std::vector<std::vector<diameter_index_t>> neighbors;
+typedef compressed_distance_matrix<LOWER_TRIANGULAR> compressed_lower_distance_matrix;
+typedef compressed_distance_matrix<UPPER_TRIANGULAR> compressed_upper_distance_matrix;
 
-	template <typename DistanceMatrix>
-	sparse_distance_matrix(const DistanceMatrix& mat, value_t threshold) : neighbors(mat.size()) {
-
-		for (index_t i = 0; i < size(); ++i)
-			for (index_t j = 0; j < size(); ++j)
-				if (i != j && mat(i, j) <= threshold)
-					neighbors[i].push_back(std::make_pair(mat(i, j), j));
-	}
-
-	size_t size() const { return neighbors.size(); }
-};
-
-template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
+template <> void compressed_lower_distance_matrix::init_rows() {
 	value_t* pointer = &distances[0];
 	for (index_t i = 1; i < size(); ++i) {
 		rows[i] = pointer;
@@ -279,7 +296,7 @@ template <> void compressed_distance_matrix<LOWER_TRIANGULAR>::init_rows() {
 	}
 }
 
-template <> void compressed_distance_matrix<UPPER_TRIANGULAR>::init_rows() {
+template <> void compressed_upper_distance_matrix::init_rows() {
 	value_t* pointer = &distances[0] - 1;
 	for (index_t i = 0; i < size() - 1; ++i) {
 		rows[i] = pointer;
@@ -288,30 +305,49 @@ template <> void compressed_distance_matrix<UPPER_TRIANGULAR>::init_rows() {
 }
 
 template <>
-value_t compressed_distance_matrix<UPPER_TRIANGULAR>::operator()(const index_t i,
-                                                                 const index_t j) const {
-	return i == j ? 0 : i > j ? rows[j][i] : rows[i][j];
-}
-
-template <>
-value_t compressed_distance_matrix<LOWER_TRIANGULAR>::operator()(const index_t i,
-                                                                 const index_t j) const {
+value_t compressed_lower_distance_matrix::operator()(const index_t i, const index_t j) const {
 	return i == j ? 0 : i < j ? rows[j][i] : rows[i][j];
 }
 
-typedef compressed_distance_matrix<LOWER_TRIANGULAR> compressed_lower_distance_matrix;
-typedef compressed_distance_matrix<UPPER_TRIANGULAR> compressed_upper_distance_matrix;
+template <>
+value_t compressed_upper_distance_matrix::operator()(const index_t i, const index_t j) const {
+	return i == j ? 0 : i > j ? rows[j][i] : rows[i][j];
+}
 
-class euclidean_distance_matrix {
-public:
+struct sparse_distance_matrix {
+	std::vector<std::vector<index_diameter_t>> neighbors;
+
+	index_t num_edges;
+
+	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_it;
+	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_end;
+
+	sparse_distance_matrix(std::vector<std::vector<index_diameter_t>>&& _neighbors,
+	                       index_t _num_edges)
+	    : neighbors(std::move(_neighbors)), num_edges(_num_edges) {}
+
+	template <typename DistanceMatrix>
+	sparse_distance_matrix(const DistanceMatrix& mat, const value_t threshold)
+	    : neighbors(mat.size()), num_edges(0) {
+
+		for (index_t i = 0; i < size(); ++i)
+			for (index_t j = 0; j < size(); ++j)
+				if (i != j && mat(i, j) <= threshold) {
+					++num_edges;
+					neighbors[i].push_back({j, mat(i, j)});
+				}
+	}
+
+	size_t size() const { return neighbors.size(); }
+};
+
+struct euclidean_distance_matrix {
 	std::vector<std::vector<value_t>> points;
 
 	euclidean_distance_matrix(std::vector<std::vector<value_t>>&& _points)
 	    : points(std::move(_points)) {
-			for (auto p: points) {
-				assert(p.size() == points.front().size());
-			}
-		}
+		for (auto p : points) { assert(p.size() == points.front().size()); }
+	}
 
 	value_t operator()(const index_t i, const index_t j) const {
 		assert(i < points.size());
@@ -329,28 +365,22 @@ class union_find {
 	std::vector<uint8_t> rank;
 
 public:
-	union_find(index_t n) : parent(n), rank(n, 0) {
+	union_find(const index_t n) : parent(n), rank(n, 0) {
 		for (index_t i = 0; i < n; ++i) parent[i] = i;
 	}
 
 	index_t find(index_t x) {
-		index_t y = x, z = parent[y];
-		while (z != y) {
-			y = z;
-			z = parent[y];
-		}
-		y = parent[x];
-		while (z != y) {
-			parent[x] = z;
-			x = y;
-			y = parent[x];
+		index_t y = x, z;
+		while ((z = parent[y]) != y) y = z;
+		while ((z = parent[x]) != y) {
+			parent[x] = y;
+			x = z;
 		}
 		return z;
 	}
+
 	void link(index_t x, index_t y) {
-		x = find(x);
-		y = find(y);
-		if (x == y) return;
+		if ((x = find(x)) == (y = find(y))) return;
 		if (rank[x] > rank[y])
 			parent[y] = x;
 		else {
@@ -360,129 +390,83 @@ public:
 	}
 };
 
-template <typename Heap> diameter_entry_t pop_pivot(Heap& column, coefficient_t modulus) {
-	if (column.empty())
-		return diameter_entry_t(-1);
-	else {
-		auto pivot = column.top();
-
-#ifdef USE_COEFFICIENTS
-		coefficient_t coefficient = 0;
-		do {
-			coefficient = (coefficient + get_coefficient(column.top())) % modulus;
-			column.pop();
-
-			if (coefficient == 0) {
-				if (column.empty())
-					return diameter_entry_t(-1);
-				else
-					pivot = column.top();
-			}
-		} while (!column.empty() && get_index(column.top()) == get_index(pivot));
-		if (get_index(pivot) != -1) { set_coefficient(pivot, coefficient); }
-#else
-		column.pop();
-		while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
-			column.pop();
-			if (column.empty())
-				return diameter_entry_t(-1);
-			else {
-				pivot = column.top();
-				column.pop();
-			}
-		}
-#endif
-		return pivot;
-	}
-}
-
-template <typename Heap> diameter_entry_t get_pivot(Heap& column, coefficient_t modulus) {
-	diameter_entry_t result = pop_pivot(column, modulus);
-	if (get_index(result) != -1) column.push(result);
-	return result;
-}
+template <typename T> T begin(std::pair<T, T>& p) { return p.first; }
+template <typename T> T end(std::pair<T, T>& p) { return p.second; }
 
 template <typename ValueType> class compressed_sparse_matrix {
 	std::vector<size_t> bounds;
 	std::vector<ValueType> entries;
 
+	typedef typename std::vector<ValueType>::iterator iterator;
+	typedef std::pair<iterator, iterator> iterator_pair;
+
 public:
 	size_t size() const { return bounds.size(); }
 
-	typename std::vector<ValueType>::const_iterator cbegin(size_t index) const {
-		assert(index < size());
-		return index == 0 ? entries.cbegin() : entries.cbegin() + bounds[index - 1];
-	}
-
-	typename std::vector<ValueType>::const_iterator cend(size_t index) const {
-		assert(index < size());
-		return entries.cbegin() + bounds[index];
-	}
-
-	template <typename Iterator> void append_column(Iterator begin, Iterator end) {
-		for (Iterator it = begin; it != end; ++it) { entries.push_back(*it); }
-		bounds.push_back(entries.size());
+	iterator_pair subrange(const index_t index) {
+		return {entries.begin() + (index == 0 ? 0 : bounds[index - 1]),
+		        entries.begin() + bounds[index]};
 	}
 
 	void append_column() { bounds.push_back(entries.size()); }
 
-	void push_back(ValueType e) {
+	void push_back(const ValueType e) {
 		assert(0 < size());
 		entries.push_back(e);
 		++bounds.back();
 	}
-
-	void pop_back() {
-		assert(0 < size());
-		entries.pop_back();
-		--bounds.back();
-	}
-
-	template <typename Collection> void append_column(const Collection collection) {
-		append_column(collection.cbegin(), collection.cend());
-	}
 };
 
-template <typename Heap>
-void push_entry(Heap& column, index_t i, coefficient_t c, value_t diameter) {
-	entry_t e = make_entry(i, c);
-	column.push(std::make_pair(diameter, e));
+template <class Predicate>
+index_t get_max(index_t top, const index_t bottom, const Predicate pred) {
+	if (!pred(top)) {
+		index_t count = top - bottom;
+		while (count > 0) {
+			index_t step = count >> 1, mid = top - step;
+			if (!pred(mid)) {
+				top = mid - 1;
+				count -= step + 1;
+			} else
+				count = step;
+		}
+	}
+	return top;
 }
 
 template <typename DistanceMatrix> class ripser {
-	DistanceMatrix dist;
-	index_t n, dim_max;
-	value_t threshold;
-	coefficient_t modulus;
+	const DistanceMatrix dist;
+	const index_t n, dim_max;
+	const value_t threshold;
+	const float ratio;
+	const coefficient_t modulus;
 	const binomial_coeff_table binomial_coeff;
-	std::vector<coefficient_t> multiplicative_inverse;
-	mutable std::vector<index_t> vertices;
-	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> neighbor_it;
-	mutable std::vector<std::vector<diameter_index_t>::const_reverse_iterator> neighbor_end;
+	const std::vector<coefficient_t> multiplicative_inverse;
+	mutable std::vector<diameter_entry_t> coface_entries;
+
+	struct entry_hash {
+		std::size_t operator()(const entry_t& e) const {
+			return std::hash<index_t>()(::get_index(e));
+		}
+	};
+
+	struct equal_index {
+		bool operator()(const entry_t& e, const entry_t& f) const {
+			return ::get_index(e) == ::get_index(f);
+		}
+	};
+
+	typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
 
 public:
-	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, coefficient_t _modulus)
+	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
+	       coefficient_t _modulus)
 	    : dist(std::move(_dist)), n(dist.size()),
 	      dim_max(std::min(_dim_max, index_t(dist.size() - 2))), threshold(_threshold),
-	      modulus(_modulus), binomial_coeff(n, dim_max + 2),
+	      ratio(_ratio), modulus(_modulus), binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
-	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
-		if (binomial_coeff(v, k) > idx) {
-			index_t count = v;
-			while (count > 0) {
-				index_t i = v;
-				index_t step = count >> 1;
-				i -= step;
-				if (binomial_coeff(i, k) > idx) {
-					v = --i;
-					count -= step + 1;
-				} else
-					count = step;
-			}
-		}
-		assert(binomial_coeff(v, k) <= idx && binomial_coeff(v + 1, k) > idx);
-		return v;
+	index_t get_max_vertex(const index_t idx, const index_t k, const index_t n) const {
+		return get_max(n, k - 1, [&](index_t w) -> bool { return (binomial_coeff(w, k) <= idx); });
 	}
 
 	index_t get_edge_index(const index_t i, const index_t j) const {
@@ -490,230 +474,219 @@ public:
 	}
 
 	template <typename OutputIterator>
-	OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t v,
+	OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t n,
 	                                    OutputIterator out) const {
-		--v;
+		--n;
 		for (index_t k = dim + 1; k > 0; --k) {
-			get_next_vertex(v, idx, k);
-			*out++ = v;
-			idx -= binomial_coeff(v, k);
+			n = get_max_vertex(idx, k, n);
+			*out++ = n;
+			idx -= binomial_coeff(n, k);
 		}
 		return out;
 	}
 
-	value_t compute_diameter(const index_t index, index_t dim) const {
-		value_t diam = -std::numeric_limits<value_t>::infinity();
+	class simplex_coboundary_enumerator;
 
-		vertices.clear();
-		get_simplex_vertices(index, dim, dist.size(), std::back_inserter(vertices));
-
-		for (index_t i = 0; i <= dim; ++i)
-			for (index_t j = 0; j < i; ++j) {
-				diam = std::max(diam, dist(vertices[i], vertices[j]));
-			}
-		return diam;
-	}
-
-	class simplex_coboundary_enumerator {
-	private:
-		index_t idx_below, idx_above, v, k;
-		std::vector<index_t> vertices;
-		const diameter_entry_t simplex;
-		const coefficient_t modulus;
-		const compressed_lower_distance_matrix& dist;
-		const binomial_coeff_table& binomial_coeff;
-
-	public:
-		simplex_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
-		                              const ripser& parent)
-		    : idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1),
-		      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
-		      binomial_coeff(parent.binomial_coeff) {
-			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
-		}
-
-		bool has_next() {
-			while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
-				idx_below -= binomial_coeff(v, k);
-				idx_above += binomial_coeff(v, k + 1);
-				--v;
-				--k;
-				assert(k != -1);
-			}
-			return v != -1;
-		}
-
-		diameter_entry_t next() {
-			value_t coface_diameter = get_diameter(simplex);
-			for (index_t w : vertices) coface_diameter = std::max(coface_diameter, dist(v, w));
-			index_t coface_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
-			coefficient_t coface_coefficient =
-			    (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
-			return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
-		}
-	};
-
-	class simplex_sparse_coboundary_enumerator {
-	private:
-		const ripser& parent;
-
-		index_t idx_below, idx_above, v, k, max_vertex_below;
-		const diameter_entry_t simplex;
-		const coefficient_t modulus;
-		const DistanceMatrix& dist;
-		const binomial_coeff_table& binomial_coeff;
-
-		std::vector<index_t>& vertices;
-		std::vector<std::vector<diameter_index_t>::const_reverse_iterator>& neighbor_it;
-		std::vector<std::vector<diameter_index_t>::const_reverse_iterator>& neighbor_end;
-		diameter_index_t x;
-
-	public:
-		simplex_sparse_coboundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
-		                                     const ripser& _parent)
-		    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1),
-		      k(_dim + 1), max_vertex_below(parent.n - 1), simplex(_simplex),
-		      modulus(parent.modulus), dist(parent.dist), binomial_coeff(parent.binomial_coeff),
-		      vertices(parent.vertices), neighbor_it(parent.neighbor_it),
-		      neighbor_end(parent.neighbor_end) {
-
-			neighbor_it.clear();
-			neighbor_end.clear();
-			vertices.clear();
-
-			parent.get_simplex_vertices(idx_below, _dim, parent.n, std::back_inserter(vertices));
-
-			for (auto v : vertices) {
-				neighbor_it.push_back(dist.neighbors[v].rbegin());
-				neighbor_end.push_back(dist.neighbors[v].rend());
-			}
-		}
-
-		bool has_next(bool all_cofaces = true) {
-			for (auto &it0 = neighbor_it[0], &end0 = neighbor_end[0]; it0 != end0; ++it0) {
-				x = *it0;
-				for (size_t idx = 1; idx < neighbor_it.size(); ++idx) {
-					auto &it = neighbor_it[idx], end = neighbor_end[idx];
-					while (get_index(*it) > get_index(x))
-						if (++it == end) return false;
-					auto y = *it;
-					if (get_index(y) != get_index(x))
-						goto continue_outer;
-					else
-						x = std::max(x, y);
-				}
-				return all_cofaces ||
-				       !(k > 0 &&
-				         parent.get_next_vertex(max_vertex_below, idx_below, k) > get_index(x));
-			continue_outer:;
-			}
-			return false;
-		}
-
-		diameter_entry_t next() {
-			++neighbor_it[0];
-
-			while (k > 0 && parent.get_next_vertex(max_vertex_below, idx_below, k) > get_index(x)) {
-				idx_below -= binomial_coeff(max_vertex_below, k);
-				idx_above += binomial_coeff(max_vertex_below, k + 1);
-				--k;
-			}
-
-			value_t coface_diameter = std::max(get_diameter(simplex), get_diameter(x));
-
-			coefficient_t coface_coefficient =
-			    (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
-
-			return diameter_entry_t(coface_diameter,
-			                        idx_above + binomial_coeff(get_index(x), k + 1) + idx_below,
-			                        coface_coefficient);
-		}
-	};
-
-	void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
-	                                hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
-		index_t num_simplices = binomial_coeff(n, dim + 1);
-
-		columns_to_reduce.clear();
+	void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
+	                                std::vector<diameter_index_t>& columns_to_reduce,
+	                                entry_hash_map& pivot_column_index, index_t dim) {
 
 #ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
-		          << "assembling " << num_simplices << " columns" << std::flush << "\r";
+		std::cerr << clear_line << "assembling columns" << std::flush;
 #endif
-
-		for (index_t index = 0; index < num_simplices; ++index) {
-			if (pivot_column_index.find(index) == pivot_column_index.end()) {
-				value_t diameter = compute_diameter(index, dim);
-				if (diameter <= threshold)
-					columns_to_reduce.push_back(std::make_pair(diameter, index));
-#ifdef INDICATE_PROGRESS
-				if ((index + 1) % 1000 == 0)
-					std::cout << "\033[K"
-					          << "assembled " << columns_to_reduce.size() << " out of "
-					          << (index + 1) << "/" << num_simplices << " columns" << std::flush
-					          << "\r";
-#endif
-			}
-		}
-
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
-		          << "sorting " << num_simplices << " columns" << std::flush << "\r";
-#endif
-
-		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
-		          greater_diameter_or_smaller_index<diameter_index_t>());
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
-#endif
-	}
-
-	void assemble_sparse_columns_to_reduce(std::vector<diameter_index_t>& simplices,
-	                                       std::vector<diameter_index_t>& columns_to_reduce,
-	                                       hash_map<index_t, index_t>& pivot_column_index,
-	                                       index_t dim) {
-
-#ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
-		          << "assembling columns" << std::flush << "\r";
-#endif
+		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 
 		--dim;
 		columns_to_reduce.clear();
-
 		std::vector<diameter_index_t> next_simplices;
 
-		for (diameter_index_t simplex : simplices) {
-			simplex_sparse_coboundary_enumerator cofaces(simplex, dim, *this);
+		for (diameter_index_t& simplex : simplices) {
+			simplex_coboundary_enumerator cofaces(diameter_entry_t(simplex, 1), dim, *this);
 
 			while (cofaces.has_next(false)) {
+#ifdef INDICATE_PROGRESS
+				if (std::chrono::steady_clock::now() > next) {
+					std::cerr << clear_line << "assembling " << next_simplices.size()
+					          << " columns (processing " << std::distance(&simplices[0], &simplex)
+					          << "/" << simplices.size() << " simplices)" << std::flush;
+					next = std::chrono::steady_clock::now() + time_step;
+				}
+#endif
 				auto coface = cofaces.next();
+				if (get_diameter(coface) <= threshold) {
 
-				next_simplices.push_back(std::make_pair(get_diameter(coface), get_index(coface)));
+					next_simplices.push_back({get_diameter(coface), get_index(coface)});
 
-				if (pivot_column_index.find(get_index(coface)) == pivot_column_index.end())
-					columns_to_reduce.push_back(
-					    std::make_pair(get_diameter(coface), get_index(coface)));
+					if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end())
+						columns_to_reduce.push_back({get_diameter(coface), get_index(coface)});
+				}
 			}
 		}
 
 		simplices.swap(next_simplices);
 
 #ifdef INDICATE_PROGRESS
-		std::cout << "\033[K"
-		          << "sorting " << columns_to_reduce.size() << " columns" << std::flush << "\r";
+		std::cerr << clear_line << "sorting " << columns_to_reduce.size() << " columns"
+		          << std::flush;
 #endif
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
 #ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+		std::cerr << clear_line << std::flush;
 #endif
 	}
 
-	template <typename BoundaryEnumerator>
-	void compute_pairs(std::vector<diameter_index_t>& columns_to_reduce,
-	                   hash_map<index_t, index_t>& pivot_column_index, index_t dim) {
+	void compute_dim_0_pairs(std::vector<diameter_index_t>& edges,
+	                         std::vector<diameter_index_t>& columns_to_reduce) {
+#ifdef PRINT_PERSISTENCE_PAIRS
+		std::cout << "persistence intervals in dim 0:" << std::endl;
+#endif
+#ifdef __native_client__
+		pp::VarDictionary var_dict;
+		var_dict.Set("type", pp::Var("dim"));
+		var_dict.Set("dim", 0);
+		instance->PostMessage(var_dict);
+#endif
+#ifdef __EMSCRIPTEN__
+		EM_ASM({postMessage({"type" : "dim", "dim" : 0})});
+#endif
+
+		union_find dset(n);
+
+		edges = get_edges();
+		std::sort(edges.rbegin(), edges.rend(),
+		          greater_diameter_or_smaller_index<diameter_index_t>());
+		std::vector<index_t> vertices_of_edge(2);
+		for (auto e : edges) {
+			get_simplex_vertices(get_index(e), 1, n, vertices_of_edge.rbegin());
+			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
+
+			if (u != v) {
+#ifdef PRINT_PERSISTENCE_PAIRS
+				if (get_diameter(e) != 0)
+					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
+#endif
+#ifdef __native_client__
+				pp::VarDictionary var_dict;
+				var_dict.Set("type", "interval");
+				var_dict.Set("birth", 0.);
+				var_dict.Set("death", get_diameter(e));
+				var_dict.Set("dim", 0);
+				instance->PostMessage(var_dict);
+#endif
+#ifdef __EMSCRIPTEN__
+				EM_ASM_(
+				    {postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
+				    get_diameter(e));
+#endif
+				dset.link(u, v);
+			} else
+				columns_to_reduce.push_back(e);
+		}
+		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
+
+		for (index_t i = 0; i < n; ++i)
+			if (dset.find(i) == i) {
+#ifdef PRINT_PERSISTENCE_PAIRS
+				std::cout << " [0, )" << std::endl << std::flush;
+#endif
+#ifdef __native_client__
+				pp::VarDictionary var_dict;
+				var_dict.Set("type", "interval");
+				var_dict.Set("birth", 0);
+				var_dict.Set("dim", 0);
+				instance->PostMessage(var_dict);
+#endif
+#ifdef __EMSCRIPTEN__
+				EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
+#endif
+			}
+	}
+
+	template <typename Column> diameter_entry_t pop_pivot(Column& column) {
+		diameter_entry_t pivot(-1);
+#ifdef USE_COEFFICIENTS
+		while (!column.empty()) {
+			if (get_coefficient(pivot) == 0)
+				pivot = column.top();
+			else if (get_index(column.top()) != get_index(pivot))
+				break;
+			else
+				set_coefficient(pivot,
+				                (get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
+			column.pop();
+		}
+		if (get_coefficient(pivot) == 0) pivot = -1;
+#else
+		while (!column.empty()) {
+			pivot = column.top();
+			column.pop();
+			if (column.empty() || get_index(column.top()) != get_index(pivot)) return pivot;
+			column.pop();
+		}
+		pivot = -1;
+#endif
+		return pivot;
+	}
+
+	template <typename Column> diameter_entry_t get_pivot(Column& column) {
+		diameter_entry_t result = pop_pivot(column);
+		if (get_index(result) != -1) column.push(result);
+		return result;
+	}
+
+	template <typename Column>
+	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
+	                                               Column& working_coboundary, const index_t& dim,
+	                                               entry_hash_map& pivot_column_index) {
+		bool check_for_emergent_pair = true;
+		coface_entries.clear();
+		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
+		while (cofaces.has_next()) {
+			diameter_entry_t coface = cofaces.next();
+			if (get_diameter(coface) <= threshold) {
+				coface_entries.push_back(coface);
+				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(coface))) {
+					if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end())
+						return coface;
+					check_for_emergent_pair = false;
+				}
+			}
+		}
+		for (auto coface : coface_entries) working_coboundary.push(coface);
+		return get_pivot(working_coboundary);
+	}
+
+	template <typename Column>
+	void add_coboundary(const diameter_entry_t simplex, Column& working_reduction_column,
+	                    Column& working_coboundary, const index_t& dim) {
+		working_reduction_column.push(simplex);
+		simplex_coboundary_enumerator cofaces(simplex, dim, *this);
+		while (cofaces.has_next()) {
+			diameter_entry_t coface = cofaces.next();
+			if (get_diameter(coface) <= threshold) working_coboundary.push(coface);
+		}
+	}
+
+	template <typename Column>
+	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
+	                    const std::vector<diameter_index_t>& columns_to_reduce,
+	                    const index_t index_column_to_add, const coefficient_t factor,
+	                    Column& working_reduction_column, Column& working_coboundary,
+	                    const index_t& dim) {
+		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
+		add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
+
+		for (auto simplex : reduction_matrix.subrange(index_column_to_add)) {
+			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
+			working_reduction_column.push(simplex);
+			add_coboundary(simplex, working_reduction_column, working_coboundary, dim);
+		}
+	}
+
+	void compute_pairs(const std::vector<diameter_index_t>& columns_to_reduce,
+	                   entry_hash_map& pivot_column_index, const index_t dim) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
@@ -728,121 +701,91 @@ public:
 		EM_ASM_({postMessage({"type" : "dim", "dim" : $0})}, int32_t(dim));
 #endif
 
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-		compressed_sparse_matrix<diameter_entry_t> reduction_coefficients;
-#else
-#ifdef USE_COEFFICIENTS
-		std::vector<diameter_entry_t> reduction_coefficients;
-#endif
-#endif
+		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
 
-		std::vector<diameter_entry_t> coface_entries;
+		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 
-		for (index_t i = 0; i < columns_to_reduce.size(); ++i) {
-			auto column_to_reduce = columns_to_reduce[i];
+		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
+		     ++index_column_to_reduce) {
 
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-			                    greater_diameter_or_smaller_index<diameter_entry_t>>
-			    reduction_column;
-#endif
-
-			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-			                    greater_diameter_or_smaller_index<diameter_entry_t>>
-			    working_coboundary;
-
+			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
 			value_t diameter = get_diameter(column_to_reduce);
 
+			reduction_matrix.append_column();
+
+			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
+			                    greater_diameter_or_smaller_index<diameter_entry_t>>
+			    working_reduction_column, working_coboundary;
+
+			diameter_entry_t pivot = init_coboundary_and_get_pivot(
+			    column_to_reduce, working_coboundary, dim, pivot_column_index);
+
+			while (true) {
 #ifdef INDICATE_PROGRESS
-			//if ((i + 1) % 1000 == 0)
-				std::cout << "\033[K"
-				          << "reducing column " << i + 1 << "/" << columns_to_reduce.size()
-				          << " (diameter " << diameter << ")" << std::flush << "\r";
-#endif
-
-			index_t j = i;
-
-			// start with a dummy pivot entry with coefficient -1 in order to initialize
-			// working_coboundary with the coboundary of the simplex with index column_to_reduce
-			diameter_entry_t pivot(0, -1, -1 + modulus);
-
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-			// initialize reduction_coefficients as identity matrix
-			reduction_coefficients.append_column();
-#endif
-#ifdef USE_COEFFICIENTS
-			reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, 1));
-#endif
-
-			bool might_be_apparent_pair = (i == j);
-
-			do {
-				const coefficient_t factor = modulus - get_coefficient(pivot);
-
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-#ifdef USE_COEFFICIENTS
-				auto coeffs_begin = reduction_coefficients.cbegin(j),
-				     coeffs_end = reduction_coefficients.cend(j);
-#else
-				std::vector<diameter_entry_t> coeffs;
-				coeffs.push_back(columns_to_reduce[j]);
-				for (auto it = reduction_coefficients.cbegin(j);
-				     it != reduction_coefficients.cend(j); ++it)
-					coeffs.push_back(*it);
-				auto coeffs_begin = coeffs.begin(), coeffs_end = coeffs.end();
-#endif
-#else
-#ifdef USE_COEFFICIENTS
-				auto coeffs_begin = &reduction_coefficients[j],
-				     coeffs_end = &reduction_coefficients[j] + 1;
-#else
-				auto coeffs_begin = &columns_to_reduce[j], coeffs_end = &columns_to_reduce[j] + 1;
-#endif
-#endif
-
-				for (auto it = coeffs_begin; it != coeffs_end; ++it) {
-					diameter_entry_t simplex = *it;
-					set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
-
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-					reduction_column.push(simplex);
-#endif
-
-					coface_entries.clear();
-					BoundaryEnumerator cofaces(simplex, dim, *this);
-					while (cofaces.has_next()) {
-						diameter_entry_t coface = cofaces.next();
-						if (get_diameter(coface) <= threshold) {
-							coface_entries.push_back(coface);
-							if (might_be_apparent_pair &&
-							    (get_diameter(simplex) == get_diameter(coface))) {
-								if (pivot_column_index.find(get_index(coface)) ==
-								    pivot_column_index.end()) {
-									pivot = coface;
-									goto found_persistence_pair;
-								}
-								might_be_apparent_pair = false;
-							}
-						}
-					}
-					for (auto coface : coface_entries) working_coboundary.push(coface);
+				if (std::chrono::steady_clock::now() > next) {
+					std::cerr << clear_line << "reducing column " << index_column_to_reduce + 1
+					          << "/" << columns_to_reduce.size() << " (diameter " << diameter << ")"
+					          << std::flush;
+					next = std::chrono::steady_clock::now() + time_step;
 				}
-
-				pivot = get_pivot(working_coboundary, modulus);
-
+#endif
 				if (get_index(pivot) != -1) {
-					auto pair = pivot_column_index.find(get_index(pivot));
-
+					auto pair = pivot_column_index.find(get_entry(pivot));
 					if (pair != pivot_column_index.end()) {
-						j = pair->second;
-						continue;
+						entry_t other_pivot = pair->first;
+						index_t index_column_to_add = pair->second;
+						coefficient_t factor =
+						    modulus -
+						    get_coefficient(pivot) *
+						        multiplicative_inverse[get_coefficient(other_pivot)] % modulus;
+
+						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
+						               factor, working_reduction_column, working_coboundary, dim);
+
+						pivot = get_pivot(working_coboundary);
+					} else {
+						value_t death = get_diameter(pivot);
+						if (death > diameter * ratio) {
+#ifdef INDICATE_PROGRESS
+							std::cerr << clear_line << std::flush;
+#endif
+#ifdef PRINT_PERSISTENCE_PAIRS
+							std::cout << " [" << diameter << "," << death << ")" << std::endl;
+#endif
+#ifdef __native_client__
+							pp::VarDictionary var_dict;
+							var_dict.Set("type", "interval");
+							var_dict.Set("birth", diameter);
+							var_dict.Set("death", death);
+							var_dict.Set("dim", int32_t(dim));
+							instance->PostMessage(var_dict);
+#endif
+#ifdef __EMSCRIPTEN__
+							EM_ASM_({postMessage({
+								        "type" : "interval",
+								        "birth" : $0,
+								        "death" : $1,
+								        "dim" : $2
+								    })},
+							        diameter, death, int32_t(dim));
+#endif
+						}
+						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
+
+						while (true) {
+							diameter_entry_t e = pop_pivot(working_reduction_column);
+							if (get_index(e) == -1) break;
+							assert(get_coefficient(e) > 0);
+							reduction_matrix.push_back(e);
+						}
+						break;
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 #ifdef INDICATE_PROGRESS
-					std::cout << "\033[K";
+					std::cerr << clear_line << std::flush;
 #endif
-					std::cout << " [" << diameter << ", )" << std::endl << std::flush;
+					std::cout << " [" << diameter << ", )" << std::endl;
 #endif
 #ifdef __native_client__
 					pp::VarDictionary var_dict;
@@ -857,75 +800,156 @@ public:
 #endif
 					break;
 				}
-
-			found_persistence_pair:
-				value_t death = get_diameter(pivot);
-				if (diameter != death) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-					std::cout << "\033[K";
-#endif
-					std::cout << " [" << diameter << "," << death << ")" << std::endl;
-#endif
-#ifdef __native_client__
-					pp::VarDictionary var_dict;
-					var_dict.Set("type", "interval");
-					var_dict.Set("birth", diameter);
-					var_dict.Set("death", death);
-					var_dict.Set("dim", int32_t(dim));
-					instance->PostMessage(var_dict);
-#endif
-#ifdef __EMSCRIPTEN__
-					EM_ASM_({postMessage(
-					            {"type" : "interval", "birth" : $0, "death" : $1, "dim" : $2})},
-					        diameter, death, int32_t(dim));
-#endif
-				}
-
-				pivot_column_index.insert(std::make_pair(get_index(pivot), i));
-
-#ifdef USE_COEFFICIENTS
-				const coefficient_t inverse = multiplicative_inverse[get_coefficient(pivot)];
-#endif
-
-#ifdef ASSEMBLE_REDUCTION_MATRIX
-// replace current column of reduction_coefficients (with a single diagonal 1 entry)
-// by reduction_column (possibly with a different entry on the diagonal)
-#ifdef USE_COEFFICIENTS
-				reduction_coefficients.pop_back();
-#else
-				pop_pivot(reduction_column, modulus);
-#endif
-
-				while (true) {
-					diameter_entry_t e = pop_pivot(reduction_column, modulus);
-					if (get_index(e) == -1) break;
-#ifdef USE_COEFFICIENTS
-					set_coefficient(e, inverse * get_coefficient(e) % modulus);
-					assert(get_coefficient(e) > 0);
-#endif
-					reduction_coefficients.push_back(e);
-				}
-#else
-#ifdef USE_COEFFICIENTS
-				reduction_coefficients.pop_back();
-				reduction_coefficients.push_back(diameter_entry_t(column_to_reduce, inverse));
-#endif
-#endif
-				break;
-			} while (true);
+			}
 		}
-
 #ifdef INDICATE_PROGRESS
-		std::cout << "\033[K";
+		std::cerr << clear_line << std::flush;
 #endif
 	}
 
-	void compute_barcodes();
+	std::vector<diameter_index_t> get_edges();
+
+	void compute_barcodes() {
+		std::vector<diameter_index_t> simplices, columns_to_reduce;
+
+		compute_dim_0_pairs(simplices, columns_to_reduce);
+
+		for (index_t dim = 1; dim <= dim_max; ++dim) {
+			entry_hash_map pivot_column_index;
+			pivot_column_index.reserve(columns_to_reduce.size());
+
+			compute_pairs(columns_to_reduce, pivot_column_index, dim);
+
+			if (dim < dim_max)
+				assemble_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index,
+				                           dim + 1);
+		}
+	}
 };
 
-template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes();
-template <> void ripser<sparse_distance_matrix>::compute_barcodes();
+template <> class ripser<compressed_lower_distance_matrix>::simplex_coboundary_enumerator {
+	index_t idx_below, idx_above, v, k;
+	std::vector<index_t> vertices;
+	const diameter_entry_t simplex;
+	const coefficient_t modulus;
+	const compressed_lower_distance_matrix& dist;
+	const binomial_coeff_table& binomial_coeff;
+
+public:
+	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
+	                              const ripser& parent)
+	    : idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1),
+	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
+	      binomial_coeff(parent.binomial_coeff) {
+		parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.rbegin());
+	}
+
+	bool has_next(bool all_cofaces = true) {
+		while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
+			if (!all_cofaces) return false;
+			idx_below -= binomial_coeff(v, k);
+			idx_above += binomial_coeff(v, k + 1);
+			--v;
+			--k;
+			assert(k != -1);
+		}
+		return v != -1;
+	}
+
+	diameter_entry_t next() {
+		value_t coface_diameter = get_diameter(simplex);
+		for (index_t w : vertices) coface_diameter = std::max(coface_diameter, dist(v, w));
+		index_t coface_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
+		coefficient_t coface_coefficient =
+		    (k & 1 ? modulus - 1 : 1) * get_coefficient(simplex) % modulus;
+		return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
+	}
+};
+
+template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator {
+	const ripser& parent;
+	index_t idx_below, idx_above, v, k, max_vertex_below;
+	std::vector<index_t> vertices;
+	const diameter_entry_t simplex;
+	const coefficient_t modulus;
+	const sparse_distance_matrix& dist;
+	const binomial_coeff_table& binomial_coeff;
+	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_it;
+	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_end;
+	index_diameter_t neighbor;
+
+public:
+	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
+	                              const ripser& _parent)
+	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1),
+	      k(_dim + 1), max_vertex_below(parent.n - 1), simplex(_simplex), modulus(parent.modulus),
+	      dist(parent.dist), binomial_coeff(parent.binomial_coeff), vertices(_dim + 1),
+	      neighbor_it(dist.neighbor_it), neighbor_end(dist.neighbor_end) {
+		neighbor_it.clear();
+		neighbor_end.clear();
+
+		parent.get_simplex_vertices(idx_below, _dim, parent.n, vertices.rbegin());
+		for (auto v : vertices) {
+			neighbor_it.push_back(dist.neighbors[v].rbegin());
+			neighbor_end.push_back(dist.neighbors[v].rend());
+		}
+	}
+
+	bool has_next(bool all_cofaces = true) {
+		for (auto& it0 = neighbor_it[0], & end0 = neighbor_end[0]; it0 != end0; ++it0) {
+			neighbor = *it0;
+			for (size_t idx = 1; idx < neighbor_it.size(); ++idx) {
+				auto &it = neighbor_it[idx], end = neighbor_end[idx];
+				while (get_index(*it) > get_index(neighbor))
+					if (++it == end) return false;
+				if (get_index(*it) != get_index(neighbor))
+					goto continue_outer;
+				else
+					neighbor = std::max(neighbor, *it);
+			}
+			while (k > 0 && vertices[k - 1] > get_index(neighbor)) {
+				if (!all_cofaces) return false;
+				idx_below -= binomial_coeff(vertices[k - 1], k);
+				idx_above += binomial_coeff(vertices[k - 1], k + 1);
+				--k;
+			}
+			return true;
+		continue_outer:
+			;
+		}
+		return false;
+	}
+
+	diameter_entry_t next() {
+		++neighbor_it[0];
+		value_t coface_diameter = std::max(get_diameter(simplex), get_diameter(neighbor));
+		index_t coface_index = idx_above + binomial_coeff(get_index(neighbor), k + 1) + idx_below;
+		coefficient_t coface_coefficient =
+		    (k & 1 ? modulus - 1 : 1) * get_coefficient(simplex) % modulus;
+		return diameter_entry_t(coface_diameter, coface_index, coface_coefficient);
+	}
+};
+
+template <> std::vector<diameter_index_t> ripser<compressed_lower_distance_matrix>::get_edges() {
+	std::vector<diameter_index_t> edges;
+	std::vector<index_t> vertices(2);
+	for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
+		get_simplex_vertices(index, 1, dist.size(), vertices.rbegin());
+		value_t length = dist(vertices[0], vertices[1]);
+		if (length <= threshold) edges.push_back({length, index});
+	}
+	return edges;
+}
+
+template <> std::vector<diameter_index_t> ripser<sparse_distance_matrix>::get_edges() {
+	std::vector<diameter_index_t> edges;
+	for (index_t i = 0; i < n; ++i)
+		for (auto n : dist.neighbors[i]) {
+			index_t j = get_index(n);
+			if (i > j) edges.push_back({get_diameter(n), get_edge_index(i, j)});
+		}
+	return edges;
+}
 
 enum file_format {
 	LOWER_DISTANCE_MATRIX,
@@ -933,12 +957,13 @@ enum file_format {
 	DISTANCE_MATRIX,
 	POINT_CLOUD,
 	DIPHA,
-	RIPSER
+	SPARSE,
+	BINARY
 };
 
-template <typename T> T read(std::istream& s) {
+template <typename T> T read(std::istream& input_stream) {
 	T result;
-	s.read(reinterpret_cast<char*>(&result), sizeof(T));
+	input_stream.read(reinterpret_cast<char*>(&result), sizeof(T));
 	return result; // on little endian: boost::endian::little_to_native(result);
 }
 
@@ -959,7 +984,6 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	}
 
 	euclidean_distance_matrix eucl_dist(std::move(points));
-
 	index_t n = eucl_dist.size();
 
 #ifdef INDICATE_PROGRESS
@@ -979,11 +1003,36 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 #endif
 
 	std::vector<value_t> distances;
-
 	for (int i = 0; i < n; ++i)
 		for (int j = 0; j < i; ++j) distances.push_back(eucl_dist(i, j));
 
 	return compressed_lower_distance_matrix(std::move(distances));
+}
+
+sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
+	std::vector<std::vector<index_diameter_t>> neighbors;
+	index_t num_edges = 0;
+
+	std::string line;
+	while (std::getline(input_stream, line)) {
+		std::istringstream s(line);
+		size_t i, j;
+		value_t value;
+		s >> i;
+		s >> j;
+		s >> value;
+		if (i != j) {
+			neighbors.resize(std::max({neighbors.size(), i + 1, j + 1}));
+			neighbors[i].push_back({j, value});
+			neighbors[j].push_back({i, value});
+			++num_edges;
+		}
+	}
+
+	for (index_t i = 0; i < neighbors.size(); ++i)
+		std::sort(neighbors[i].begin(), neighbors[i].end());
+
+	return sparse_distance_matrix(std::move(neighbors), num_edges);
 }
 
 compressed_lower_distance_matrix read_lower_distance_matrix(std::istream& input_stream) {
@@ -1049,13 +1098,13 @@ compressed_lower_distance_matrix read_dipha(std::istream& input_stream) {
 	return compressed_lower_distance_matrix(std::move(distances));
 }
 
-compressed_lower_distance_matrix read_ripser(std::istream& input_stream) {
+compressed_lower_distance_matrix read_binary(std::istream& input_stream) {
 	std::vector<value_t> distances;
 	while (!input_stream.eof()) distances.push_back(read<value_t>(input_stream));
 	return compressed_lower_distance_matrix(std::move(distances));
 }
 
-compressed_lower_distance_matrix read_file(std::istream& input_stream, file_format format) {
+compressed_lower_distance_matrix read_file(std::istream& input_stream, const file_format format) {
 	switch (format) {
 	case LOWER_DISTANCE_MATRIX:
 		return read_lower_distance_matrix(input_stream);
@@ -1067,62 +1116,59 @@ compressed_lower_distance_matrix read_file(std::istream& input_stream, file_form
 		return read_point_cloud(input_stream);
 	case DIPHA:
 		return read_dipha(input_stream);
-	case RIPSER:
-		return read_ripser(input_stream);
+	default:
+		return read_binary(input_stream);
 	}
 }
 
 void print_usage_and_exit(int exit_code) {
-	std::cerr
-	    << "Usage: "
-	    << "ripser "
-	    << "[options] [filename]" << std::endl
-	    << std::endl
-	    << "Options:" << std::endl
-	    << std::endl
-	    << "  --help           print this screen" << std::endl
-	    << "  --format         use the specified file format for the input. Options are:"
-	    << std::endl
-	    << "                     lower-distance (lower triangular distance matrix; default)"
-	    << std::endl
-	    << "                     upper-distance (upper triangular distance matrix)" << std::endl
-	    << "                     distance       (full distance matrix)" << std::endl
-	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
-	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
-	    << "                     ripser         (distance matrix in Ripser binary file format)"
-	    << std::endl
-	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
-	    << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
+	std::cerr << "Usage: "
+	          << "ripser "
+	          << "[options] [filename]" << std::endl
+	          << std::endl
+	          << "Options:" << std::endl
+	          << std::endl
+	          << "  --help           print this screen" << std::endl
+	          << "  --format         use the specified file format for the input. Options are:"
+	          << std::endl
+	          << "                     lower-distance (lower triangular distance matrix; default)"
+	          << std::endl
+	          << "                     upper-distance (upper triangular distance matrix)"
+	          << std::endl
+	          << "                     distance       (full distance matrix)" << std::endl
+	          << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
+	          << "                     dipha          (distance matrix in DIPHA file format)"
+	          << std::endl
+	          << "                     sparse         (sparse distance matrix in Sparse Triplet "
+	             "format)" << std::endl
+	          << "                     binary         (lower triangular distance matrix in binary "
+	             "format)" << std::endl
+	          << "  --dim <k>        compute persistent homology up to dimension k" << std::endl
+	          << "  --threshold <t>  compute Rips complexes up to diameter t" << std::endl
 #ifdef USE_COEFFICIENTS
-	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/<p>Z"
+	          << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ"
 #endif
-	    << std::endl;
-
+	          << std::endl
+	          << "  --ratio <r>      only show persistence pairs with death/birth ratio > r"
+	          << std::endl;
 	exit(exit_code);
 }
 
 #ifndef __EMSCRIPTEN__
 #ifndef __native_client__
 int main(int argc, char** argv) {
-
 	const char* filename = nullptr;
 
 	file_format format = DISTANCE_MATRIX;
 
 	index_t dim_max = 1;
 	value_t threshold = std::numeric_limits<value_t>::max();
-
-#ifdef USE_COEFFICIENTS
+	float ratio = 1;
 	coefficient_t modulus = 2;
-#else
-	const coefficient_t modulus = 2;
-#endif
 
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
-		if (arg == "--help") {
-			print_usage_and_exit(0);
-		} else if (arg == "--dim") {
+		if (arg == "--help") { print_usage_and_exit(0); } else if (arg == "--dim") {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			dim_max = std::stol(parameter, &next_pos);
@@ -1132,20 +1178,27 @@ int main(int argc, char** argv) {
 			size_t next_pos;
 			threshold = std::stof(parameter, &next_pos);
 			if (next_pos != parameter.size()) print_usage_and_exit(-1);
+		} else if (arg == "--ratio") {
+			std::string parameter = std::string(argv[++i]);
+			size_t next_pos;
+			ratio = std::stof(parameter, &next_pos);
+			if (next_pos != parameter.size()) print_usage_and_exit(-1);
 		} else if (arg == "--format") {
 			std::string parameter = std::string(argv[++i]);
-			if (parameter == "lower-distance")
+			if (parameter.rfind("lower", 0) == 0)
 				format = LOWER_DISTANCE_MATRIX;
-			else if (parameter == "upper-distance")
+			else if (parameter.rfind("upper", 0) == 0)
 				format = UPPER_DISTANCE_MATRIX;
-			else if (parameter == "distance")
+			else if (parameter.rfind("dist", 0) == 0)
 				format = DISTANCE_MATRIX;
-			else if (parameter == "point-cloud")
+			else if (parameter.rfind("point", 0) == 0)
 				format = POINT_CLOUD;
 			else if (parameter == "dipha")
 				format = DIPHA;
-			else if (parameter == "ripser")
-				format = RIPSER;
+			else if (parameter == "sparse")
+				format = SPARSE;
+			else if (parameter == "binary")
+				format = BINARY;
 			else
 				print_usage_and_exit(-1);
 #ifdef USE_COEFFICIENTS
@@ -1167,205 +1220,61 @@ int main(int argc, char** argv) {
 		exit(-1);
 	}
 
-	compressed_lower_distance_matrix dist = read_file(filename ? file_stream : std::cin, format);
+	if (format == SPARSE) {
+		sparse_distance_matrix dist =
+		    read_sparse_distance_matrix(filename ? file_stream : std::cin);
+		std::cout << "sparse distance matrix with " << dist.size() << " points and "
+		          << dist.num_edges << "/" << (dist.size() * (dist.size() - 1)) / 2 << " entries"
+		          << std::endl;
 
-	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
+		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
+		    .compute_barcodes();
+	} else {
+		compressed_lower_distance_matrix dist =
+		    read_file(filename ? file_stream : std::cin, format);
 
-#ifdef INDICATE_PROGRESS
-	std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
-	std::cout << "value range: [" << *value_range.first << "," << *value_range.second << "]"
-	          << std::endl;
-#endif
+		value_t min = std::numeric_limits<value_t>::infinity(),
+		        max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
+		int num_edges = 0;
 
-	if (threshold == std::numeric_limits<value_t>::max())
-		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
-		.compute_barcodes();
-	else
-		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
-		                               threshold, modulus)
-		.compute_barcodes();
-}
-#endif
-#endif
-
-template <> void ripser<compressed_lower_distance_matrix>::compute_barcodes() {
-
-	std::vector<diameter_index_t> columns_to_reduce;
-
-	{
-		union_find dset(n);
-		std::vector<diameter_index_t> edges;
-		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
-			value_t diameter = compute_diameter(index, 1);
-			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
-		}
-		std::sort(edges.rbegin(), edges.rend(),
-		          greater_diameter_or_smaller_index<diameter_index_t>());
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim 0:" << std::endl;
-#endif
-#ifdef __native_client__
-		pp::VarDictionary var_dict;
-		var_dict.Set("type", pp::Var("dim"));
-		var_dict.Set("dim", 0);
-		instance->PostMessage(var_dict);
-#endif
-#ifdef __EMSCRIPTEN__
-		EM_ASM({postMessage({"type" : "dim", "dim" : 0})});
-#endif
-
-		std::vector<index_t> vertices_of_edge(2);
-		for (auto e : edges) {
-			vertices_of_edge.clear();
-			get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
-			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
-
-			if (u != v) {
-                if (get_diameter(e) != 0) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-                    std::cout << " [0," << get_diameter(e) << ")" << std::endl;
-#endif
-#ifdef __native_client__
-                    pp::VarDictionary var_dict;
-                    var_dict.Set("type", "interval");
-                    var_dict.Set("birth", 0.);
-                    var_dict.Set("death", get_diameter(e));
-                    var_dict.Set("dim", 0);
-                    instance->PostMessage(var_dict);
-#endif
-#ifdef __EMSCRIPTEN__
-                    EM_ASM_({postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
-                            get_diameter(e));
-#endif
-                }
-				dset.link(u, v);
-			} else
-				columns_to_reduce.push_back(e);
-		}
-		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
-
-		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-				std::cout << " [0, )" << std::endl << std::flush;
-#endif
-#ifdef __native_client__
-				pp::VarDictionary var_dict;
-				var_dict.Set("type", "interval");
-				var_dict.Set("birth", 0);
-				var_dict.Set("dim", 0);
-				instance->PostMessage(var_dict);
-#endif
-#ifdef __EMSCRIPTEN__
-				EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
-#endif
-	}
-	}
-
-	for (index_t dim = 1; dim <= dim_max; ++dim) {
-		hash_map<index_t, index_t> pivot_column_index;
-		pivot_column_index.reserve(columns_to_reduce.size());
-
-		compute_pairs<simplex_coboundary_enumerator>(columns_to_reduce, pivot_column_index, dim);
-
-		if (dim < dim_max) {
-			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, dim + 1);
-		}
-	}
-}
-
-template <> void ripser<sparse_distance_matrix>::compute_barcodes() {
-
-	std::vector<diameter_index_t> columns_to_reduce;
-
-	std::vector<diameter_index_t> simplices;
-
-	{
-		union_find dset(n);
-		std::vector<diameter_index_t>& edges = simplices;
-		for (index_t i = 0; i < n; ++i)
-			for (auto n : dist.neighbors[i]) {
-				index_t j = get_index(n);
-				if (i > j) edges.push_back(std::make_pair(get_diameter(n), get_edge_index(i, j)));
+		if (threshold == std::numeric_limits<value_t>::max()) {
+			value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
+			for (index_t i = 0; i < dist.size(); ++i) {
+				value_t r_i = -std::numeric_limits<value_t>::infinity();
+				for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
+				enclosing_radius = std::min(enclosing_radius, r_i);
 			}
-		std::sort(edges.rbegin(), edges.rend(),
-		          greater_diameter_or_smaller_index<diameter_index_t>());
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim 0:" << std::endl;
-#endif
-#ifdef __native_client__
-		pp::VarDictionary var_dict;
-		var_dict.Set("type", pp::Var("dim"));
-		var_dict.Set("dim", 0);
-		instance->PostMessage(var_dict);
-#endif
-#ifdef __EMSCRIPTEN__
-		EM_ASM({postMessage({"type" : "dim", "dim" : 0})});
-#endif
-
-		std::vector<index_t> vertices_of_edge(2);
-		for (auto e : edges) {
-			vertices_of_edge.clear();
-			get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
-			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
-
-			if (u != v) {
-                if (get_diameter(e) != 0) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-                    std::cout << " [0," << get_diameter(e) << ")" << std::endl;
-#endif
-#ifdef __native_client__
-                    pp::VarDictionary var_dict;
-                    var_dict.Set("type", "interval");
-                    var_dict.Set("birth", 0.);
-                    var_dict.Set("death", get_diameter(e));
-                    var_dict.Set("dim", 0);
-                    instance->PostMessage(var_dict);
-#endif
-#ifdef __EMSCRIPTEN__
-                    EM_ASM_({postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
-                            get_diameter(e));
-#endif
-                }
-				dset.link(u, v);
-			} else
-				columns_to_reduce.push_back(e);
+			threshold = enclosing_radius;
 		}
-		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
-		for (index_t i = 0; i < n; ++i)
-			if (dset.find(i) == i) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-				std::cout << " [0, )" << std::endl << std::flush;
-#endif
-#ifdef __native_client__
-				pp::VarDictionary var_dict;
-				var_dict.Set("type", "interval");
-				var_dict.Set("birth", 0);
-				var_dict.Set("dim", 0);
-				instance->PostMessage(var_dict);
-#endif
-#ifdef __EMSCRIPTEN__
-				EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
-#endif
-	}
-	}
-
-	for (index_t dim = 1; dim <= dim_max; ++dim) {
-		hash_map<index_t, index_t> pivot_column_index;
-		pivot_column_index.reserve(columns_to_reduce.size());
-
-		compute_pairs<simplex_sparse_coboundary_enumerator>(columns_to_reduce, pivot_column_index,
-		                                                    dim);
-
-		if (dim < dim_max) {
-			assemble_sparse_columns_to_reduce(simplices, columns_to_reduce, pivot_column_index,
-			                                  dim + 1);
+		for (auto d : dist.distances) {
+			min = std::min(min, d);
+			max = std::max(max, d);
+			max_finite =
+			    d != std::numeric_limits<value_t>::infinity() ? std::max(max, d) : max_finite;
+			if (d <= threshold) ++num_edges;
 		}
+		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
+
+		if (threshold >= max) {
+			std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
+			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
+			                                         modulus)
+			    .compute_barcodes();
+		} else {
+			std::cout << "sparse distance matrix with " << dist.size() << " points and "
+			          << num_edges << "/" << (dist.size() * dist.size() - 1) / 2 << " entries"
+			          << std::endl;
+
+			ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold),
+			                               dim_max, threshold, ratio, modulus)
+			    .compute_barcodes();
+		}
+		exit(0);
 	}
 }
+#endif
+#endif
 
 void run_ripser(std::string f, int dim_max, float threshold, int format_index) {
 
@@ -1376,6 +1285,8 @@ void run_ripser(std::string f, int dim_max, float threshold, int format_index) {
 #else
 	const coefficient_t modulus = 2;
 #endif
+
+	value_t ratio = 1;
 
 	std::stringstream file_stream(f);
 
@@ -1397,11 +1308,12 @@ void run_ripser(std::string f, int dim_max, float threshold, int format_index) {
 #endif
 
 	if (threshold == std::numeric_limits<value_t>::max())
-		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, modulus)
+		ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
+		                                         modulus)
 		    .compute_barcodes();
 	else
-		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max, threshold,
-		                               modulus)
+		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
+		                               threshold, ratio, modulus)
 		    .compute_barcodes();
 
 #ifdef __native_client__

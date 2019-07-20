@@ -1,7 +1,7 @@
 build: ripser
 
 
-all: ripser ripser-coeff ripser-reduction ripser-coeff-reduction ripser-debug
+all: ripser ripser-coeff ripser-debug
 
 
 ripser: ripser.cpp
@@ -10,25 +10,19 @@ ripser: ripser.cpp
 ripser-coeff: ripser.cpp
 	c++ -std=c++11 ripser.cpp -o ripser-coeff -Ofast -D NDEBUG -D USE_COEFFICIENTS
 
-ripser-reduction: ripser.cpp
-	c++ -std=c++11 ripser.cpp -o ripser-reduction -Ofast -D NDEBUG -D ASSEMBLE_REDUCTION_MATRIX
-
-ripser-coeff-reduction: ripser.cpp
-	c++ -std=c++11 ripser.cpp -o ripser-coeff-reduction -Ofast -D NDEBUG -D USE_COEFFICIENTS -D ASSEMBLE_REDUCTION_MATRIX
-
 ripser-debug: ripser.cpp
 	c++ -std=c++11 ripser.cpp -o ripser-debug -g
 
 
 clean:
-	rm -rf ripser ripser-coeff ripser-reduction ripser-coeff-reduction ripser-debug emscripten pnacl && NACL_SDK_ROOT=~/Source/nacl_sdk/pepper_49/ make -f Makefile_pnacl clean
+	rm -rf ripser ripser-coeff ripser-debug emscripten pnacl && NACL_SDK_ROOT=~/Source/nacl_sdk/pepper_49/ make -f Makefile_pnacl clean
 
 
 live: pnacl emscripten
-	cp -r index.html common.js ripser-web.js ripser-worker.js pnacl emscripten ../
+	cp -r pnacl emscripten ../
 
-pnacl: index.html common.js ripser-web.js ripser-worker.js
+pnacl: ripser.cpp
 	NACL_SDK_ROOT=~/Source/nacl_sdk/pepper_49/ make -f Makefile_pnacl
 
-emscripten: index.html common.js ripser-web.js ripser-worker.js
+emscripten: ripser.cpp
 	. build_emscripten.sh
