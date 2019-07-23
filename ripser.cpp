@@ -43,13 +43,6 @@
 
 //#define USE_GOOGLE_HASHMAP
 
-#ifdef __native_client__
-#include "ppapi/cpp/instance.h"
-#include "ppapi/cpp/module.h"
-#include "ppapi/cpp/var.h"
-#include "ppapi/cpp/var_dictionary.h"
-#endif
-
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -84,50 +77,6 @@ typedef float value_t;
 typedef int64_t index_t;
 typedef uint16_t coefficient_t;
 
-#ifdef __native_client__
-class RipserInstance;
-static RipserInstance* instance;
-
-void run_ripser(std::string f, int dim_max, float threshold, int format_index);
-
-class RipserInstance : public pp::Instance {
-public:
-	explicit RipserInstance(PP_Instance pp_instance) : pp::Instance(pp_instance) {
-		instance = this;
-	}
-	virtual ~RipserInstance() {}
-
-	virtual void HandleMessage(const pp::Var& var_message) {
-
-		if (!var_message.is_dictionary()) return;
-
-		pp::VarDictionary var_dict(var_message);
-
-		std::string file = var_dict.Get("file").AsString();
-		index_t dim = var_dict.Get("dim").AsInt();
-		value_t threshold = var_dict.Get("threshold").AsDouble();
-		index_t format = var_dict.Get("format").AsInt();
-
-		run_ripser(file, dim, threshold, format);
-	}
-};
-
-class RipserModule : public pp::Module {
-public:
-	RipserModule() : pp::Module() {}
-	virtual ~RipserModule() {}
-
-	virtual pp::Instance* CreateInstance(PP_Instance instance) {
-		return new RipserInstance(instance);
-	}
-};
-
-namespace pp {
-
-Module* CreateModule() { return new RipserModule(); }
-
-} // namespace pp
-#endif
 
 #ifdef INDICATE_PROGRESS
 static const std::chrono::milliseconds time_step(40);
@@ -544,12 +493,6 @@ public:
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim 0:" << std::endl;
 #endif
-#ifdef __native_client__
-		pp::VarDictionary var_dict;
-		var_dict.Set("type", pp::Var("dim"));
-		var_dict.Set("dim", 0);
-		instance->PostMessage(var_dict);
-#endif
 #ifdef __EMSCRIPTEN__
 		EM_ASM({postMessage({"type" : "dim", "dim" : 0})});
 #endif
@@ -569,14 +512,6 @@ public:
 				if (get_diameter(e) != 0)
 					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
-#ifdef __native_client__
-				pp::VarDictionary var_dict;
-				var_dict.Set("type", "interval");
-				var_dict.Set("birth", 0.);
-				var_dict.Set("death", get_diameter(e));
-				var_dict.Set("dim", 0);
-				instance->PostMessage(var_dict);
-#endif
 #ifdef __EMSCRIPTEN__
 				EM_ASM_(
 				    {postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
@@ -592,13 +527,6 @@ public:
 			if (dset.find(i) == i) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 				std::cout << " [0, )" << std::endl << std::flush;
-#endif
-#ifdef __native_client__
-				pp::VarDictionary var_dict;
-				var_dict.Set("type", "interval");
-				var_dict.Set("birth", 0);
-				var_dict.Set("dim", 0);
-				instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
 				EM_ASM({postMessage({"type" : "interval", "birth" : 0, "dim" : 0})});
@@ -693,12 +621,6 @@ public:
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
-#ifdef __native_client__
-		pp::VarDictionary var_dict;
-		var_dict.Set("type", pp::Var("dim"));
-		var_dict.Set("dim", pp::Var(int32_t(dim)));
-		instance->PostMessage(var_dict);
-#endif
 #ifdef __EMSCRIPTEN__
 		EM_ASM_({postMessage({"type" : "dim", "dim" : $0})}, int32_t(dim));
 #endif
@@ -755,14 +677,6 @@ public:
 #ifdef PRINT_PERSISTENCE_PAIRS
 							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 #endif
-#ifdef __native_client__
-							pp::VarDictionary var_dict;
-							var_dict.Set("type", "interval");
-							var_dict.Set("birth", diameter);
-							var_dict.Set("death", death);
-							var_dict.Set("dim", int32_t(dim));
-							instance->PostMessage(var_dict);
-#endif
 #ifdef __EMSCRIPTEN__
 							EM_ASM_({postMessage({
 								        "type" : "interval",
@@ -789,13 +703,6 @@ public:
 					std::cerr << clear_line << std::flush;
 #endif
 					std::cout << " [" << diameter << ", )" << std::endl;
-#endif
-#ifdef __native_client__
-					pp::VarDictionary var_dict;
-					var_dict.Set("type", "interval");
-					var_dict.Set("birth", diameter);
-					var_dict.Set("dim", int32_t(dim));
-					instance->PostMessage(var_dict);
 #endif
 #ifdef __EMSCRIPTEN__
 					EM_ASM_({postMessage({"type" : "interval", "birth" : $0, "dim" : $1})},
@@ -993,13 +900,6 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	std::cout << "point cloud with " << n << " points in dimension "
 	          << eucl_dist.points.front().size() << std::endl;
 #endif
-#ifdef __native_client__
-	pp::VarDictionary var_dict;
-	var_dict.Set("type", "point-cloud");
-	var_dict.Set("number", int32_t(n));
-	var_dict.Set("dim", int32_t(eucl_dist.points.front().size()));
-	instance->PostMessage(var_dict);
-#endif
 #ifdef __EMSCRIPTEN__
 	EM_ASM_({postMessage({"type" : "point-cloud", "number" : $0, "dim" : $1})}, int32_t(n),
 	        eucl_dist.points.front().size());
@@ -1158,7 +1058,6 @@ void print_usage_and_exit(int exit_code) {
 }
 
 #ifndef __EMSCRIPTEN__
-#ifndef __native_client__
 int main(int argc, char** argv) {
 	const char* filename = nullptr;
 
@@ -1277,7 +1176,6 @@ int main(int argc, char** argv) {
 	}
 }
 #endif
-#endif
 
 void run_ripser(std::string f, int dim_max, float threshold, int format_index) {
 
@@ -1297,14 +1195,6 @@ void run_ripser(std::string f, int dim_max, float threshold, int format_index) {
 
 	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
 
-#ifdef __native_client__
-	pp::VarDictionary var_dict;
-	var_dict.Set("type", "distance-matrix");
-	var_dict.Set("size", int32_t(dist.size()));
-	var_dict.Set("min", *value_range.first);
-	var_dict.Set("max", *value_range.second);
-	instance->PostMessage(var_dict);
-#endif
 #ifdef __EMSCRIPTEN__
 	EM_ASM_({postMessage({"type" : "distance-matrix", "size" : $0, "min" : $1, "max" : $2})},
 	        dist.size(), *value_range.first, *value_range.second);
@@ -1319,9 +1209,6 @@ void run_ripser(std::string f, int dim_max, float threshold, int format_index) {
 		                               threshold, ratio, modulus)
 		    .compute_barcodes();
 
-#ifdef __native_client__
-	instance->PostMessage(pp::Var());
-#endif
 }
 
 #ifdef __EMSCRIPTEN__
