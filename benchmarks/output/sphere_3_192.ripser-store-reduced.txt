@@ -1,18 +1,18 @@
-	Command being timed: "ripser sphere_3_192.distance_matrix --dim 2"
-	User time (seconds): 13.90
-	System time (seconds): 1.98
+	Command being timed: "ripser sphere_3_192_points.dat --format point-cloud --dim 2"
+	User time (seconds): 13.80
+	System time (seconds): 1.77
 	Percent of CPU this job got: 99%
-	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.92
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.57
 	Average shared text size (kbytes): 0
 	Average unshared data size (kbytes): 0
 	Average stack size (kbytes): 0
 	Average total size (kbytes): 0
-	Maximum resident set size (kbytes): 4288252
+	Maximum resident set size (kbytes): 4288268
 	Average resident set size (kbytes): 0
 	Major (requiring I/O) page faults: 0
-	Minor (reclaiming a frame) page faults: 1860889
+	Minor (reclaiming a frame) page faults: 1860885
 	Voluntary context switches: 1
-	Involuntary context switches: 227
+	Involuntary context switches: 240
 	Swaps: 0
 	File system inputs: 0
 	File system outputs: 0
