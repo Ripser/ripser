@@ -7,7 +7,7 @@ Copyright © 2015–2019 [Ulrich Bauer].
 
 Ripser is a lean C++ code for the computation of Vietoris–Rips persistence barcodes. It can do just this one thing, but does it extremely well.
 
-To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The computation happens inside the browser (using [PNaCl] on Chrome and JavaScript via [Emscripten] on other browsers). 
+To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The computation happens inside the browser (using [Emscripten] to compile Ripser to [WebAssembly], supported on recent browsers). 
 
 The main features of Ripser:
 
@@ -104,8 +104,8 @@ Ripser is licensed under the [MIT] license (`COPYING.txt`), with an extra clause
 
 [Ulrich Bauer]: <http://ulrich-bauer.org>
 [live.ripser.org]: <http://live.ripser.org>
-[PNaCl]: <https://www.chromium.org/nativeclient/pnacl/>
 [Emscripten]: <http://emscripten.org>
+[WebAssembly]: <https://webassembly.org>
 [latest-release]: <https://github.com/Ripser/ripser/releases/latest>
 [Dionysus]: <http://www.mrzv.org/software/dionysus/>
 [DIPHA]: <http://git.io/dipha>
