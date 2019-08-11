@@ -998,17 +998,17 @@ void print_usage_and_exit(int exit_code) {
 	    << "                     distance       (full distance matrix)" << std::endl
 	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
 	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
-	    << "                     sparse         (sparse distance matrix in Sparse Triplet format)"
+	    << "                     sparse         (sparse distance matrix in sparse triplet format)"
 	    << std::endl
 	    << "                     binary         (lower triangular distance matrix in binary format)"
 	    << std::endl
 	    << "  --dim <k>        compute persistent homology up to dimension k" << std::endl
 	    << "  --threshold <t>  compute Rips complexes up to diameter t" << std::endl
 #ifdef USE_COEFFICIENTS
-	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ"
+	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ" << std::endl
 #endif
-	    << std::endl
-	    << "  --ratio <r>      only show persistence pairs with death/birth ratio > r" << std::endl;
+	    << "  --ratio <r>      only show persistence pairs with death/birth ratio > r" << std::endl
+	    << std::endl;
 	exit(exit_code);
 }
 
