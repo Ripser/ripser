@@ -521,13 +521,13 @@ public:
 			if (get_coefficient(pivot) == 0)
 				pivot = column.top();
 			else if (get_index(column.top()) != get_index(pivot))
-				break;
+				return pivot;
 			else
 				set_coefficient(pivot,
 				                (get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
 			column.pop();
 		}
-		if (get_coefficient(pivot) == 0) pivot = -1;
+		return (get_coefficient(pivot) == 0) ? -1 : pivot;
 #else
 		while (!column.empty()) {
 			pivot = column.top();
@@ -535,9 +535,8 @@ public:
 			if (column.empty() || get_index(column.top()) != get_index(pivot)) return pivot;
 			column.pop();
 		}
-		pivot = -1;
+		return -1;
 #endif
-		return pivot;
 	}
 
 	template <typename Column> diameter_entry_t get_pivot(Column& column) {
