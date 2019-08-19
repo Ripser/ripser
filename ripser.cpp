@@ -60,7 +60,6 @@ template <class Key, class T, class H, class E>
 class hash_map : public google::dense_hash_map<Key, T, H, E> {
 public:
 	explicit hash_map() : google::dense_hash_map<Key, T, H, E>() { this->set_empty_key(-1); }
-
 	inline void reserve(size_t hint) { this->resize(hint); }
 };
 #else
@@ -221,8 +220,8 @@ template <compressed_matrix_layout Layout> struct compressed_distance_matrix {
 	    : distances(mat.size() * (mat.size() - 1) / 2), rows(mat.size()) {
 		init_rows();
 
-		for (index_t i = 1; i < size(); ++i)
-			for (index_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
+		for (size_t i = 1; i < size(); ++i)
+			for (size_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
 	}
 
 	value_t operator()(const index_t i, const index_t j) const;
@@ -235,7 +234,7 @@ typedef compressed_distance_matrix<UPPER_TRIANGULAR> compressed_upper_distance_m
 
 template <> void compressed_lower_distance_matrix::init_rows() {
 	value_t* pointer = &distances[0];
-	for (index_t i = 1; i < size(); ++i) {
+	for (size_t i = 1; i < size(); ++i) {
 		rows[i] = pointer;
 		pointer += i;
 	}
@@ -243,7 +242,7 @@ template <> void compressed_lower_distance_matrix::init_rows() {
 
 template <> void compressed_upper_distance_matrix::init_rows() {
 	value_t* pointer = &distances[0] - 1;
-	for (index_t i = 0; i < size() - 1; ++i) {
+	for (size_t i = 0; i < size() - 1; ++i) {
 		rows[i] = pointer;
 		pointer += size() - i - 2;
 	}
@@ -275,8 +274,8 @@ struct sparse_distance_matrix {
 	sparse_distance_matrix(const DistanceMatrix& mat, const value_t threshold)
 	    : neighbors(mat.size()), num_edges(0) {
 
-		for (index_t i = 0; i < size(); ++i)
-			for (index_t j = 0; j < size(); ++j)
+		for (size_t i = 0; i < size(); ++i)
+			for (size_t j = 0; j < size(); ++j)
 				if (i != j && mat(i, j) <= threshold) {
 					++num_edges;
 					neighbors[i].push_back({j, mat(i, j)});
@@ -608,7 +607,7 @@ public:
 #ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
-		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
+		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
 
 			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
@@ -889,7 +888,7 @@ sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 		}
 	}
 
-	for (index_t i = 0; i < neighbors.size(); ++i)
+	for (size_t i = 0; i < neighbors.size(); ++i)
 		std::sort(neighbors[i].begin(), neighbors[i].end());
 
 	return sparse_distance_matrix(std::move(neighbors), num_edges);
@@ -1097,9 +1096,9 @@ int main(int argc, char** argv) {
 
 		if (threshold == std::numeric_limits<value_t>::max()) {
 			value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
-			for (index_t i = 0; i < dist.size(); ++i) {
+			for (size_t i = 0; i < dist.size(); ++i) {
 				value_t r_i = -std::numeric_limits<value_t>::infinity();
-				for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
+				for (size_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
 				enclosing_radius = std::min(enclosing_radius, r_i);
 			}
 			threshold = enclosing_radius;
