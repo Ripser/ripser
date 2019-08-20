@@ -718,18 +718,17 @@ public:
 	}
 
 	bool has_next(bool all_cofacets = true) {
-		while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
-			if (!all_cofacets) return false;
+		return (v >= k && (all_cofacets || binomial_coeff(v, k) > idx_below));
+	}
+
+	diameter_entry_t next() {
+		while ((binomial_coeff(v, k) <= idx_below)) {
 			idx_below -= binomial_coeff(v, k);
 			idx_above += binomial_coeff(v, k + 1);
 			--v;
 			--k;
 			assert(k != -1);
 		}
-		return v != -1;
-	}
-
-	diameter_entry_t next() {
 		value_t cofacet_diameter = get_diameter(simplex);
 		for (index_t w : vertices) cofacet_diameter = std::max(cofacet_diameter, dist(v, w));
 		index_t cofacet_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
@@ -754,10 +753,10 @@ template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
 	                              const ripser& _parent)
-	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0),
-	      k(_dim + 1),
-	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist), binomial_coeff(parent.binomial_coeff),
-	      neighbor_it(dist.neighbor_it), neighbor_end(dist.neighbor_end) {
+	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1),
+	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
+	      binomial_coeff(parent.binomial_coeff), neighbor_it(dist.neighbor_it),
+	      neighbor_end(dist.neighbor_end) {
 		neighbor_it.clear();
 		neighbor_end.clear();
 
@@ -1003,7 +1002,8 @@ void print_usage_and_exit(int exit_code) {
 	    << "  --dim <k>        compute persistent homology up to dimension k" << std::endl
 	    << "  --threshold <t>  compute Rips complexes up to diameter t" << std::endl
 #ifdef USE_COEFFICIENTS
-	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ" << std::endl
+	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ"
+	    << std::endl
 #endif
 	    << "  --ratio <r>      only show persistence pairs with death/birth ratio > r" << std::endl
 	    << std::endl;
