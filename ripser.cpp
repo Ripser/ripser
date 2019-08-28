@@ -332,10 +332,10 @@ public:
 				auto cofacet = cofacets.next();
 				if (get_diameter(cofacet) <= threshold) {
 
-					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
+					next_simplices.push_back(cofacet);
 
 					if (pivot_column_index.find(get_index(cofacet)) == pivot_column_index.end())
-						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
+						columns_to_reduce.push_back(cofacet);
 				}
 			}
 		}
