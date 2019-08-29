@@ -39,11 +39,18 @@ RUN julia --eval 'using Pkg; Pkg.add("Plotly"); Pkg.add("Eirene");  using Eirene
 
 
 WORKDIR /benchmark
-RUN curl -LO https://raw.githubusercontent.com/Ripser/ripser/dev/benchmarks/sphere_3_192/sphere_3_192_points.dat  \ 
-&& curl -LO https://raw.githubusercontent.com/Ripser/ripser/dev/benchmarks/sphere_3_192/sphere_3_192.distance_matrix \
-&& curl -LO https://raw.githubusercontent.com/Ripser/ripser/dev/benchmarks/sphere_3_192/sphere_3_192.complex \
-\
-&& curl -LO https://github.com/n-otter/PH-roadmap/raw/master/data_sets/roadmap_datasets_distmat/fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt \
+COPY sphere_3_192_points.dat .
+COPY sphere_3_192.complex .
+COPY o3_1024.txt .
+COPY o3_1024_1.8.dipha .
+COPY o3_4096.txt .
+# COPY o3_4096_1.4.dipha .
+COPY clifford_torus_50000.points.txt .
+# COPY dragon_2000.dipha .
+
+
+
+RUN curl -LO https://github.com/n-otter/PH-roadmap/raw/master/data_sets/roadmap_datasets_distmat/fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt \
 && curl -LO https://github.com/n-otter/PH-roadmap/raw/master/data_sets/roadmap_datasets_distmat/dipha/fractal_9_5_2_random.bin \
 \
 && curl -LO https://github.com/n-otter/PH-roadmap/raw/master/data_sets/roadmap_datasets_point_cloud/dragon_vrip.ply.txt_2000_.txt \
@@ -53,12 +60,9 @@ RUN curl -LO https://raw.githubusercontent.com/Ripser/ripser/dev/benchmarks/sphe
 && curl -LO https://github.com/n-otter/PH-roadmap/raw/master/data_sets/roadmap_datasets_point_cloud/random_point_cloud_50_16_.txt \
 && curl -LO https://github.com/n-otter/PH-roadmap/raw/master/data_sets/roadmap_datasets_distmat/dipha/random_50_16.bin
 
-COPY o3_1024.txt .
-COPY o3_4096.txt .
-COPY clifford_torus_50000.points.txt .
-
 RUN (echo "OFF\n2000 0 0" && cat dragon_vrip.ply.txt_2000_.txt) >dragon_vrip.ply.txt_2000_.off \
 && (echo "OFF\n50 0 0" && cat random_point_cloud_50_16_.txt) >random_point_cloud_50_16_.off \
+&& (echo "OFF\n1024 0 0" && cat sphere_3_192_points.dat) > sphere_3_192.off \
 && (echo "OFF\n1024 0 0" && cat o3_1024.txt) >o3_1024.off \
 && (echo "OFF\n4096 0 0" && cat o3_4096.txt) >o3_4096.off \
 && (echo "nOFF\n4 50000 0 0" && cat clifford_torus_50000.points.txt) >clifford_torus_50000.points.off
@@ -69,12 +73,13 @@ FROM benchmark-setup as benchmark-ripser
 WORKDIR /ripser
 RUN git clone https://github.com/Ripser/ripser.git \
 && cd ripser \
+&& git checkout dev \
 && make
 
 ENV PATH="${PATH}:/ripser/ripser"
 
 WORKDIR /benchmark
-RUN time -v -o sphere_3_192.ripser.txt    ripser sphere_3_192.distance_matrix --dim 2
+RUN time -v -o sphere_3_192.ripser.txt    ripser sphere_3_192_points.dat --format point-cloud --dim 2
 RUN time -v -o o3_1024.ripser.txt    ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2
 RUN time -v -o o3_4096.ripser.txt    ripser o3_4096.txt --format point-cloud --dim 3 --threshold 1.4 --ratio 2
 RUN time -v -o clifford_torus_50000.ripser.txt    ripser clifford_torus_50000.points.txt --format point-cloud --dim 2 --threshold .15 --ratio 2
@@ -92,12 +97,14 @@ RUN git pull && git checkout benchmarks/disable-emergent-pairs \
 && make
 
 WORKDIR /benchmark
-RUN time -v -o sphere_3_192.ripser-no-emergent.txt    ripser sphere_3_192.distance_matrix --dim 2
+RUN time -v -o sphere_3_192.ripser-no-emergent.txt    ripser sphere_3_192_points.dat --format point-cloud --dim 2
 RUN time -v -o random.ripser-no-emergent.txt    ripser random_point_cloud_50_16_.txt --format point-cloud --dim 7
 RUN time -v -o fractal-r.ripser-no-emergent.txt    ripser fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt --dim 2
 RUN time -v -o dragon-2.ripser-no-emergent.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
 # RUN time -v -o genome.ripser-no-emergent.txt    ripser human_gene_distmat.txt --dim 1
 RUN time -v -o o3_1024.ripser-no-emergent.txt    ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2
+RUN time -v -o o3_4096.ripser-no-emergent.txt    ripser o3_4096.txt --format point-cloud --dim 3 --threshold 1.4 --ratio 2
+RUN time -v -o clifford_torus_50000.ripser-no-emergent.txt    ripser clifford_torus_50000.points.txt --format point-cloud --dim 2 --threshold .15 --ratio 2
 
 
 FROM benchmark-ripser as benchmark-ripser-store-reduced
@@ -107,12 +114,14 @@ RUN git pull && git checkout benchmarks/store-reduced-matrix \
 && make
 
 WORKDIR /benchmark
-RUN time -v -o sphere_3_192.ripser-store-reduced.txt    ripser sphere_3_192.distance_matrix --dim 2
+RUN time -v -o sphere_3_192.ripser-store-reduced.txt    ripser sphere_3_192_points.dat --format point-cloud --dim 2
 RUN time -v -o random.ripser-store-reduced.txt    ripser random_point_cloud_50_16_.txt --format point-cloud --dim 7
-RUN time -v -o fractal-r.ripser-store-reduced.txt    ripser fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt --dim 2
-RUN time -v -o dragon-2.ripser-store-reduced.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
+# RUN time -v -o fractal-r.ripser-store-reduced.txt    ripser fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt --dim 2
+# RUN time -v -o dragon-2.ripser-store-reduced.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
 # RUN time -v -o genome.ripser-store-reduced.txt    ripser human_gene_distmat.txt --dim 1
 RUN time -v -o o3_1024.ripser-store-reduced.txt    ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2
+# RUN time -v -o o3_4096.ripser-store-reduced.txt    ripser o3_4096.txt --format point-cloud --dim 3 --threshold 1.4 --ratio 2
+# RUN time -v -o clifford_torus_50000.ripser-store-reduced.txt    ripser clifford_torus_50000.points.txt --format point-cloud --dim 2 --threshold .15 --ratio 2
 
 
 FROM benchmark-ripser as benchmark-ripser-use-reduced
@@ -122,12 +131,14 @@ RUN git pull && git checkout benchmarks/use-reduced-matrix \
 && make
 
 WORKDIR /benchmark
-RUN time -v -o sphere_3_192.ripser-use-reduced.txt    ripser sphere_3_192.distance_matrix --dim 2
+RUN time -v -o sphere_3_192.ripser-use-reduced.txt    ripser sphere_3_192_points.dat --format point-cloud --dim 2
 RUN time -v -o random.ripser-use-reduced.txt    ripser random_point_cloud_50_16_.txt --format point-cloud --dim 7
-RUN time -v -o fractal-r.ripser-use-reduced.txt    ripser fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt --dim 2
-RUN time -v -o dragon-2.ripser-use-reduced.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
+# RUN time -v -o fractal-r.ripser-use-reduced.txt    ripser fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt --dim 2
+# RUN time -v -o dragon-2.ripser-use-reduced.txt    ripser dragon_vrip.ply.txt_2000_.txt --format point-cloud --dim 1
 # RUN time -v -o genome.ripser-use-reduced.txt    ripser human_gene_distmat.txt --dim 1
 RUN time -v -o o3_1024.ripser-use-reduced.txt    ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2
+# RUN time -v -o o3_4096.ripser-use-reduced.txt    ripser o3_4096.txt --format point-cloud --dim 3 --threshold 1.4 --ratio 2
+# RUN time -v -o clifford_torus_50000.ripser-use-reduced.txt    ripser clifford_torus_50000.points.txt --format point-cloud --dim 2 --threshold .15 --ratio 2
 
 
 FROM benchmark-setup as benchmark-gudhi
@@ -148,7 +159,7 @@ FROM benchmark-setup as benchmark-gudhi
 # RUN time -v -o sphere_3_192.gudhi.txt     rips_distance_matrix_persistence -d3 -p2 sphere_3_192.distance_matrix
 
 WORKDIR /benchmark
-RUN time -v -o sphere_3_192.gudhi.txt     gudhi-rips-distance-matrix-persistence -d3 -p2 sphere_3_192.distance_matrix >sphere_3_192.gudhi.out.txt
+RUN time -v -o sphere_3_192.gudhi.txt     gudhi-rips-persistence -d3 -p2 sphere_3_192.off >sphere_3_192.gudhi.out.txt
 # RUN time -v -o fractal-r.gudhi.txt     gudhi-rips-distance-matrix-persistence -d3 -p2 fractal_9_5_2_random_edge_list.txt_0.19795_distmat.txt >fractal-r.gudhi.out.txt
 RUN time -v -o o3_1024.gudhi.txt     gudhi-rips-persistence -d4 -p2 -r 1.8 o3_1024.off >o3_1024.gudhi.out.txt
 RUN time -v -o o3_4096.gudhi.txt     gudhi-rips-persistence -d4 -p2 -r 1.4 o3_4096.off >o3_4096.gudhi.out.txt
@@ -170,14 +181,8 @@ ENV PATH="${PATH}:/dipha/dipha/build"
 
 WORKDIR /benchmark
 RUN time -v -o sphere_3_192.dipha.txt     dipha --dual --benchmark --upper_dim 3 sphere_3_192.complex sphere_3_192.dipha.diagram
-
-COPY o3_1024_1.8.dipha .
 RUN time -v -o o3_1024.dipha.txt     dipha --dual --benchmark --upper_dim 4 o3_1024_1.8.dipha o3_1024_1.8.dipha.diagram
-
-# COPY o3_4096_1.4.dipha .
 # RUN time -v -o o3_4096.dipha.txt     dipha --dual --benchmark --upper_dim 4 o3_4096_1.4.dipha o3_4096_1.4.dipha.diagram
-
-# COPY dragon_2000.dipha .
 # RUN time -v -o dragon-2.dipha.txt     dipha --dual --benchmark --upper_dim 2 dragon_2000.dipha dragon_2000.dipha.diagram
 
 
@@ -245,7 +250,7 @@ WORKDIR /eirene
 WORKDIR /benchmark
 
 RUN time -v -o sphere_3_192.eirene.txt \
-	julia --eval 'maxdim = 2; using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed (d = readdlm("sphere_3_192.distance_matrix"); result = eirene(d, record="none", maxdim=maxdim))); for i in 0:maxdim print("dim $(i): "); show(stdout, "text/plain", (barcode(result , dim = i))); println(); end' >sphere_3_192.eirene.out.txt
+	julia --eval 'maxdim = 2; using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed (d = transpose(readdlm("sphere_3_192_points.dat")); result = eirene(d, model="pc", record="none", maxdim=maxdim))); for i in 0:maxdim print("dim $(i): "); show(stdout, "text/plain", (barcode(result , dim = i))); println(); end' >sphere_3_192.eirene.out.txt
 
 RUN time -v -o o3_1024.eirene.txt \
 	julia --eval 'maxdim = 3; maxrad = 1.8; using Eirene; using DelimitedFiles; eirene([0 1; 1 0]); println(@elapsed (d = transpose(readdlm("o3_1024.txt")); result = eirene(d, model="pc", record="none", maxdim=maxdim, maxrad=maxrad))); for i in 0:maxdim print("dim $(i): "); show(stdout, "text/plain", (barcode(result , dim = i))); println(); end' > o3_1024.eirene.out.txt
@@ -307,6 +312,10 @@ COPY --from=benchmark-dipha /benchmark /benchmark
 COPY --from=benchmark-eirene /benchmark /benchmark
 # COPY --from=benchmark-eirene037 /benchmark /benchmark
 COPY --from=benchmark-dionysus2 /benchmark /benchmark
+
+COPY --from=benchmark-ripser-no-emergent /benchmark /benchmark
+COPY --from=benchmark-ripser-store-reduced /benchmark /benchmark
+COPY --from=benchmark-ripser-use-reduced /benchmark /benchmark
 
 RUN ls -l /benchmark
 

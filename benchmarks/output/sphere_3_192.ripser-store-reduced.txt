@@ -1,18 +1,18 @@
-	Command being timed: "ripser o3_1024.txt --format point-cloud --dim 3 --threshold 1.8 --ratio 2"
-	User time (seconds): 2.07
-	System time (seconds): 0.11
-	Percent of CPU this job got: 96%
-	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:02.26
+	Command being timed: "ripser sphere_3_192_points.dat --format point-cloud --dim 2"
+	User time (seconds): 13.80
+	System time (seconds): 1.77
+	Percent of CPU this job got: 99%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.57
 	Average shared text size (kbytes): 0
 	Average unshared data size (kbytes): 0
 	Average stack size (kbytes): 0
 	Average total size (kbytes): 0
-	Maximum resident set size (kbytes): 178776
+	Maximum resident set size (kbytes): 4288268
 	Average resident set size (kbytes): 0
 	Major (requiring I/O) page faults: 0
-	Minor (reclaiming a frame) page faults: 60267
+	Minor (reclaiming a frame) page faults: 1860885
 	Voluntary context switches: 1
-	Involuntary context switches: 81
+	Involuntary context switches: 240
 	Swaps: 0
 	File system inputs: 0
 	File system outputs: 0
