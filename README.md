@@ -84,7 +84,7 @@ The input is given either in a file whose name is passed as an argument, or thro
   - `--dim k`: compute persistent homology up to dimension *k*.
   - `--threshold t`: compute Rips complexes up to diameter *t*.
   - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when built with the option `USE_COEFFICIENTS`).
-  - `--ratio <r>`: only show persistence pairs with death/birth ratio > *r*.
+  - `--ratio r`: only show persistence pairs with death/birth ratio > *r*.
 
 
 

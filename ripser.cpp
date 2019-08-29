@@ -117,8 +117,8 @@ public:
 	    : distances(mat.size() * (mat.size() - 1) / 2), rows(mat.size()) {
 		init_rows();
 
-		for (index_t i = 1; i < size(); ++i)
-			for (index_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
+		for (size_t i = 1; i < size(); ++i)
+			for (size_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
 	}
 
 	value_t operator()(const index_t i, const index_t j) const {
@@ -387,8 +387,7 @@ public:
 			if (column.empty() || get_index(column.top()) != get_index(pivot)) return pivot;
 			column.pop();
 		}
-		pivot = diameter_index_t(0, -1);
-		return pivot;
+		return diameter_index_t(0, -1);
 	}
 
 	template <typename Column> diameter_index_t get_pivot(Column& column) {
@@ -420,8 +419,8 @@ public:
 	}
 
 	template <typename Column>
-	void add_coboundary(const diameter_index_t simplex, Column& working_reduction_column,
-	                    Column& working_coboundary, const index_t& dim) {
+	void add_simplex_coboundary(const diameter_index_t simplex, const index_t& dim,
+                                Column& working_reduction_column, Column& working_coboundary) {
 		working_reduction_column.push(simplex);
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -433,14 +432,13 @@ public:
 	template <typename Column>
 	void add_coboundary(compressed_sparse_matrix<diameter_index_t>& reduction_matrix,
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
-	                    const index_t index_column_to_add, Column& working_reduction_column,
-	                    Column& working_coboundary, const index_t& dim) {
+	                    const size_t index_column_to_add, const size_t& dim,
+                        Column& working_reduction_column, Column& working_coboundary) {
 		diameter_index_t column_to_add(columns_to_reduce[index_column_to_add]);
-		add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
+		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
 		for (diameter_index_t simplex : reduction_matrix.subrange(index_column_to_add)) {
-			working_reduction_column.push(simplex);
-			add_coboundary(simplex, working_reduction_column, working_coboundary, dim);
+			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
 		}
 	}
 
@@ -453,7 +451,7 @@ public:
 
 		compressed_sparse_matrix<diameter_index_t> reduction_matrix;
 
-		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
+		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
 
 			diameter_index_t column_to_reduce(columns_to_reduce[index_column_to_reduce]);
@@ -475,7 +473,7 @@ public:
 						index_t index_column_to_add = pair->second;
 
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-						               working_reduction_column, working_coboundary, dim);
+						               dim, working_reduction_column, working_coboundary);
 
 						pivot = get_pivot(working_coboundary);
 					} else {
@@ -702,9 +700,9 @@ int main(int argc, char** argv) {
 
 		if (threshold == std::numeric_limits<value_t>::max()) {
 			value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
-			for (index_t i = 0; i < dist.size(); ++i) {
+			for (size_t i = 0; i < dist.size(); ++i) {
 				value_t r_i = -std::numeric_limits<value_t>::infinity();
-				for (index_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
+				for (size_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
 				enclosing_radius = std::min(enclosing_radius, r_i);
 			}
 			threshold = enclosing_radius;
