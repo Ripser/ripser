@@ -404,7 +404,7 @@ template <typename DistanceMatrix> class ripser {
 		}
 	};
 
-	typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
+	typedef hash_map<entry_t, size_t, entry_hash, equal_index> entry_hash_map;
 
 public:
 	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
@@ -573,8 +573,8 @@ public:
 	}
 
 	template <typename Column>
-	void add_coboundary(const diameter_entry_t simplex, Column& working_reduction_column,
-	                    Column& working_coboundary, const index_t& dim) {
+	void add_simplex_coboundary(const diameter_entry_t simplex, const index_t& dim,
+	                            Column& working_reduction_column, Column& working_coboundary) {
 		working_reduction_column.push(simplex);
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -586,16 +586,14 @@ public:
 	template <typename Column>
 	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
-	                    const index_t index_column_to_add, const coefficient_t factor,
-	                    Column& working_reduction_column, Column& working_coboundary,
-	                    const index_t& dim) {
+	                    const size_t index_column_to_add, const coefficient_t factor, const size_t& dim,
+	                    Column& working_reduction_column, Column& working_coboundary) {
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
-		add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
+		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
-		for (auto simplex : reduction_matrix.subrange(index_column_to_add)) {
+		for (diameter_entry_t simplex : reduction_matrix.subrange(index_column_to_add)) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
-			working_reduction_column.push(simplex);
-			add_coboundary(simplex, working_reduction_column, working_coboundary, dim);
+			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
 		}
 	}
 
@@ -646,7 +644,7 @@ public:
 						                  modulus;
 
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-						               factor, working_reduction_column, working_coboundary, dim);
+						               factor, dim, working_reduction_column, working_coboundary);
 
 						pivot = get_pivot(working_coboundary);
 					} else {
