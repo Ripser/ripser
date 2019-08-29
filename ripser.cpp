@@ -160,18 +160,6 @@ void set_coefficient(entry_t& e, const coefficient_t c) {}
 
 const entry_t& get_entry(const entry_t& e) { return e; }
 
-struct entry_hash {
-	std::size_t operator()(const entry_t& e) const { return hash<index_t>()(get_index(e)); }
-};
-
-struct equal_index {
-	bool operator()(const entry_t& e, const entry_t& f) const {
-		return get_index(e) == get_index(f);
-	}
-};
-
-typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
-
 typedef std::pair<value_t, index_t> diameter_index_t;
 value_t get_diameter(const diameter_index_t& i) { return i.first; }
 index_t get_index(const diameter_index_t& i) { return i.second; }
