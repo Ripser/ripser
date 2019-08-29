@@ -590,7 +590,6 @@ public:
 
 		for (diameter_entry_t simplex : reduction_matrix.subrange(index_column_to_add)) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
-			working_reduction_column.push(simplex);
 			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
 		}
 	}
