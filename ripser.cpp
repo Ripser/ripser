@@ -408,7 +408,7 @@ template <typename DistanceMatrix> class ripser {
 		}
 	};
 
-	typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
+	typedef hash_map<entry_t, size_t, entry_hash, equal_index> entry_hash_map;
 
 public:
 	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
@@ -636,8 +636,8 @@ public:
 	}
 
 	template <typename Column>
-	void add_coboundary(const diameter_entry_t simplex, Column& working_reduction_column,
-	                    Column& working_coboundary, const index_t& dim) {
+	void add_simplex_coboundary(const diameter_entry_t simplex, const index_t& dim,
+	                            Column& working_reduction_column, Column& working_coboundary) {
 		working_reduction_column.push(simplex);
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -649,16 +649,14 @@ public:
 	template <typename Column>
 	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
-	                    const index_t index_column_to_add, const coefficient_t factor,
-	                    Column& working_reduction_column, Column& working_coboundary,
-	                    const index_t& dim) {
+	                    const size_t index_column_to_add, const coefficient_t factor, const size_t& dim,
+	                    Column& working_reduction_column, Column& working_coboundary) {
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
-		add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
+		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
-		for (auto simplex : reduction_matrix.subrange(index_column_to_add)) {
+		for (diameter_entry_t simplex : reduction_matrix.subrange(index_column_to_add)) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
-			working_reduction_column.push(simplex);
-			add_coboundary(simplex, working_reduction_column, working_coboundary, dim);
+			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
 		}
 	}
 
@@ -713,7 +711,7 @@ public:
 						                  modulus;
 
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-						               factor, working_reduction_column, working_coboundary, dim);
+                                       factor, dim, working_reduction_column, working_coboundary);
 						
 						column_addition_performed = true;
 
@@ -814,18 +812,17 @@ public:
 	}
 
 	bool has_next(bool all_cofacets = true) {
-		while ((v != -1) && (binomial_coeff(v, k) <= idx_below)) {
-			if (!all_cofacets) return false;
+		return (v >= k && (all_cofacets || binomial_coeff(v, k) > idx_below));
+	}
+
+	diameter_entry_t next() {
+		while ((binomial_coeff(v, k) <= idx_below)) {
 			idx_below -= binomial_coeff(v, k);
 			idx_above += binomial_coeff(v, k + 1);
 			--v;
 			--k;
 			assert(k != -1);
 		}
-		return v != -1;
-	}
-
-	diameter_entry_t next() {
 		value_t cofacet_diameter = get_diameter(simplex);
 		for (index_t w : vertices) cofacet_diameter = std::max(cofacet_diameter, dist(v, w));
 		index_t cofacet_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
@@ -852,10 +849,10 @@ template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
 	                              const ripser& _parent)
-	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0),
-	      k(_dim + 1),
-	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist), binomial_coeff(parent.binomial_coeff),
-	      neighbor_it(dist.neighbor_it), neighbor_end(dist.neighbor_end) {
+	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1),
+	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
+	      binomial_coeff(parent.binomial_coeff), neighbor_it(dist.neighbor_it),
+	      neighbor_end(dist.neighbor_end) {
 		neighbor_it.clear();
 		neighbor_end.clear();
 
@@ -1101,7 +1098,8 @@ void print_usage_and_exit(int exit_code) {
 	    << "  --dim <k>        compute persistent homology up to dimension k" << std::endl
 	    << "  --threshold <t>  compute Rips complexes up to diameter t" << std::endl
 #ifdef USE_COEFFICIENTS
-	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ" << std::endl
+	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ"
+	    << std::endl
 #endif
 	    << "  --ratio <r>      only show persistence pairs with death/birth ratio > r" << std::endl
 	    << std::endl;
