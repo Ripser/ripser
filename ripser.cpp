@@ -1184,8 +1184,6 @@ void run_ripser(std::string f, int dim_max, float threshold, int format_index) {
 
 	compressed_lower_distance_matrix dist = read_file(file_stream, format);
 
-	auto value_range = std::minmax_element(dist.distances.begin(), dist.distances.end());
-
 #ifdef __EMSCRIPTEN__
 	EM_ASM_({postMessage({"type" : "distance-matrix", "size" : $0, "min" : $1, "max" : $2})},
 	        dist.size(), *value_range.first, *value_range.second);
