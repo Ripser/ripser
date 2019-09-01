@@ -12,7 +12,7 @@ To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The comput
 The main features of Ripser:
 
   - time- and memory-efficient
-  - less than 1000 lines of code in a single C++ file
+  - only about 1000 lines of code in a single C++ file
   - support for coefficients in prime finite fields
   - no external dependencies (optional support for Google's [sparsehash])
 
@@ -95,6 +95,22 @@ The following experimental features are currently available in separate branches
 - `representative-cocycles`: output of representative cocycles for persistent cohomology.
 - `representative-cycles`: computation and output of representative cycles for persistent homology (in the standard version, only *co*cycles are computed).
 - `simple`: a simplified version of Ripser, without support for sparse distance matrices and coefficients.  This might be a good starting point for exploring the code.
+
+
+### Citing
+
+If you use Ripser in your research or if you want to give a reference to Ripser in a paper, you may use the following bibtex entry (will be updated with complete publication data):
+
+```
+@misc{1908.02518,
+	Author = {Ulrich Bauer},
+	Title = {Ripser: efficient computation of Vietoris-Rips persistence barcodes},
+	Month = Aug,
+	Year = {2019},
+	Eprint = {1908.02518},
+	Note = {Preprint}
+}
+```
 
 
 ### License
