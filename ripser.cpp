@@ -1382,19 +1382,19 @@ int main(int argc, char** argv) {
 
 		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
 
-		if (threshold >= max) {
+//		if (threshold >= max) {
 			std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
 			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
 			                                         modulus)
 			    .compute_barcodes();
-		} else {
-			std::cout << "sparse distance matrix with " << dist.size() << " points and "
-			          << num_edges << "/" << (dist.size() * dist.size() - 1) / 2 << " entries"
-			          << std::endl;
-
+//		} else {
+//			std::cout << "sparse distance matrix with " << dist.size() << " points and "
+//			          << num_edges << "/" << (dist.size() * dist.size() - 1) / 2 << " entries"
+//			          << std::endl;
+//
 //			ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold),
 //			                               dim_max, threshold, ratio, modulus)
 //			    .compute_barcodes();
-		}
+//		}
 	}
 }
