@@ -69,8 +69,20 @@ class hash_map : public std::unordered_map<Key, T, H, E> {};
 #endif
 
 typedef float value_t;
-typedef int64_t index_t;
+typedef __int128_t index_t;
 typedef uint16_t coefficient_t;
+
+std::ostream& operator<<(std::ostream& stream, const __int128_t& i) {
+	stream << (size_t)(i);
+	return stream;
+}
+
+std::istream& operator>>(std::istream& stream, __int128_t& i) {
+	size_t s;
+	stream >> s;
+	i = (index_t)(s);
+	return stream;
+}
 
 #ifdef INDICATE_PROGRESS
 static const std::chrono::milliseconds time_step(40);
@@ -78,10 +90,10 @@ static const std::chrono::milliseconds time_step(40);
 
 static const std::string clear_line("\r\033[K");
 
-static const size_t num_coefficient_bits = 8;
-
-static const index_t max_simplex_index =
-    (1l << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
+//static const size_t num_coefficient_bits = 8;
+//
+//static const index_t max_simplex_index =
+//    (1l << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
 
 void check_overflow(index_t i) {
 	if
@@ -91,8 +103,8 @@ void check_overflow(index_t i) {
 	    (i < 0)
 #endif
 		throw std::overflow_error("simplex index " + std::to_string((uint64_t)i) +
-		                          " in filtration is larger than maximum index " +
-		                          std::to_string(max_simplex_index));
+		                          " in filtration is larger than maximum index"// + std::to_string(max_simplex_index)
+								  );
 }
 
 class binomial_coeff_table {
