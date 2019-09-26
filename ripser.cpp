@@ -510,7 +510,7 @@ public:
 		          smaller_diameter_or_greater_index<diameter_index_t>());
 		std::vector<index_t> vertices_of_edge(2);
 		for (auto e : edges) {
-			get_simplex_vertices(get_index(e), 1, n, vertices_of_edge.rbegin());
+			get_simplex_vertices(get_index(e), 1, n, vertices_of_edge.begin());
 			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
 
 			if (u != v) {
@@ -688,7 +688,7 @@ public:
 #ifdef INDICATE_PROGRESS
 					std::cerr << clear_line << std::flush;
 #endif
-					std::cout << " [" << diameter << ", )" << std::endl;
+					std::cout << "+[" << diameter << ", )" << std::endl;
 #endif
 					break;
 				}
@@ -707,7 +707,7 @@ public:
 		entry_hash_map pivot_column_index;
 
 
-		for (index_t dim = dim_max; dim > 0; --dim) {
+		for (index_t dim = dim_max; dim > 1; --dim) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, dim);
 			
 			pivot_column_index = entry_hash_map();
