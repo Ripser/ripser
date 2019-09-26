@@ -409,6 +409,7 @@ class ripser {
 	const binomial_coeff_table binomial_coeff;
 	const std::vector<coefficient_t> multiplicative_inverse;
 	mutable std::vector<diameter_entry_t> cofacet_entries;
+	std::vector<index_t> vertices;
 
 	struct entry_hash {
 		std::size_t operator()(const entry_t& e) const {
@@ -531,7 +532,16 @@ public:
 					std::cout << " ["
 					<< std::max(filtration[0].find(vertices_of_edge[0])->second,
 								filtration[0].find(vertices_of_edge[1])->second)
-					<< "," << get_diameter(e) << ")" << std::endl;
+					<< "," << get_diameter(e) << "):  "
+					<< "{[" << u << "]"
+#ifdef USE_COEFFICIENTS
+					<< (modulus != 2 ? ":1" : "")
+#endif
+					<< ", [" << v << "]"
+#ifdef USE_COEFFICIENTS
+					<< (modulus != 2 ? ":-1" : "")
+#endif
+					<< "}" << std::endl;
 #endif
 				dset.link(u, v);
 			} else
@@ -541,9 +551,11 @@ public:
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		for (index_t i = 0; i < n; ++i)
-            if (dset.find(i) == i) {
-                std::cout << " [" << filtration[0].find(i)->second << ", )" << std::endl;
-            }
+			if (dset.find(i) == i) std::cout << " [0, ):  {[" << i << "]"
+#ifdef USE_COEFFICIENTS
+				<< ":1"
+#endif
+				<< "}" << std::endl;
 #endif
     }
 
@@ -625,6 +637,35 @@ public:
 		}
 	}
 
+	template<typename Chain>
+	void print_chain(Chain& cycle, index_t dim) {
+		diameter_entry_t e;
+		
+		
+		std::cout << "{";
+		while (get_index(e = get_pivot(cycle)) != -1) {
+			vertices.resize(dim + 1);
+			get_simplex_vertices(get_index(e), dim, n,
+								 vertices.rbegin());
+			
+			std::cout << "[";
+			auto it = vertices.begin();
+			if (it != vertices.end()) {
+				std::cout << *it++;
+				while (it != vertices.end()) std::cout << "," << *it++;
+			}
+			std::cout << "]";
+#ifdef USE_COEFFICIENTS
+			if (modulus != 2) std::cout << ":" << normalize(get_coefficient(e), modulus);
+#endif
+			cycle.pop();
+			if (get_index(e = get_pivot(cycle)) != -1)
+				std::cout << ", ";
+		}
+		std::cout << "}" << std::endl;
+		
+	}
+	
 	void compute_pairs(const std::vector<diameter_index_t>& columns_to_reduce,
 	                   entry_hash_map& pivot_column_index, const index_t dim) {
 
@@ -682,7 +723,10 @@ public:
 #ifdef INDICATE_PROGRESS
 							std::cerr << clear_line << std::flush;
 #endif
-							std::cout << " [" << birth << "," << diameter << ")" << std::endl;
+							std::cout << " [" << birth << "," << diameter << "):  ";
+							
+							auto cycle = working_coboundary;
+							print_chain(cycle, dim - 1);
 						}
 #endif
 						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
@@ -700,7 +744,8 @@ public:
 #ifdef INDICATE_PROGRESS
 					std::cerr << clear_line << std::flush;
 #endif
-					std::cout << "+[" << diameter << ", )" << std::endl;
+					std::cout << "+[" << diameter << ", ):  ";
+					print_chain(working_reduction_column, dim);
 #endif
 					break;
 				}
