@@ -7,12 +7,12 @@ Copyright © 2015–2019 [Ulrich Bauer].
 
 Ripser is a lean C++ code for the computation of Vietoris–Rips persistence barcodes. It can do just this one thing, but does it extremely well.
 
-To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The computation happens inside the browser (using [PNaCl] on Chrome and JavaScript via [Emscripten] on other browsers). 
+To see a live demo of Ripser's capabilities, go to [live.ripser.org]. The computation happens inside the browser (using [Emscripten] to compile Ripser to [WebAssembly], supported on recent browsers). 
 
 The main features of Ripser:
 
   - time- and memory-efficient
-  - less than 1000 lines of code in a single C++ file
+  - only about 1000 lines of code in a single C++ file
   - support for coefficients in prime finite fields
   - no external dependencies (optional support for Google's [sparsehash])
 
@@ -24,22 +24,22 @@ Input formats currently supported by Ripser:
   - comma-separated values upper triangular distance matrix (MATLAB output from the function `pdist`)
   - comma-separated values full distance matrix
   - [DIPHA] distance matrix data
-  - sparse distance matrix in Sparse Triplet format
+  - sparse distance matrix in sparse triplet format
   - binary lower triangular distance matrix
   - point cloud data
 
-Ripser's efficiency is based on a few important concepts and principles, building on key previous and concurrent  developments by other researchers in computational topology:
+Ripser's efficiency is based on a few important concepts and principles, building on key previous and concurrent developments by other researchers in computational topology:
   
   - Compute persistent *co*homology (as suggested by [Vin de Silva, Dmitriy Morozov, and Mikael Vejdemo-Johansson](https://doi.org/10.1088/0266-5611/27/12/124003))
-  - Don't compute information that is never needed
-    (for the experts: employ the *clearing* optimization, aka *persistence with a twist*, as suggested by [Chao Chen and Michael Kerber](http://www.geometrie.tugraz.at/kerber/kerber_papers/ck-phcwat-11.pdf))
-  - Don't store information that can be readily recomputed (in particular, the boundary matrix and the reduced boundary matrix)
-  - Take computational shortcuts (*apparent* and *emergent persistence pairs*)
+  - Use the chain complex property that boundaries are cycles
+    (employ the *clearing* optimization, aka *persistence with a twist*, as suggested by [Chao Chen and Michael Kerber](http://www.geometrie.tugraz.at/kerber/kerber_papers/ck-phcwat-11.pdf))
   - If no threshold is specified, choose the *enclosing radius* as the threshold, from which on homology is guaranteed to be trivial (as suggested by [Greg Henselman-Petrusek](https://github.com/Eetion/Eirene.jl))
+  - Don't store information that can be readily recomputed (in particular, the original and the reduced boundary matrix)
+  - Take computational shortcuts (*apparent* and *emergent persistence pairs*)
 
 
 ### Version
-[Latest release][latest-release]: 1.1 (July 2019)
+[Latest release][latest-release]: 1.1 (August 2019)
 
 
 ### Building
@@ -58,6 +58,7 @@ make
 
 Ripser supports several compile-time options. They are switched on by defining the C preprocessor macros listed below, either using `#define` in the code or by passing an argument to the compiler. The following options are supported:
 
+  - `USE_COEFFICIENTS`: enable support for coefficients in a prime field
   - `INDICATE_PROGRESS`: indicate the current progress in the console
   - `PRINT_PERSISTENCE_PAIRS`: output the computed persistence pairs (enabled by default in the code; comment out to disable)
   - `USE_GOOGLE_HASHMAP`: enable support for Google's [sparsehash] data structure; may further reduce memory footprint
@@ -77,13 +78,13 @@ The input is given either in a file whose name is passed as an argument, or thro
     - `upper-distance`: upper triangular distance matrix; similar to the previous, but for the entries above the diagonal; suitable for output from the MATLAB functions `pdist` or  `seqpdist`, exported to a CSV file.
     - `distance`: full distance matrix; similar to the above, but for all entries of the distance matrix. One line per row of the matrix; only the part below the diagonal is actually read.
     - `dipha`: DIPHA distance matrix as described on the [DIPHA] website.
-    - `point-cloud`: point cloud; a comma (or whitespace, or other non-numerical character)  separated list of coordinates of the points in some Euclidean space, one point per line.
-    - `sparse`: sparse distance matrix in Sparse Triplet format
+    - `point-cloud`: point cloud; a comma (or whitespace, or other non-numerical character) separated list of coordinates of the points in some Euclidean space, one point per line.
     - `binary`: lower distance matrix in binary file format; a sequence of the distance matrix entries below the diagonal in 64 bit double format (IEEE 754, little endian).
+    - `sparse`: sparse triplet format; a whitespace separated list of entries of a sparse distance matrix, one entry per line, each of the form *i j d(i,j)* specifying the distance between points *i* and *j*.  Each pair of points should appear in the file at most once.
   - `--dim k`: compute persistent homology up to dimension *k*.
   - `--threshold t`: compute Rips complexes up to diameter *t*.
-  - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z.
-  - `--ratio <r>`: only show persistence pairs with death/birth ratio > *r*.
+  - `--modulus p`: compute homology with coefficients in the prime field Z/*p*Z (only available when built with the option `USE_COEFFICIENTS`).
+  - `--ratio r`: only show persistence pairs with death/birth ratio > *r*.
 
 
 
@@ -95,17 +96,31 @@ The following experimental features are currently available in separate branches
 - `representative-cycles`: computation and output of representative cycles for persistent homology (in the standard version, only *co*cycles are computed).
 - `simple`: a simplified version of Ripser, without support for sparse distance matrices and coefficients.  This might be a good starting point for exploring the code.
 
-Prototype implementations are already avaliable; please contact the author if one of these features might be relevant for your research.
+
+### Citing
+
+If you use Ripser in your research or if you want to give a reference to Ripser in a paper, you may use the following bibtex entry (will be updated with complete publication data):
+
+```
+@misc{1908.02518,
+	Author = {Ulrich Bauer},
+	Title = {Ripser: efficient computation of Vietoris-Rips persistence barcodes},
+	Month = Aug,
+	Year = {2019},
+	Eprint = {1908.02518},
+	Note = {Preprint}
+}
+```
 
 
 ### License
 
-Ripser is licensed under the [MIT] license (`COPYING.txt`), with an extra clause (`CONTRIBUTING.txt`) clarifying the license for modifications released without an explicit written license agreement. Please contact the author if you want to use Ripser in your software under a different license. 
+Ripser is licensed under the [MIT] license (`COPYING.txt`), with an extra clause (`CONTRIBUTING.txt`) clarifying the license for modifications released without an explicit written license agreement.  Please contact the author if you want to use Ripser in your software under a different license. 
 
 [Ulrich Bauer]: <http://ulrich-bauer.org>
 [live.ripser.org]: <http://live.ripser.org>
-[PNaCl]: <https://www.chromium.org/nativeclient/pnacl/>
 [Emscripten]: <http://emscripten.org>
+[WebAssembly]: <https://webassembly.org>
 [latest-release]: <https://github.com/Ripser/ripser/releases/latest>
 [Dionysus]: <http://www.mrzv.org/software/dionysus/>
 [DIPHA]: <http://git.io/dipha>

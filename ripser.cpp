@@ -43,7 +43,10 @@
 
 //#define USE_GOOGLE_HASHMAP
 
+#include <algorithm>
+#include <cassert>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -58,7 +61,6 @@ template <class Key, class T, class H, class E>
 class hash_map : public google::dense_hash_map<Key, T, H, E> {
 public:
 	explicit hash_map() : google::dense_hash_map<Key, T, H, E>() { this->set_empty_key(-1); }
-
 	inline void reserve(size_t hint) { this->resize(hint); }
 };
 #else
@@ -70,7 +72,9 @@ typedef float value_t;
 typedef int64_t index_t;
 typedef uint16_t coefficient_t;
 
+#ifdef INDICATE_PROGRESS
 static const std::chrono::milliseconds time_step(40);
+#endif
 
 static const std::string clear_line("\r\033[K");
 
@@ -147,7 +151,6 @@ index_t get_index(const entry_t& e) { return e.index; }
 index_t get_coefficient(const entry_t& e) { return e.coefficient; }
 void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
 
-
 std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
 	stream << get_index(e) << ":" << get_coefficient(e);
 	return stream;
@@ -218,8 +221,8 @@ template <compressed_matrix_layout Layout> struct compressed_distance_matrix {
 	    : distances(mat.size() * (mat.size() - 1) / 2), rows(mat.size()) {
 		init_rows();
 
-		for (index_t i = 1; i < size(); ++i)
-			for (index_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
+		for (size_t i = 1; i < size(); ++i)
+			for (size_t j = 0; j < i; ++j) rows[i][j] = mat(i, j);
 	}
 
 	value_t operator()(const index_t i, const index_t j) const;
@@ -232,7 +235,7 @@ typedef compressed_distance_matrix<UPPER_TRIANGULAR> compressed_upper_distance_m
 
 template <> void compressed_lower_distance_matrix::init_rows() {
 	value_t* pointer = &distances[0];
-	for (index_t i = 1; i < size(); ++i) {
+	for (size_t i = 1; i < size(); ++i) {
 		rows[i] = pointer;
 		pointer += i;
 	}
@@ -240,7 +243,7 @@ template <> void compressed_lower_distance_matrix::init_rows() {
 
 template <> void compressed_upper_distance_matrix::init_rows() {
 	value_t* pointer = &distances[0] - 1;
-	for (index_t i = 0; i < size() - 1; ++i) {
+	for (size_t i = 0; i < size() - 1; ++i) {
 		rows[i] = pointer;
 		pointer += size() - i - 2;
 	}
@@ -272,8 +275,8 @@ struct sparse_distance_matrix {
 	sparse_distance_matrix(const DistanceMatrix& mat, const value_t threshold)
 	    : neighbors(mat.size()), num_edges(0) {
 
-		for (index_t i = 0; i < size(); ++i)
-			for (index_t j = 0; j < size(); ++j)
+		for (size_t i = 0; i < size(); ++i)
+			for (size_t j = 0; j < size(); ++j)
 				if (i != j && mat(i, j) <= threshold) {
 					++num_edges;
 					neighbors[i].push_back({j, mat(i, j)});
@@ -393,25 +396,26 @@ class ripser {
 	coefficient_t modulus;
 	const binomial_coeff_table binomial_coeff;
 	const std::vector<coefficient_t> multiplicative_inverse;
-	mutable std::vector<diameter_entry_t> coface_entries;
-	
+	mutable std::vector<diameter_entry_t> cofacet_entries;
+
 	struct entry_hash {
-		std::size_t operator()(const entry_t& e) const { return std::hash<index_t>()(::get_index(e)); }
+		std::size_t operator()(const entry_t& e) const {
+			return std::hash<index_t>()(::get_index(e));
+		}
 	};
-	
+
 	struct equal_index {
 		bool operator()(const entry_t& e, const entry_t& f) const {
 			return ::get_index(e) == ::get_index(f);
 		}
 	};
-	
-	typedef hash_map<entry_t, index_t, entry_hash, equal_index> entry_hash_map;
 
+	typedef hash_map<entry_t, size_t, entry_hash, equal_index> entry_hash_map;
 
 public:
     ripser(std::vector<std::unordered_map<index_t, value_t>>&& _filtration, index_t _n, index_t _dim_max, value_t _threshold,
 	       float _ratio, coefficient_t _modulus)
-	    : filtration(std::move(_filtration)), dim_max(_dim_max), n(_n), threshold(_threshold),
+	    : filtration(std::move(_filtration)), n(_n), dim_max(_dim_max), threshold(_threshold),
 	      ratio(_ratio), modulus(_modulus), binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 	
@@ -454,8 +458,8 @@ public:
 		simplex_boundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
 									const ripser& _parent)
 		: idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1),
-		vertices(_dim + 1), simplex(_simplex), modulus(_parent.modulus),
-		binomial_coeff(_parent.binomial_coeff), face_dim(_dim - 1), parent(_parent) {
+		face_dim(_dim - 1), vertices(_dim + 1),  simplex(_simplex), modulus(_parent.modulus),
+		binomial_coeff(_parent.binomial_coeff), parent(_parent) {
 			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
 		}
 		
@@ -538,79 +542,74 @@ public:
 			if (get_coefficient(pivot) == 0)
 				pivot = column.top();
 			else if (get_index(column.top()) != get_index(pivot))
-				break;
+				return pivot;
 			else
 				set_coefficient(pivot,
-								(get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
+				                (get_coefficient(pivot) + get_coefficient(column.top())) % modulus);
 			column.pop();
 		}
-		if (get_coefficient(pivot) == 0) pivot = -1;
+		return (get_coefficient(pivot) == 0) ? -1 : pivot;
 #else
 		while (!column.empty()) {
 			pivot = column.top();
 			column.pop();
-			if (!column.empty()) {
-				if (get_index(column.top()) != get_index(pivot)) return pivot;
-				column.pop();
-			}
+			if (column.empty() || get_index(column.top()) != get_index(pivot)) return pivot;
+			column.pop();
 		}
-		pivot = -1;
+		return -1;
 #endif
-		return pivot;
 	}
-	
+
 	template <typename Column> diameter_entry_t get_pivot(Column& column) {
 		diameter_entry_t result = pop_pivot(column);
 		if (get_index(result) != -1) column.push(result);
 		return result;
 	}
-	
+
 	template <typename Column>
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
 		bool check_for_emergent_pair = true;
-		coface_entries.clear();
-		simplex_boundary_enumerator cofaces(simplex, dim, *this);
-		while (cofaces.has_next()) {
-			diameter_entry_t coface = cofaces.next();
-			if (get_diameter(coface) <= threshold) {
-				coface_entries.push_back(coface);
-				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(coface))) {
-					if (pivot_column_index.find(get_entry(coface)) == pivot_column_index.end())
-						return coface;
+		cofacet_entries.clear();
+		simplex_boundary_enumerator cofacets(simplex, dim, *this);
+		while (cofacets.has_next()) {
+			diameter_entry_t cofacet = cofacets.next();
+			if (get_diameter(cofacet) <= threshold) {
+				cofacet_entries.push_back(cofacet);
+				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(cofacet))) {
+					if (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
+						return cofacet;
 					check_for_emergent_pair = false;
 				}
 			}
 		}
-		for (auto coface : coface_entries) working_coboundary.push(coface);
+		for (auto cofacet : cofacet_entries) working_coboundary.push(cofacet);
 		return get_pivot(working_coboundary);
 	}
 
 	template <typename Column>
-	void add_coboundary(const diameter_entry_t simplex, Column& working_reduction_column,
-	                    Column& working_coboundary, const index_t& dim) {
+	void add_simplex_coboundary(const diameter_entry_t simplex, const index_t& dim,
+	                            Column& working_reduction_column, Column& working_coboundary) {
 		working_reduction_column.push(simplex);
-		simplex_boundary_enumerator cofaces(simplex, dim, *this);
-		while (cofaces.has_next()) {
-			diameter_entry_t coface = cofaces.next();
-			if (get_diameter(coface) <= threshold) working_coboundary.push(coface);
+		simplex_boundary_enumerator cofacets(simplex, dim, *this);
+		while (cofacets.has_next()) {
+			diameter_entry_t cofacet = cofacets.next();
+			if (get_diameter(cofacet) <= threshold) working_coboundary.push(cofacet);
 		}
 	}
 
 	template <typename Column>
 	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
-	                    const index_t index_column_to_add, const coefficient_t factor,
-	                    Column& working_reduction_column, Column& working_coboundary,
-	                    const index_t& dim) {
+	                    const size_t index_column_to_add, const coefficient_t factor, const size_t& dim,
+	                    Column& working_reduction_column, Column& working_coboundary) {
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
-		add_coboundary(column_to_add, working_reduction_column, working_coboundary, dim);
+		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
-		for (auto simplex : reduction_matrix.subrange(index_column_to_add)) {
+		for (diameter_entry_t simplex : reduction_matrix.subrange(index_column_to_add)) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
-			working_reduction_column.push(simplex);
-			add_coboundary(simplex, working_reduction_column, working_coboundary, dim);
+			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
 		}
 	}
 
@@ -623,9 +622,10 @@ public:
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
 
+#ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
-
-		for (index_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
+#endif
+		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
 
 			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
@@ -660,7 +660,7 @@ public:
 						                  modulus;
 
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-						               factor, working_reduction_column, working_coboundary, dim);
+						               factor, dim, working_reduction_column, working_coboundary);
 
 						pivot = get_pivot(working_coboundary);
 					} else {
@@ -784,12 +784,13 @@ void print_usage_and_exit(int exit_code) {
 	    << "Options:" << std::endl
 	    << std::endl
 	    << "  --help           print this screen" << std::endl
-	    << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
+	    << "  --threshold <t>  compute homology up to filtration value <t>" << std::endl
 #ifdef USE_COEFFICIENTS
 	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ"
-#endif
 	    << std::endl
-	    << "  --ratio <r>      only show persistence pairs with death/birth ratio > r" << std::endl;
+#endif
+	    << "  --ratio <r>      only show persistence pairs with death/birth ratio > r" << std::endl
+	    << std::endl;
 	exit(exit_code);
 }
 
@@ -828,8 +829,6 @@ std::vector<std::unordered_map<index_t, value_t>> read_file(std::istream& input_
 #include <iostream>
 
 int main(int argc, const char* argv[]) {
-	// insert code here...
-	// std::cout << "We are here" << std::endl;
 
 	const char* filename = nullptr;
 
