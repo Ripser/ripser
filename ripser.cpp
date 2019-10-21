@@ -594,7 +594,7 @@ public:
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
-		bool check_for_emergent_pair = true;
+		bool check_for_emergent_pair = false;
 		cofacet_entries.clear();
 		simplex_boundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -688,7 +688,7 @@ public:
 
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    smaller_diameter_or_greater_index<diameter_entry_t>>
-			    working_reduction_column, working_coboundary;
+			    working_reduction_column, working_coboundary, final_coboundary;
 
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
@@ -708,45 +708,56 @@ public:
 						entry_t other_pivot = pair->first;
 						index_t index_column_to_add = pair->second;
 						coefficient_t factor =
-						    modulus - get_coefficient(pivot) *
-						                  multiplicative_inverse[get_coefficient(other_pivot)] %
-						                  modulus;
-
+						modulus - get_coefficient(pivot) *
+						multiplicative_inverse[get_coefficient(other_pivot)] %
+						modulus;
+						
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-						               factor, dim, working_reduction_column, working_coboundary);
-
+									   factor, dim, working_reduction_column, working_coboundary);
+						
 						pivot = get_pivot(working_coboundary);
 					} else {
+						if (final_coboundary.empty()) {
+							pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
+							
+							while (true) {
+								diameter_entry_t e = pop_pivot(working_reduction_column);
+								if (get_index(e) == -1) break;
+								assert(get_coefficient(e) > 0);
+								reduction_matrix.push_back(e);
+							}
+
+							value_t birth = get_diameter(pivot);
+							if (birth * ratio >= diameter) break;
+
+						}
+						
+						final_coboundary.push(pop_pivot(working_coboundary));
+						pivot = get_pivot(working_coboundary);
+					}
+				} else {
+					if (final_coboundary.empty()) {
 #ifdef PRINT_PERSISTENCE_PAIRS
+#ifdef INDICATE_PROGRESS
+						std::cerr << clear_line << std::flush;
+#endif
+						std::cout << "+[" << diameter << ", ):  ";
+						print_chain(working_reduction_column, dim);
+#endif
+						
+					} else {
+						pivot = get_pivot(final_coboundary);
 						value_t birth = get_diameter(pivot);
 						if (birth * ratio < diameter) {
 #ifdef INDICATE_PROGRESS
 							std::cerr << clear_line << std::flush;
 #endif
 							std::cout << " [" << birth << "," << diameter << "):  ";
-							
-							auto cycle = working_coboundary;
-							print_chain(cycle, dim - 1);
+							print_chain(final_coboundary, dim - 1);
 						}
-#endif
-						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 
-						while (true) {
-							diameter_entry_t e = pop_pivot(working_reduction_column);
-							if (get_index(e) == -1) break;
-							assert(get_coefficient(e) > 0);
-							reduction_matrix.push_back(e);
-						}
-						break;
+						
 					}
-				} else {
-#ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-					std::cerr << clear_line << std::flush;
-#endif
-					std::cout << "+[" << diameter << ", ):  ";
-					print_chain(working_reduction_column, dim);
-#endif
 					break;
 				}
 			}
