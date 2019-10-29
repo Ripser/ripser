@@ -36,7 +36,7 @@
 
 */
 
-//#define USE_COEFFICIENTS
+#define USE_COEFFICIENTS
 
 #define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
@@ -70,7 +70,7 @@ class hash_map : public std::unordered_map<Key, T, H, E> {};
 
 typedef float value_t;
 typedef __int128_t index_t;
-typedef uint16_t coefficient_t;
+typedef int16_t coefficient_t;
 
 std::ostream& operator<<(std::ostream& stream, const __int128_t& i) {
 	stream << (size_t)(i);
@@ -90,10 +90,10 @@ static const std::chrono::milliseconds time_step(40);
 
 static const std::string clear_line("\r\033[K");
 
-//static const size_t num_coefficient_bits = 8;
-//
-//static const index_t max_simplex_index =
-//    (1l << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
+static const size_t num_coefficient_bits = 8;
+
+static const index_t max_simplex_index =
+    (index_t(1) << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
 
 void check_overflow(index_t i) {
 	if
@@ -143,6 +143,10 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 	// 0 = inverse(m % a) * (m / a) + inverse(a)  (mod m)
 	for (coefficient_t a = 2; a < m; ++a) inverse[a] = m - (inverse[m % a] * (m / a)) % m;
 	return inverse;
+}
+
+coefficient_t normalize(const coefficient_t n, const coefficient_t modulus) {
+	return n > modulus / 2 ? n - modulus : n;
 }
 
 #ifdef USE_COEFFICIENTS
@@ -658,11 +662,40 @@ public:
 #ifdef USE_COEFFICIENTS
 			if (modulus != 2) std::cout << ":" << normalize(get_coefficient(e), modulus);
 #endif
+			std::cout << " (" << get_diameter(e) << ")";
+			
 			cycle.pop();
 			if (get_index(e = get_pivot(cycle)) != -1)
-				std::cout << ", ";
+				std::cout << ", " << std::endl;
 		}
 		std::cout << "}" << std::endl;
+		
+	}
+	
+	template<typename Chain>
+	void print_chain_ply(Chain& cycle, index_t dim) {
+		diameter_entry_t e;
+		
+		
+		std::cout << std::endl;
+		while (get_index(e = get_pivot(cycle)) != -1) {
+			vertices.resize(dim + 1);
+			get_simplex_vertices(get_index(e), dim, n,
+								 vertices.rbegin());
+			
+			if (get_coefficient(e) != 1) std::reverse(vertices.begin(), vertices.end());
+			std::cout << dim + 1 << " ";
+			auto it = vertices.begin();
+			if (it != vertices.end()) {
+				std::cout << *it++;
+				while (it != vertices.end()) std::cout << " " << *it++;
+			}
+
+			cycle.pop();
+			if (get_index(e = get_pivot(cycle)) != -1)
+				std::cout << std::endl;
+		}
+		std::cout << std::endl << std::endl;
 		
 	}
 	
@@ -720,8 +753,9 @@ public:
 						if (final_coboundary.empty()) {
 							pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 							
+							auto working_reduction_column_copy = working_reduction_column;
 							while (true) {
-								diameter_entry_t e = pop_pivot(working_reduction_column);
+								diameter_entry_t e = pop_pivot(working_reduction_column_copy);
 								if (get_index(e) == -1) break;
 								assert(get_coefficient(e) > 0);
 								reduction_matrix.push_back(e);
@@ -736,13 +770,14 @@ public:
 						pivot = get_pivot(working_coboundary);
 					}
 				} else {
+					working_reduction_column.push(column_to_reduce);
 					if (final_coboundary.empty()) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 #ifdef INDICATE_PROGRESS
 						std::cerr << clear_line << std::flush;
 #endif
 						std::cout << "+[" << diameter << ", ):  ";
-						print_chain(working_reduction_column, dim);
+						print_chain_ply(working_reduction_column, dim);
 #endif
 						
 					} else {
@@ -753,7 +788,8 @@ public:
 							std::cerr << clear_line << std::flush;
 #endif
 							std::cout << " [" << birth << "," << diameter << "):  ";
-							print_chain(final_coboundary, dim - 1);
+//							print_chain(working_reduction_column, dim);
+							print_chain_ply(final_coboundary, dim - 1);
 						}
 
 						
@@ -775,7 +811,7 @@ public:
 		entry_hash_map pivot_column_index;
 
 
-		for (index_t dim = dim_max; dim > 1; --dim) {
+		for (index_t dim = dim_max; dim > dim_max - 1; --dim) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, dim);
 			
 			pivot_column_index = entry_hash_map();
@@ -784,7 +820,7 @@ public:
 			compute_pairs(columns_to_reduce, pivot_column_index, dim);
 		}
 
-		compute_dim_0_pairs(columns_to_reduce);
+//		compute_dim_0_pairs(columns_to_reduce);
 
 	}
 };
@@ -805,7 +841,7 @@ void ripser::assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_t
 	columns_to_reduce.clear();
 	
 #ifdef INDICATE_PROGRESS
-	std::cout << "\033[K"
+	std::cout << clear_line
 	<< "assembling " << filtration[dim].size() << " columns" << std::flush << "\n";
 #endif
 	
@@ -817,23 +853,22 @@ void ripser::assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_t
 				columns_to_reduce.push_back(std::make_pair(diameter, index));
 #ifdef INDICATE_PROGRESS
 			if ((index + 1) % 1000000 == 0)
-				std::cout << "\033[K"
+				std::cout << clear_line
 				<< "assembled " << columns_to_reduce.size() << " out of "
-				<< (index + 1) << "/" << filtration[dim].size() << " columns" << std::flush
-				<< "\n";
+				<< filtration[dim].size() << " columns" << std::flush;
 #endif
 		}
 	}
 	
 #ifdef INDICATE_PROGRESS
 	std::cout << "\033[K"
-	<< "sorting " << columns_to_reduce.size() << " columns" << std::flush << "\n";
+	<< "sorting " << columns_to_reduce.size() << " columns" << std::flush;
 #endif
 	
 	std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 			  smaller_diameter_or_greater_index<diameter_index_t>());
 #ifdef INDICATE_PROGRESS
-	std::cout << "\033[K";
+	std::cout << clear_line;
 #endif
 }
 
