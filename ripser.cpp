@@ -616,9 +616,9 @@ public:
 		return get_pivot(working_coboundary);
 	}
 
-	template <typename Column>
+	template <typename ColV, typename ColR>
 	void add_simplex_coboundary(const diameter_entry_t simplex, const index_t& dim,
-	                            Column& working_reduction_column, Column& working_coboundary) {
+	                            ColV& working_reduction_column, ColR& working_coboundary) {
 		working_reduction_column.push(simplex);
 		simplex_boundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -627,11 +627,11 @@ public:
 		}
 	}
 
-	template <typename Column>
+	template <typename ColV, typename ColR>
 	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
 	                    const size_t index_column_to_add, const coefficient_t factor, const size_t& dim,
-	                    Column& working_reduction_column, Column& working_coboundary) {
+	                    ColV& working_reduction_column, ColR& working_coboundary) {
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
 		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
@@ -652,17 +652,17 @@ public:
 			get_simplex_vertices(get_index(e), dim, n,
 								 vertices.rbegin());
 			
-			std::cout << "[";
+			std::cout << "{";
 			auto it = vertices.begin();
 			if (it != vertices.end()) {
 				std::cout << *it++;
 				while (it != vertices.end()) std::cout << "," << *it++;
 			}
-			std::cout << "]";
+			std::cout << "}";
 #ifdef USE_COEFFICIENTS
 			if (modulus != 2) std::cout << ":" << normalize(get_coefficient(e), modulus);
 #endif
-			std::cout << " (" << get_diameter(e) << ")";
+//			std::cout << " (" << get_diameter(e) << ")";
 			
 			cycle.pop();
 			if (get_index(e = get_pivot(cycle)) != -1)
@@ -699,6 +699,14 @@ public:
 		
 	}
 	
+	template <class T>
+	class vector_stack : public std::stack<T> {
+	public:
+		typename std::stack<T>::container_type& container() {
+			return this->c;
+		}
+	};
+	
 	void compute_pairs(const std::vector<diameter_index_t>& columns_to_reduce,
 	                   entry_hash_map& pivot_column_index, const index_t dim) {
 
@@ -721,7 +729,9 @@ public:
 
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    smaller_diameter_or_greater_index<diameter_entry_t>>
-			    working_reduction_column, working_coboundary, final_coboundary;
+			    working_coboundary, final_coboundary;
+			
+			vector_stack<diameter_entry_t> working_reduction_column;
 
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
@@ -770,7 +780,7 @@ public:
 						pivot = get_pivot(working_coboundary);
 					}
 				} else {
-					working_reduction_column.push(column_to_reduce);
+					working_reduction_column.container().push_front(column_to_reduce);
 					if (final_coboundary.empty()) {
 #ifdef PRINT_PERSISTENCE_PAIRS
 #ifdef INDICATE_PROGRESS
@@ -788,8 +798,8 @@ public:
 							std::cerr << clear_line << std::flush;
 #endif
 							std::cout << " [" << birth << "," << diameter << "):  ";
-//							print_chain(working_reduction_column, dim);
-							print_chain_ply(final_coboundary, dim - 1);
+							print_chain(working_reduction_column, dim);
+//							print_chain_ply(final_coboundary, dim - 1);
 						}
 
 						
