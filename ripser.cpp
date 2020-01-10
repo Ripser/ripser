@@ -836,7 +836,7 @@ static const bool is_big_endian = *reinterpret_cast<const uint8_t*>(&endian_chec
 template <typename T> T read(std::istream& input_stream) {
 	T result;
 	char* p = reinterpret_cast<char*>(&result);
-	if (input_stream.read(p, sizeof(T)) != sizeof(T) return T();
+	if (input_stream.read(p, sizeof(T)).gcount() != sizeof(T)) return T();
 	if (is_big_endian) std::reverse(p, p + sizeof(T));
 	return result;
 }
