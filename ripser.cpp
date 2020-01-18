@@ -729,9 +729,9 @@ public:
 
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    smaller_diameter_or_greater_index<diameter_entry_t>>
-			    working_coboundary, final_coboundary;
+			    working_coboundary;
 			
-			vector_stack<diameter_entry_t> working_reduction_column;
+			vector_stack<diameter_entry_t> working_reduction_column, final_coboundary;
 
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
@@ -763,16 +763,14 @@ public:
 						if (final_coboundary.empty()) {
 							pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 							
-							auto working_reduction_column_copy = working_reduction_column;
-							while (true) {
-								diameter_entry_t e = pop_pivot(working_reduction_column_copy);
-								if (get_index(e) == -1) break;
-								assert(get_coefficient(e) > 0);
-								reduction_matrix.push_back(e);
-							}
+
 
 							value_t birth = get_diameter(pivot);
 							if (birth * ratio >= diameter) break;
+							
+							std::cout << " [" << birth << "," << diameter << ")  (non-exhaustive): " << std::endl;
+							auto working_reduction_column_copy(working_reduction_column);
+							print_chain(working_reduction_column_copy, dim);
 
 						}
 						
@@ -780,8 +778,9 @@ public:
 						pivot = get_pivot(working_coboundary);
 					}
 				} else {
-					working_reduction_column.container().push_front(column_to_reduce);
 					if (final_coboundary.empty()) {
+						working_reduction_column.container().push_front(column_to_reduce);
+
 #ifdef PRINT_PERSISTENCE_PAIRS
 #ifdef INDICATE_PROGRESS
 						std::cerr << clear_line << std::flush;
@@ -793,11 +792,17 @@ public:
 					} else {
 						pivot = get_pivot(final_coboundary);
 						value_t birth = get_diameter(pivot);
+						
+						for (diameter_entry_t e: working_reduction_column.container())
+							reduction_matrix.push_back(e);
+						
+						working_reduction_column.container().push_front(column_to_reduce);
+
 						if (birth * ratio < diameter) {
 #ifdef INDICATE_PROGRESS
 							std::cerr << clear_line << std::flush;
 #endif
-							std::cout << " [" << birth << "," << diameter << "):  ";
+							std::cout << " [" << birth << "," << diameter << ")  (exhaustive): " << std::endl;
 							print_chain(working_reduction_column, dim);
 //							print_chain_ply(final_coboundary, dim - 1);
 						}
