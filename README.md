@@ -79,7 +79,7 @@ The input is given either in a file whose name is passed as an argument, or thro
     - `distance`: full distance matrix; similar to the above, but for all entries of the distance matrix. One line per row of the matrix; only the part below the diagonal is actually read.
     - `dipha`: DIPHA distance matrix as described on the [DIPHA] website.
     - `point-cloud`: point cloud; a comma (or whitespace, or other non-numerical character) separated list of coordinates of the points in some Euclidean space, one point per line.
-    - `binary`: lower distance matrix in binary file format; a sequence of the distance matrix entries below the diagonal in 64 bit double format (IEEE 754, little endian).
+    - `binary`: lower distance matrix in binary file format; a sequence of the distance matrix entries below the diagonal in 32 bit double format (IEEE 754, little endian).
     - `sparse`: sparse triplet format; a whitespace separated list of entries of a sparse distance matrix, one entry per line, each of the form *i j d(i,j)* specifying the distance between points *i* and *j*.  Each pair of points should appear in the file at most once.
   - `--dim k`: compute persistent homology up to dimension *k*.
   - `--threshold t`: compute Rips complexes up to diameter *t*.
