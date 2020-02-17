@@ -642,7 +642,7 @@ public:
 	}
 
 	template<typename Chain>
-	void print_chain(Chain& cycle, index_t dim) {
+	void print_chain(Chain cycle, index_t dim) {
 		diameter_entry_t e;
 		
 		
@@ -786,7 +786,7 @@ public:
 						std::cerr << clear_line << std::flush;
 #endif
 						std::cout << "+[" << diameter << ", ):  ";
-						print_chain_ply(working_reduction_column, dim);
+						print_chain(working_reduction_column, dim);
 #endif
 						
 					} else {
