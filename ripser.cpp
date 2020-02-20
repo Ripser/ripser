@@ -38,7 +38,7 @@
 
 #define USE_COEFFICIENTS
 
-//#define INDICATE_PROGRESS
+#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
@@ -494,8 +494,8 @@ public:
 	diameter_entry_t get_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
 		simplex_boundary_enumerator facets(simplex, dim, *this);
 		
-		std::vector<index_t> simplex_vertices;
-		get_simplex_vertices(get_index(simplex), dim, n, std::back_inserter(simplex_vertices));
+//		std::vector<index_t> simplex_vertices;
+//		get_simplex_vertices(get_index(simplex), dim, n, std::back_inserter(simplex_vertices));
 		
 		while (facets.has_next()) {
 			diameter_entry_t facet = facets.next();
@@ -514,6 +514,38 @@ public:
 
 					if (get_diameter(cofacet) == get_diameter(simplex)) {
 						if (get_index(cofacet) == get_index(simplex)) return facet;
+						break;
+					}
+				}
+				break;
+			}
+		}
+		return std::make_pair(0,-1);
+	}
+	
+	diameter_entry_t get_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
+		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
+		
+//		std::vector<index_t> simplex_vertices;
+//		get_simplex_vertices(get_index(simplex), dim, n, std::back_inserter(simplex_vertices));
+		
+		while (cofacets.has_next()) {
+			diameter_entry_t cofacet = cofacets.next();
+			
+			//			std::vector<index_t> facet_vertices;
+			//			get_simplex_vertices(get_index(facet), dim - 1, n, std::back_inserter(facet_vertices));
+			
+			if (get_diameter(cofacet) == get_diameter(simplex)) {
+				simplex_coboundary_enumerator facets(cofacet, dim + 1, *this);
+				
+				while (cofacets.has_next()) {
+					auto facet = cofacets.next();
+					
+					//					std::vector<index_t> cofacet_vertices;
+					//					get_simplex_vertices(get_index(cofacet), dim, n, std::back_inserter(cofacet_vertices));
+					
+					if (get_diameter(facet) == get_diameter(simplex)) {
+						if (get_index(facet) == get_index(simplex)) return cofacet;
 						break;
 					}
 				}
@@ -554,7 +586,7 @@ public:
 					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
 
 					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
-//					&& (get_index(get_apparent_facet(cofacet, dim + 1)) == -1)
+					&& (get_index(get_apparent_facet(cofacet, dim + 1)) == -1)
 						)
 						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
 				}
@@ -565,7 +597,7 @@ public:
 
 #ifdef INDICATE_PROGRESS
 		std::cerr << clear_line << "sorting " << columns_to_reduce.size() << " columns"
-		          << std::flush;
+		          << std::endl;
 #endif
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
@@ -717,7 +749,7 @@ public:
 			if ((get_index(check) != -1) && (get_index(column_to_reduce) == get_index(check))) {
 					
 					
-				pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
+//				pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 					
 				continue;
 				
@@ -737,11 +769,17 @@ public:
 					
 					if (get_index(check) != -1) {
 						
+						if (get_index(check) == get_index(column_to_reduce))
+							std::cerr << "apparent pair found in cols to reduce" << std::endl;
+						
 						auto pair = pivot_column_index.find(get_entry(pivot));
 						if (pair != pivot_column_index.end()) {
+							std::cerr << "apparent pair found in hash table" << std::endl;
 
 							index_t index_column_to_add = pair->second;
 							if (get_index(check) != get_index(columns_to_reduce[index_column_to_add])) std::cerr << "pivot mismatch " << get_index(check) << " != " << get_index(columns_to_reduce[index_column_to_add]) << std::endl;
+						} else {
+//							std::cerr << "apparent pair missing from hash table" << std::endl;
 						}
 							
 						set_coefficient(check, modulus - get_coefficient(check));
