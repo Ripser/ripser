@@ -526,23 +526,23 @@ public:
 	diameter_entry_t get_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
 		
-//		std::vector<index_t> simplex_vertices;
-//		get_simplex_vertices(get_index(simplex), dim, n, std::back_inserter(simplex_vertices));
+		std::vector<index_t> simplex_vertices;
+		get_simplex_vertices(get_index(simplex), dim, n, std::back_inserter(simplex_vertices));
 		
 		while (cofacets.has_next()) {
 			diameter_entry_t cofacet = cofacets.next();
 			
-			//			std::vector<index_t> facet_vertices;
-			//			get_simplex_vertices(get_index(facet), dim - 1, n, std::back_inserter(facet_vertices));
+			std::vector<index_t> cofacet_vertices;
+			get_simplex_vertices(get_index(cofacet), dim + 1, n, std::back_inserter(cofacet_vertices));
 			
 			if (get_diameter(cofacet) == get_diameter(simplex)) {
-				simplex_coboundary_enumerator facets(cofacet, dim + 1, *this);
+				simplex_boundary_enumerator facets(cofacet, dim + 1, *this);
 				
-				while (cofacets.has_next()) {
-					auto facet = cofacets.next();
+				while (facets.has_next()) {
+					auto facet = facets.next();
 					
-					//					std::vector<index_t> cofacet_vertices;
-					//					get_simplex_vertices(get_index(cofacet), dim, n, std::back_inserter(cofacet_vertices));
+					std::vector<index_t> facet_vertices;
+					get_simplex_vertices(get_index(facet), dim, n, std::back_inserter(facet_vertices));
 					
 					if (get_diameter(facet) == get_diameter(simplex)) {
 						if (get_index(facet) == get_index(simplex)) return cofacet;
@@ -586,6 +586,7 @@ public:
 					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
 
 					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
+					&& (get_index(get_apparent_cofacet(cofacet, dim + 1)) == -1)
 					&& (get_index(get_apparent_facet(cofacet, dim + 1)) == -1)
 						)
 						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
@@ -746,10 +747,26 @@ public:
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
 
 			auto check = get_apparent_facet(pivot, dim + 1);
-			if ((get_index(check) != -1) && (get_index(column_to_reduce) == get_index(check))) {
+			if ((get_index(check) != -1)) {
 					
+				if  (get_index(column_to_reduce) == get_index(check)) {
+//					std::cerr << "pivot match " << get_index(check) << " == " << get_index(column_to_reduce) << std::endl;
+				
+					auto check2 = get_apparent_cofacet(check, dim);
 					
+					if  (get_index(pivot) != get_index(check2)) {
+						std::cerr << "pivot mismatch " << get_index(pivot) << " != " << get_index(check2) << std::endl;
+					}
+				}
+				
 //				pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
+				
+			}
+			
+			if ((get_index(check) != -1) && (get_index(column_to_reduce) == get_index(check))) {
+				
+				
+				//				pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 					
 				continue;
 				
