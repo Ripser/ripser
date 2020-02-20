@@ -643,7 +643,7 @@ public:
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
-		bool check_for_emergent_pair = true;
+		bool check_for_emergent_pair = false;
 		cofacet_entries.clear();
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -713,12 +713,10 @@ public:
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
 
-			if (working_coboundary.size() == 0) {
-				
-				auto check = get_apparent_facet(pivot, dim + 1);
-				if ((get_index(check) != -1) && (get_index(column_to_reduce) != get_index(check)))
-					std::cerr << "pivot mismatch " << get_index(column_to_reduce) << std::endl;
-				
+			auto check = get_apparent_facet(pivot, dim + 1);
+			if ((get_index(check) != -1) && (get_index(column_to_reduce) == get_index(check))) {
+					
+					
 				pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 					
 				continue;
