@@ -742,34 +742,32 @@ public:
 				}
 #endif
 				if (get_index(pivot) != -1) {
-					auto check = get_apparent_facet(pivot, dim + 1);
-					
-					if (get_index(check) != -1) {
-							
-						set_coefficient(check, modulus - get_coefficient(check));
+					auto pair = pivot_column_index.find(get_entry(pivot));
+					if (pair != pivot_column_index.end()) {
+						entry_t other_pivot = pair->first;
+						index_t index_column_to_add = pair->second;
 
-						add_simplex_coboundary(check, dim, working_reduction_column, working_coboundary);
+						coefficient_t factor =
+						    modulus - get_coefficient(pivot) *
+						                  multiplicative_inverse[get_coefficient(other_pivot)] %
+						                  modulus;
+
+						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
+						               factor, dim, working_reduction_column, working_coboundary);
 
 						pivot = get_pivot(working_coboundary);
+					} else {
+						auto check = get_apparent_facet(pivot, dim + 1);
 
-					}
-					else
-					{
+						if (get_index(check) != -1) {
 
-						auto pair = pivot_column_index.find(get_entry(pivot));
-						if (pair != pivot_column_index.end()) {
-							entry_t other_pivot = pair->first;
-							index_t index_column_to_add = pair->second;
-							
-							coefficient_t factor =
-							modulus - get_coefficient(pivot) *
-							multiplicative_inverse[get_coefficient(other_pivot)] %
-							modulus;
-							
-							add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-										   factor, dim, working_reduction_column, working_coboundary);
-							
+							set_coefficient(check, modulus - get_coefficient(check));
+
+							add_simplex_coboundary(check, dim, working_reduction_column,
+							                       working_coboundary);
+
 							pivot = get_pivot(working_coboundary);
+
 						} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 							value_t death = get_diameter(pivot);
