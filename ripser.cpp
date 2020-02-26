@@ -338,28 +338,26 @@ template <typename T> T begin(std::pair<T, T>& p) { return p.first; }
 template <typename T> T end(std::pair<T, T>& p) { return p.second; }
 
 template <typename ValueType> class compressed_sparse_matrix {
-	std::vector<size_t> bounds;
-	std::vector<ValueType> entries;
+    std::vector<std::vector<ValueType>> columns;
 
-	typedef typename std::vector<ValueType>::iterator iterator;
-	typedef std::pair<iterator, iterator> iterator_pair;
+    typedef typename std::vector<ValueType>::iterator iterator;
+    typedef std::pair<iterator, iterator> iterator_pair;
 
 public:
-	size_t size() const { return bounds.size(); }
+    size_t size() const { return columns.size(); }
 
-	iterator_pair subrange(const index_t index) {
-		return {entries.begin() + (index == 0 ? 0 : bounds[index - 1]),
-		        entries.begin() + bounds[index]};
-	}
+    iterator_pair subrange(const index_t index) {
+        return { columns[index].begin(), columns[index].end() };
+    }
 
-	void append_column() { bounds.push_back(entries.size()); }
+    void append_column() { columns.emplace_back(); }
 
-	void push_back(const ValueType e) {
-		assert(0 < size());
-		entries.push_back(e);
-		++bounds.back();
-	}
+    void push_back(const ValueType e) {
+        assert(0 < size());
+        columns.back().push_back(e);
+    }
 };
+
 
 template <class Predicate>
 index_t get_max(index_t top, const index_t bottom, const Predicate pred) {
