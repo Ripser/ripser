@@ -41,6 +41,8 @@
 //#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
+#define USE_DENSE_PIVOTS
+
 //#define USE_GOOGLE_HASHMAP
 
 #include <algorithm>
@@ -61,6 +63,22 @@ class hash_map : public google::dense_hash_map<Key, T, H, E> {
 public:
 	explicit hash_map() : google::dense_hash_map<Key, T, H, E>() { this->set_empty_key(-1); }
 	inline void reserve(size_t hint) { this->resize(hint); }
+};
+#elif defined(USE_DENSE_PIVOTS)
+// Dense vector-backed hash map is here to allow concurrent access.
+// It works fine, but requires a lot more memory than necessary.
+// TODO: It's a temporary solution that should be replaced by a proper concurrent_hash_map.
+template<class Key, class T, class H, class E>
+class hash_map: public std::vector<T>
+{
+public:
+	using typename std::vector<T>::const_iterator;
+
+	constexpr T dummy() { return static_cast<T>(-1); }
+
+	inline void             reserve(size_t hint)            { this->resize(hint, dummy()); }
+	inline const_iterator   find(Key x) const               { auto it = this->begin() + x; if (*it == dummy()) return this->end(); else return it; }
+	inline void             insert(std::pair<Key,T> kv)     { (*this)[kv.first] = kv.second; }
 };
 #else
 template <class Key, class T, class H, class E>
@@ -627,10 +645,12 @@ public:
 				}
 #endif
 				if (get_index(pivot) != -1) {
-					auto pair = pivot_column_index.find(get_entry(pivot));
-					if (pair != pivot_column_index.end()) {
-						entry_t other_pivot = pair->first;
-						index_t index_column_to_add = pair->second;
+					auto it = pivot_column_index.find(get_entry(pivot));
+					if (it != pivot_column_index.end()) {
+						//entry_t other_pivot = pair->first;
+						//index_t index_column_to_add = pair->second;
+                        entry_t other_pivot = get_entry(pivot);
+                        index_t index_column_to_add = *it;
 						coefficient_t factor =
 						    modulus - get_coefficient(pivot) *
 						                  multiplicative_inverse[get_coefficient(other_pivot)] %
@@ -685,7 +705,11 @@ public:
 
 		for (index_t dim = 1; dim <= dim_max; ++dim) {
 			entry_hash_map pivot_column_index;
-			pivot_column_index.reserve(columns_to_reduce.size());
+			//pivot_column_index.reserve(columns_to_reduce.size());
+			// Temporary for dense concurrent storage.
+			// TODO: Eventually revert back to compact sparse storage.
+			std::cout << "Setting size to " << binomial_coeff(n,dim+2) << ", but could have used " << columns_to_reduce.size() << std::endl;
+			pivot_column_index.reserve(binomial_coeff(n,dim+2));
 
 			compute_pairs(columns_to_reduce, pivot_column_index, dim);
 
