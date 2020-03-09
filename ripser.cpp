@@ -403,7 +403,6 @@ template <typename DistanceMatrix> class ripser {
 	const coefficient_t modulus;
 	const binomial_coeff_table binomial_coeff;
 	const std::vector<coefficient_t> multiplicative_inverse;
-	mutable std::vector<diameter_entry_t> cofacet_entries;
 
 	struct entry_hash {
 		std::size_t operator()(const entry_t& e) const {
@@ -567,6 +566,7 @@ public:
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
+		thread_local static std::vector<diameter_entry_t> cofacet_entries;
 		bool check_for_emergent_pair = true;
 		cofacet_entries.clear();
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
