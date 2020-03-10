@@ -263,9 +263,9 @@ struct sparse_distance_matrix {
 
 	index_t num_edges;
 
-	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_it;
-	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_end;
-
+//	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_it;
+//	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_end;
+//
 	sparse_distance_matrix(std::vector<std::vector<index_diameter_t>>&& _neighbors,
 	                       index_t _num_edges)
 	    : neighbors(std::move(_neighbors)), num_edges(_num_edges) {}
@@ -456,7 +456,6 @@ public:
 	class simplex_boundary_enumerator {
 	private:
 		index_t idx_below, idx_above, v, k;
-		std::vector<index_t>& vertices;
 		const diameter_entry_t simplex;
 		const coefficient_t modulus;
 		const binomial_coeff_table& binomial_coeff;
@@ -467,10 +466,8 @@ public:
 		simplex_boundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
 									const ripser& _parent)
 		: idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1),
-		vertices(_parent.vertices), simplex(_simplex), modulus(_parent.modulus),
+		simplex(_simplex), modulus(_parent.modulus),
 		binomial_coeff(_parent.binomial_coeff), dim(_dim), parent(_parent) {
-			vertices.resize(dim + 1);
-			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
 		}
 		
 		bool has_next() {
@@ -557,6 +554,9 @@ public:
 		std::vector<diameter_index_t> next_simplices;
 
 		for (diameter_index_t& simplex : simplices) {
+			std::vector<index_t> simplex_vertices;
+			get_simplex_vertices(get_index(simplex), dim, n, std::back_inserter(simplex_vertices));
+
 			simplex_coboundary_enumerator cofacets(diameter_entry_t(simplex, 1), dim, *this);
 
 			while (cofacets.has_next(false)) {
@@ -569,6 +569,9 @@ public:
 				}
 #endif
 				auto cofacet = cofacets.next();
+				std::vector<index_t> cofacet_vertices;
+				get_simplex_vertices(get_index(cofacet), dim + 1, n, std::back_inserter(cofacet_vertices));
+
 				if (get_diameter(cofacet) <= threshold) {
 
 					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
@@ -876,8 +879,8 @@ template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator 
 	const coefficient_t modulus;
 	const sparse_distance_matrix& dist;
 	const binomial_coeff_table& binomial_coeff;
-	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_it;
-	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_end;
+	std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_it;
+	std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_end;
 	index_diameter_t neighbor;
 
 public:
@@ -885,11 +888,7 @@ public:
 	                              const ripser& _parent)
 	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1),
 	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
-	      binomial_coeff(parent.binomial_coeff), neighbor_it(dist.neighbor_it),
-	      neighbor_end(dist.neighbor_end) {
-		neighbor_it.clear();
-		neighbor_end.clear();
-
+	      binomial_coeff(parent.binomial_coeff) {
 		parent.get_simplex_vertices(idx_below, _dim, parent.n, vertices.rbegin());
 		for (auto v : vertices) {
 			neighbor_it.push_back(dist.neighbors[v].rbegin());
