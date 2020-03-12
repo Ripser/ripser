@@ -41,7 +41,7 @@
 //#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
-#define USE_DENSE_PIVOTS
+#define USE_CONCURRENT_PIVOTS
 
 //#define USE_GOOGLE_HASHMAP
 
@@ -64,7 +64,11 @@ public:
 	explicit hash_map() : google::dense_hash_map<Key, T, H, E>() { this->set_empty_key(-1); }
 	inline void reserve(size_t hint) { this->resize(hint); }
 };
-#elif !defined(USE_DENSE_PIVOTS)
+#elif defined(USE_CONCURRENT_PIVOTS)
+#include <trivial_concurrent_hash_map.hpp>
+template <class Key, class T, class H, class E>
+class hash_map : public mrzv::trivial_concurrent_hash_map<Key, T, H, E> {};
+#else
 template <class Key, class T, class H, class E>
 class hash_map : public std::unordered_map<Key, T, H, E> {};
 #endif
@@ -168,24 +172,6 @@ void set_coefficient(entry_t& e, const coefficient_t c) {}
 #endif
 
 const entry_t& get_entry(const entry_t& e) { return e; }
-
-#if defined(USE_DENSE_PIVOTS)
-// Dense vector-backed hash map is here to allow concurrent access.
-// It works fine, but requires a lot more memory than necessary.
-// TODO: It's a temporary solution that should be replaced by a proper concurrent_hash_map.
-template<class Key, class T, class H, class E>
-class hash_map: public std::vector<T>
-{
-public:
-	using typename std::vector<T>::const_iterator;
-
-	constexpr T dummy() { return static_cast<T>(-1); }
-
-	inline void             reserve(size_t hint)            { this->resize(hint, dummy()); }
-	inline const_iterator   find(Key x) const               { auto it = this->begin() + get_index(x); if (*it == dummy()) return this->end(); else return it; }
-	inline void             insert(std::pair<Key,T> kv)     { (*this)[get_index(kv.first)] = kv.second; }
-};
-#endif
 
 typedef std::pair<value_t, index_t> diameter_index_t;
 value_t get_diameter(const diameter_index_t& i) { return i.first; }
@@ -647,12 +633,10 @@ public:
 				}
 #endif
 				if (get_index(pivot) != -1) {
-					auto it = pivot_column_index.find(get_entry(pivot));
-					if (it != pivot_column_index.end()) {
-						//entry_t other_pivot = pair->first;
-						//index_t index_column_to_add = pair->second;
-                        entry_t other_pivot = get_entry(pivot);
-                        index_t index_column_to_add = *it;
+					auto pair = pivot_column_index.find(get_entry(pivot));
+					if (pair != pivot_column_index.end()) {
+						entry_t other_pivot = pair->first;
+						index_t index_column_to_add = pair->second;
 						coefficient_t factor =
 						    modulus - get_coefficient(pivot) *
 						                  multiplicative_inverse[get_coefficient(other_pivot)] %
