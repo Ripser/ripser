@@ -84,6 +84,7 @@ static const std::chrono::milliseconds time_step(40);
 static const std::string clear_line("\r\033[K");
 
 static const size_t num_coefficient_bits = 8;
+static const index_t coefficient_mask = (static_cast<index_t>(1) << num_coefficient_bits) - 1;
 
 static const index_t max_simplex_index =
     (1l << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
@@ -140,26 +141,17 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 
 #ifdef USE_COEFFICIENTS
 
-struct __attribute__((packed)) entry_t {
-	index_t index : 8 * sizeof(index_t) - num_coefficient_bits;
-	coefficient_t coefficient : num_coefficient_bits;
-	entry_t(index_t _index, coefficient_t _coefficient)
-	    : index(_index), coefficient(_coefficient) {}
-	entry_t(index_t _index) : index(_index), coefficient(0) {}
-	entry_t() : index(0), coefficient(0) {}
-};
+typedef index_t entry_t;
 
-static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
+entry_t make_entry(index_t i, coefficient_t c) { return (i << num_coefficient_bits) | c; }
+index_t get_index(const entry_t& e) { return (e >> num_coefficient_bits); }
+index_t get_coefficient(const entry_t& e) { return (e & coefficient_mask); }
+void set_coefficient(entry_t& e, const coefficient_t c) { e = (e & ~coefficient_mask) | c; }
 
-entry_t make_entry(index_t i, coefficient_t c) { return entry_t(i, c); }
-index_t get_index(const entry_t& e) { return e.index; }
-index_t get_coefficient(const entry_t& e) { return e.coefficient; }
-void set_coefficient(entry_t& e, const coefficient_t c) { e.coefficient = c; }
-
-std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
-	stream << get_index(e) << ":" << get_coefficient(e);
-	return stream;
-}
+//std::ostream& operator<<(std::ostream& stream, const entry_t& e) {
+//    stream << get_index(e) << ":" << get_coefficient(e);
+//    return stream;
+//}
 
 #else
 
