@@ -392,7 +392,7 @@ template <typename DistanceMatrix> class ripser {
 		}
 	};
 
-	typedef hash_map<entry_t, size_t, entry_hash, equal_index> entry_hash_map;
+	typedef hash_map<entry_t, entry_t, entry_hash, equal_index> entry_hash_map;
 
 public:
 	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
@@ -624,14 +624,19 @@ public:
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_entry(pivot));
 					if (pair != pivot_column_index.end()) {
+						entry_t old_entry_column_to_add;
+						index_t index_column_to_add;
+						compressed_sparse_matrix<diameter_entry_t>::Column* reduction_column_to_add;
+						entry_t entry_column_to_add = pivot_column_index.value(pair);
 						do
 						{
-							entry_t other_pivot = pivot_column_index.key(pair);
-							index_t index_column_to_add = pivot_column_index.value(pair);
+							old_entry_column_to_add = entry_column_to_add;
+
+							index_column_to_add = get_index(entry_column_to_add);
 
 							// TODO: add check for whether we are moving left or right
 
-							auto* reduction_column_to_add = reduction_matrix.column(index_column_to_add);
+							reduction_column_to_add = reduction_matrix.column(index_column_to_add);
 
 							// this is a weaker check than in the original lockfree
 							// persistence paper (it would suffice that the pivot
@@ -640,13 +645,12 @@ public:
 							// it's easier to check that pivot_column_index entry
 							// we read hasn't changed
 							// TODO: think through memory orders, and whether we need to adjust anything
-							index_t old_index_column_to_add = index_column_to_add;
-							index_column_to_add = pivot_column_index.value(pair);
-						} while (old_index_column_to_add != index_column_to_add);
+							entry_column_to_add = pivot_column_index.value(pair);
+						} while (old_entry_column_to_add != entry_column_to_add);
 
 						coefficient_t factor =
 						    modulus - get_coefficient(pivot) *
-						                  multiplicative_inverse[get_coefficient(other_pivot)] %
+						                  multiplicative_inverse[get_coefficient(entry_column_to_add)] %
 						                  modulus;
 
 						add_coboundary(reduction_column_to_add, columns_to_reduce, index_column_to_add,
@@ -673,7 +677,7 @@ public:
 						Column* expected = nullptr;
 						reduction_matrix.update(index_column_to_reduce, expected, new_column);
 
-						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
+						pivot_column_index.insert({get_entry(pivot), make_entry(index_column_to_reduce, get_coefficient(pivot))});
 
 						break;
 					}
