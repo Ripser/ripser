@@ -350,6 +350,12 @@ public:
     Column* column(const index_t index)
         { return mrzv::atomic_ref<Column*>(columns[index]).load(); }
 
+    Column* exchange(const index_t index, Column* desired)
+        { return mrzv::atomic_ref<Column*>(columns[index]).exchange(desired); }
+
+    void store(const index_t index, Column* desired)
+        { return mrzv::atomic_ref<Column*>(columns[index]).store(desired); }
+
     bool update(const index_t index, Column*& expected, Column* desired)
         { return mrzv::atomic_ref<Column*>(columns[index]).compare_exchange_weak(expected, desired); }
 };
@@ -393,6 +399,12 @@ template <typename DistanceMatrix> class ripser {
 	};
 
 	typedef hash_map<entry_t, entry_t, entry_hash, equal_index> entry_hash_map;
+
+	typedef compressed_sparse_matrix<diameter_entry_t> Matrix;
+	typedef typename Matrix::Column MatrixColumn;
+
+	typedef std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
+			                    greater_diameter_or_smaller_index<diameter_entry_t>> WorkingColumn;
 
 public:
 	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
@@ -507,7 +519,7 @@ public:
 #endif
 	}
 
-	template <typename Column> diameter_entry_t pop_pivot(Column& column) {
+	diameter_entry_t pop_pivot(WorkingColumn& column) {
 		diameter_entry_t pivot(-1);
 #ifdef USE_COEFFICIENTS
 		while (!column.empty()) {
@@ -532,15 +544,14 @@ public:
 #endif
 	}
 
-	template <typename Column> diameter_entry_t get_pivot(Column& column) {
+	diameter_entry_t get_pivot(WorkingColumn& column) {
 		diameter_entry_t result = pop_pivot(column);
 		if (get_index(result) != -1) column.push(result);
 		return result;
 	}
 
-	template <typename Column>
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
-	                                               Column& working_coboundary, const index_t& dim,
+	                                               WorkingColumn& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
 		thread_local static std::vector<diameter_entry_t> cofacet_entries;
 		bool check_for_emergent_pair = true;
@@ -561,9 +572,8 @@ public:
 		return get_pivot(working_coboundary);
 	}
 
-	template <typename Column>
 	void add_simplex_coboundary(const diameter_entry_t simplex, const index_t& dim,
-	                            Column& working_reduction_column, Column& working_coboundary) {
+	                            WorkingColumn& working_reduction_column, WorkingColumn& working_coboundary) {
 		working_reduction_column.push(simplex);
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -572,17 +582,35 @@ public:
 		}
 	}
 
-	template <typename Column>
-	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>::Column* reduction_column_to_add,
+	void add_coboundary(MatrixColumn* reduction_column_to_add,
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
 	                    const size_t index_column_to_add, const coefficient_t factor, const size_t& dim,
-	                    Column& working_reduction_column, Column& working_coboundary) {
+	                    WorkingColumn& working_reduction_column, WorkingColumn& working_coboundary) {
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
 		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
 		for (diameter_entry_t simplex : *reduction_column_to_add) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
+		}
+	}
+
+	MatrixColumn* generate_column(WorkingColumn& working_reduction_column) {
+		MatrixColumn* new_column = new MatrixColumn;
+		while (true) {
+			diameter_entry_t e = pop_pivot(working_reduction_column);
+			if (get_index(e) == -1) break;
+			assert(get_coefficient(e) > 0);
+			new_column->push_back(e);
+		}
+		return new_column;
+	}
+
+	template<class F>
+	static void foreach(const std::vector<diameter_index_t>& columns_to_reduce, const F& f) {
+		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
+		     ++index_column_to_reduce) {
+			f(index_column_to_reduce);
 		}
 	}
 
@@ -593,21 +621,16 @@ public:
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
 
-		compressed_sparse_matrix<diameter_entry_t> reduction_matrix(columns_to_reduce.size());
-		using Column = compressed_sparse_matrix<diameter_entry_t>::Column;
+		Matrix reduction_matrix(columns_to_reduce.size());
 
 #ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
-		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
-		     ++index_column_to_reduce) {
-
+		foreach(columns_to_reduce, [&](size_t index_column_to_reduce) {
 			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
 			value_t diameter = get_diameter(column_to_reduce);
 
-			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-			                    greater_diameter_or_smaller_index<diameter_entry_t>>
-			    working_reduction_column, working_coboundary;
+			WorkingColumn working_reduction_column, working_coboundary;
 
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
@@ -626,15 +649,13 @@ public:
 					if (pair != pivot_column_index.end()) {
 						entry_t old_entry_column_to_add;
 						index_t index_column_to_add;
-						compressed_sparse_matrix<diameter_entry_t>::Column* reduction_column_to_add;
+						MatrixColumn* reduction_column_to_add;
 						entry_t entry_column_to_add = pivot_column_index.value(pair);
 						do
 						{
 							old_entry_column_to_add = entry_column_to_add;
 
 							index_column_to_add = get_index(entry_column_to_add);
-
-							// TODO: add check for whether we are moving left or right
 
 							reduction_column_to_add = reduction_matrix.column(index_column_to_add);
 
@@ -648,15 +669,29 @@ public:
 							entry_column_to_add = pivot_column_index.value(pair);
 						} while (old_entry_column_to_add != entry_column_to_add);
 
-						coefficient_t factor =
-						    modulus - get_coefficient(pivot) *
-						                  multiplicative_inverse[get_coefficient(entry_column_to_add)] %
-						                  modulus;
+						if (index_column_to_add < index_column_to_reduce)
+						{
+							// pivot to the left; usual reduction
+							coefficient_t factor =
+								modulus - get_coefficient(pivot) *
+											  multiplicative_inverse[get_coefficient(entry_column_to_add)] %
+											  modulus;
 
-						add_coboundary(reduction_column_to_add, columns_to_reduce, index_column_to_add,
-						               factor, dim, working_reduction_column, working_coboundary);
+							add_coboundary(reduction_column_to_add, columns_to_reduce, index_column_to_add,
+										   factor, dim, working_reduction_column, working_coboundary);
 
-						pivot = get_pivot(working_coboundary);
+							pivot = get_pivot(working_coboundary);
+						} else {
+							// pivot to the right
+							MatrixColumn* new_column = generate_column(working_reduction_column);
+							MatrixColumn* previous = reduction_matrix.exchange(index_column_to_reduce, new_column);
+							// TODO: retire previous
+							if (pivot_column_index.update(pair, entry_column_to_add, make_entry(index_column_to_reduce, get_coefficient(pivot)))) {
+								// FIXME: advance to the next column
+							} else {
+								continue; // re-read the pair
+							}
+						}
 					} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 						value_t death = get_diameter(pivot);
@@ -667,17 +702,14 @@ public:
 							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 						}
 #endif
-						Column* new_column = new Column;
-						while (true) {
-							diameter_entry_t e = pop_pivot(working_reduction_column);
-							if (get_index(e) == -1) break;
-							assert(get_coefficient(e) > 0);
-							new_column->push_back(e);
-						}
-						Column* expected = nullptr;
-						reduction_matrix.update(index_column_to_reduce, expected, new_column);
+						MatrixColumn* new_column = generate_column(working_reduction_column);
+						MatrixColumn* previous = reduction_matrix.exchange(index_column_to_reduce, new_column);
+						// TODO: retire previous
 
-						pivot_column_index.insert({get_entry(pivot), make_entry(index_column_to_reduce, get_coefficient(pivot))});
+						// equivalent to CAS in the original algorithm
+						auto insertion_result = pivot_column_index.insert({get_entry(pivot), make_entry(index_column_to_reduce, get_coefficient(pivot))});
+						if (!insertion_result.second)		// failed to insert, somebody got there before us, continue reduction
+							continue;						// TODO: insertion_result.first is the new pair; could elide and extra atomic load
 
 						break;
 					}
@@ -691,7 +723,7 @@ public:
 					break;
 				}
 			}
-		}
+		});
 #ifdef INDICATE_PROGRESS
 		std::cerr << clear_line << std::flush;
 #endif
