@@ -683,11 +683,7 @@ public:
 
 		for (index_t dim = 1; dim <= dim_max; ++dim) {
 			entry_hash_map pivot_column_index;
-			//pivot_column_index.reserve(columns_to_reduce.size());
-			// Temporary for dense concurrent storage.
-			// TODO: Eventually revert back to compact sparse storage.
-			std::cout << "Setting size to " << binomial_coeff(n,dim+2) << ", but could have used " << columns_to_reduce.size() << std::endl;
-			pivot_column_index.reserve(binomial_coeff(n,dim+2));
+			pivot_column_index.reserve(columns_to_reduce.size());
 
 			compute_pairs(columns_to_reduce, pivot_column_index, dim);
 
