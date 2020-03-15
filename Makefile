@@ -5,6 +5,7 @@ all: ripser ripser-coeff ripser-debug
 
 FLAGS=-Iinclude
 
+#FLAGS+=-DUSE_PARALLEL_STL -ltbb -std=c++17
 
 ripser: ripser.cpp
 	c++ -std=c++11 -Wall ripser.cpp -o ripser -Ofast -D NDEBUG ${FLAGS}

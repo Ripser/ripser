@@ -42,7 +42,6 @@
 #define PRINT_PERSISTENCE_PAIRS
 
 #define USE_SERIAL
-
 #if defined(USE_SERIAL)
 #define USE_SERIAL_ATOMIC_REF
 #endif
@@ -63,6 +62,11 @@
 #include <unordered_map>
 
 #include <atomic_ref.hpp>
+
+#ifdef USE_PARALLEL_STL
+#include <execution>
+#include <counting_iterator.hpp>
+#endif
 
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/dense_hash_map>
@@ -616,10 +620,24 @@ public:
 
 	template<class F>
 	static void foreach(const std::vector<diameter_index_t>& columns_to_reduce, const F& f) {
+#ifdef USE_SERIAL
 		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
 			f(index_column_to_reduce);
 		}
+#elif defined(USE_PARALLEL_STL)
+		std::for_each(std::execution::par, mrzv::counting_iterator(0), mrzv::counting_iterator(columns_to_reduce.size()),
+				[&](size_t index_column_to_reduce)
+		{
+			static thread_local int count = 0;
+			f(index_column_to_reduce);
+			if (++count == 1024) {
+				// TODO: invoke quiescent
+				count = 0;
+			}
+		});
+#else	// default: hand-rolled chunking
+#endif
 	}
 
 	void compute_pairs(const std::vector<diameter_index_t>& columns_to_reduce,
