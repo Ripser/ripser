@@ -41,6 +41,12 @@
 //#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
+#define USE_SERIAL
+
+#if defined(USE_SERIAL)
+#define USE_SERIAL_ATOMIC_REF
+#endif
+
 #define USE_CONCURRENT_PIVOTS
 
 //#define USE_GOOGLE_HASHMAP
@@ -55,6 +61,8 @@
 #include <queue>
 #include <sstream>
 #include <unordered_map>
+
+#include <atomic_ref.hpp>
 
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/dense_hash_map>

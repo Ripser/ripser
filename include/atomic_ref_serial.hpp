@@ -1,11 +1,9 @@
 #pragma once
 
+#pragma message "Using serial atomic_ref"
+
 // Atuhor: Dmitriy Morozov
 // Version 2020-03-15
-
-#if defined(USE_SERIAL_ATOMIC_REF)
-#include "atomic_ref_serial.hpp"
-#else
 
 #include <atomic>
 #include <type_traits>
@@ -33,36 +31,37 @@ class atomic_ref_base
         atomic_ref_base&
                     operator=(const atomic_ref_base&)       =delete;
 
-        bool        is_lock_free() const noexcept           { return __atomic_is_lock_free(sizeof(T), obj_); }
+        bool        is_lock_free() const noexcept           { return true; }
 
         void        store(T desired, std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                            { __atomic_store_n(obj_, desired, atomic_memory_order(order)); }
+                                                            { *obj_ = desired; }
         T           load(std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                            { return __atomic_load_n(obj_, atomic_memory_order(order)); }
+                                                            { return *obj_; }
 
                     operator T() const noexcept             { return load(); }
 
         T           exchange(T desired, std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                            { return __atomic_exchange_n(obj_, desired, atomic_memory_order(order)); }
+                                                            { std::swap(*obj_, desired); return desired; }
 
+        // Technically, not quite CAS, but simplified for the only meaningful scenario I can think of
         bool        compare_exchange_weak(T& expected, T desired,
-                                          std::memory_order success,
-                                          std::memory_order failure) const noexcept
-                                                            { return __atomic_compare_exchange_n(obj_, &expected, desired, true, atomic_memory_order(success), atomic_memory_order(failure)); }
+                                          std::memory_order,
+                                          std::memory_order) const noexcept
+                                                            { *obj_ = desired; return true; }
 
         bool        compare_exchange_weak(T& expected, T desired,
                                            std::memory_order order = std::memory_order_seq_cst ) const noexcept
-                                                            { return compare_exchange_weak(expected, desired, order, order); }      // TODO: not quite this simple
+                                                            { *obj_ = desired; return true; }
 
         bool        compare_exchange_strong(T& expected, T desired,
-                                            std::memory_order success,
-                                            std::memory_order failure) const noexcept
-                                                            { return __atomic_compare_exchange_n(obj_, &expected, desired, false, atomic_memory_order(success), atomic_memory_order(failure)); }
+                                            std::memory_order,
+                                            std::memory_order) const noexcept
+                                                            { *obj_ = desired; return true; }
 
 
         bool        compare_exchange_strong(T& expected, T desired,
                                             std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                            { return compare_exchange_strong(expected, desired, order, order); }    // TODO: not quite this simple
+                                                            { *obj_ = desired; return true; }
 
         // would be great to have wait and notify, but unclear how to implement them efficiently with __atomic
         //void wait(T old, std::memory_order order = std::memory_order::seq_cst) const noexcept;
@@ -71,25 +70,6 @@ class atomic_ref_base
         //void notify_one() const volatile noexcept;
         //void notify_all() const noexcept;
         //void notify_all() const volatile noexcept;
-
-    protected:
-        int         atomic_memory_order(std::memory_order order) const
-        {
-            if (order == std::memory_order_relaxed)
-                return __ATOMIC_RELAXED;
-            else if (order == std::memory_order_consume)
-                return __ATOMIC_CONSUME;
-            else if (order == std::memory_order_acquire)
-                return __ATOMIC_ACQUIRE;
-            else if (order == std::memory_order_release)
-                return __ATOMIC_RELEASE;
-            else if (order == std::memory_order_acq_rel)
-                return __ATOMIC_ACQ_REL;
-            else if (order == std::memory_order_seq_cst)
-                return __ATOMIC_SEQ_CST;
-            assert(0);
-            return __ATOMIC_RELAXED;
-        }
 
     protected:
         T* obj_;
@@ -117,24 +97,23 @@ class atomic_ref<T, typename std::enable_if<std::is_integral<T>::value>::type>: 
         T operator|=( T arg ) const noexcept            { return fetch_or(arg) | arg; }
         T operator^=( T arg ) const noexcept            { return fetch_xor(arg) ^ arg; }
 
-        T fetch_add(T arg, std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                        { return __atomic_fetch_add(obj_, arg, atomic_memory_order(order)); }
+        T fetch_add(T arg, std::memory_order) const noexcept
+                                                        { T result = *obj_; *obj_ += arg; return result; }
 
         T fetch_sub(T arg, std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                        { return __atomic_fetch_sub(obj_, arg, atomic_memory_order(order)); }
+                                                        { T result = *obj_; *obj_ -= arg; return result; }
 
         T fetch_and(T arg, std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                        { return __atomic_fetch_and(obj_, arg, atomic_memory_order(order)); }
+                                                        { T result = *obj_; *obj_ &= arg; return result; }
 
         T fetch_or(T arg, std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                        { return __atomic_fetch_or(obj_, arg, atomic_memory_order(order)); }
+                                                        { T result = *obj_; *obj_ |= arg; return result; }
 
         T fetch_xor(T arg, std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                        { return __atomic_fetch_xor(obj_, arg, atomic_memory_order(order)); }
+                                                        { T result = *obj_; *obj_ ^= arg; return result; }
 
     protected:
         using Parent::obj_;
-        using Parent::atomic_memory_order;
 };
 
 template<class T>
@@ -157,16 +136,13 @@ class atomic_ref<T*>: public atomic_ref_base<T*>
         T* operator-=(std::ptrdiff_t arg) const noexcept    { return fetch_sub(arg) - arg; }
 
         T* fetch_add(std::ptrdiff_t arg, std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                            { return __atomic_fetch_add(obj_, arg * sizeof(T), atomic_memory_order(order)); }
+                                                            { T* result = *obj_; *obj_ += arg; return result; }
 
         T* fetch_sub(std::ptrdiff_t arg, std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                            { return __atomic_fetch_sub(obj_, arg * sizeof(T), atomic_memory_order(order)); }
+                                                            { T* result = *obj_; *obj_ -= arg; return result; }
 
     protected:
         using Parent::obj_;
-        using Parent::atomic_memory_order;
 };
 
 }
-
-#endif      // USE_SERIAL_ATOMIC_REF
