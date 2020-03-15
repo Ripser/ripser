@@ -573,14 +573,14 @@ public:
 	}
 
 	template <typename Column>
-	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
+	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>::Column* reduction_column_to_add,
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
 	                    const size_t index_column_to_add, const coefficient_t factor, const size_t& dim,
 	                    Column& working_reduction_column, Column& working_coboundary) {
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
 		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
-		for (diameter_entry_t simplex : *reduction_matrix.column(index_column_to_add)) {
+		for (diameter_entry_t simplex : *reduction_column_to_add) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
 		}
@@ -624,14 +624,32 @@ public:
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_entry(pivot));
 					if (pair != pivot_column_index.end()) {
-						entry_t other_pivot = pair->first;
-						index_t index_column_to_add = pair->second;
+						do
+						{
+							entry_t other_pivot = pivot_column_index.key(pair);
+							index_t index_column_to_add = pivot_column_index.value(pair);
+
+							// TODO: add check for whether we are moving left or right
+
+							auto* reduction_column_to_add = reduction_matrix.column(index_column_to_add);
+
+							// this is a weaker check than in the original lockfree
+							// persistence paper (it would suffice that the pivot
+							// in reduction_column_to_add) hasn't changed, but
+							// given that matrix V is stored, rather than matrix R,
+							// it's easier to check that pivot_column_index entry
+							// we read hasn't changed
+							// TODO: think through memory orders, and whether we need to adjust anything
+							index_t old_index_column_to_add = index_column_to_add;
+							index_column_to_add = pivot_column_index.value(pair);
+						} while (old_index_column_to_add != index_column_to_add);
+
 						coefficient_t factor =
 						    modulus - get_coefficient(pivot) *
 						                  multiplicative_inverse[get_coefficient(other_pivot)] %
 						                  modulus;
 
-						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
+						add_coboundary(reduction_column_to_add, columns_to_reduce, index_column_to_add,
 						               factor, dim, working_reduction_column, working_coboundary);
 
 						pivot = get_pivot(working_coboundary);
@@ -645,8 +663,6 @@ public:
 							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 						}
 #endif
-						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
-
 						Column* new_column = new Column;
 						while (true) {
 							diameter_entry_t e = pop_pivot(working_reduction_column);
@@ -656,6 +672,9 @@ public:
 						}
 						Column* expected = nullptr;
 						reduction_matrix.update(index_column_to_reduce, expected, new_column);
+
+						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
+
 						break;
 					}
 				} else {
