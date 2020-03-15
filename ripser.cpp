@@ -336,24 +336,22 @@ template <typename T> T begin(std::pair<T, T>& p) { return p.first; }
 template <typename T> T end(std::pair<T, T>& p) { return p.second; }
 
 template <typename ValueType> class compressed_sparse_matrix {
-    std::vector<std::vector<ValueType>> columns;
-
-    typedef typename std::vector<ValueType>::iterator iterator;
-    typedef std::pair<iterator, iterator> iterator_pair;
+    std::vector<std::vector<ValueType>*> columns;
 
 public:
+    using Column = std::vector<ValueType>;
+
+    compressed_sparse_matrix(size_t n):
+        columns(n, nullptr)                                 {}
+    ~compressed_sparse_matrix()                             { for(Column* x : columns) delete x; }
+
     size_t size() const { return columns.size(); }
 
-    iterator_pair subrange(const index_t index) {
-        return { columns[index].begin(), columns[index].end() };
-    }
+    Column* column(const index_t index)
+        { return mrzv::atomic_ref<Column*>(columns[index]).load(); }
 
-    void append_column() { columns.emplace_back(); }
-
-    void push_back(const ValueType e) {
-        assert(0 < size());
-        columns.back().push_back(e);
-    }
+    bool update(const index_t index, Column*& expected, Column* desired)
+        { return mrzv::atomic_ref<Column*>(columns[index]).compare_exchange_weak(expected, desired); }
 };
 
 
@@ -582,7 +580,7 @@ public:
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
 		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
-		for (diameter_entry_t simplex : reduction_matrix.subrange(index_column_to_add)) {
+		for (diameter_entry_t simplex : *reduction_matrix.column(index_column_to_add)) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
 		}
@@ -595,7 +593,8 @@ public:
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
 
-		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
+		compressed_sparse_matrix<diameter_entry_t> reduction_matrix(columns_to_reduce.size());
+		using Column = compressed_sparse_matrix<diameter_entry_t>::Column;
 
 #ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
@@ -605,8 +604,6 @@ public:
 
 			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
 			value_t diameter = get_diameter(column_to_reduce);
-
-			reduction_matrix.append_column();
 
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
@@ -650,12 +647,15 @@ public:
 #endif
 						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
 
+						Column* new_column = new Column;
 						while (true) {
 							diameter_entry_t e = pop_pivot(working_reduction_column);
 							if (get_index(e) == -1) break;
 							assert(get_coefficient(e) > 0);
-							reduction_matrix.push_back(e);
+							new_column->push_back(e);
 						}
+						Column* expected = nullptr;
+						reduction_matrix.update(index_column_to_reduce, expected, new_column);
 						break;
 					}
 				} else {
