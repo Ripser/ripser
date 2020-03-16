@@ -66,6 +66,7 @@
 
 #include <thread>
 #include <atomic_ref.hpp>
+#include <reclamation.hpp>
 
 #include <counting_iterator.hpp>
 
@@ -686,10 +687,13 @@ public:
 		unsigned n_threads = !num_threads ? std::thread::hardware_concurrency() : num_threads;
 		std::atomic<int> progress(0);
 
+		int epoch_counter;
 		std::vector<std::thread> threads;
 		for (unsigned t = 0; t < n_threads; ++t)
 			threads.emplace_back([&]() {
 				mrzv::atomic_ref<size_t> achunk(chunk);
+
+				mrzv::MemoryManager<MatrixColumn> memory_manager(epoch_counter, n_threads);
 
 				int indicate_progress = progress++;
 				std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
@@ -714,12 +718,12 @@ public:
 						size_t next;
 						do {
 							next = index_column_to_reduce;
-							index_column_to_reduce = f(next, first);
+							index_column_to_reduce = f(next, first, memory_manager);
 							first = false;
 						} while (next != index_column_to_reduce);
 					}
 					cur_chunk = achunk++;
-					// TODO: invoke quiescent
+					memory_manager.quiescent();
 				}
 			});
 
@@ -750,7 +754,7 @@ public:
 #if defined(INDICATE_PROGRESS) && defined(USING_SERIAL)
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
-		foreach(columns_to_reduce, [&](index_t index_column_to_reduce, bool first) {
+		foreach(columns_to_reduce, [&](index_t index_column_to_reduce, bool first, mrzv::MemoryManager<MatrixColumn> memory_manager) {
 			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
 			value_t diameter = get_diameter(column_to_reduce);
 
@@ -821,7 +825,7 @@ public:
 							MatrixColumn* new_column = new MatrixColumn(generate_column(std::move(working_reduction_column)));
 							MatrixColumn* previous = reduction_matrix.exchange(index_column_to_reduce, new_column);
 							assert(get_index(get_column_pivot(new_column, columns_to_reduce, index_column_to_reduce, 1, dim)) == get_index(pivot));
-							// TODO: retire previous
+							memory_manager.retire(previous);
 
 							if (pivot_column_index.update(pair, entry_column_to_add, make_entry(index_column_to_reduce, get_coefficient(pivot)))) {
 								return index_column_to_add;
@@ -841,7 +845,7 @@ public:
 #endif
 						MatrixColumn* new_column = new MatrixColumn(generate_column(std::move(working_reduction_column)));
 						MatrixColumn* previous = reduction_matrix.exchange(index_column_to_reduce, new_column);
-						// TODO: retire previous
+						memory_manager.retire(previous);
 
 						assert(get_index(get_column_pivot(new_column, columns_to_reduce, index_column_to_reduce, 1, dim)) == get_index(pivot));
 
