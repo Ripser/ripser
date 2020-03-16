@@ -47,21 +47,21 @@ class atomic_ref_base
         bool        compare_exchange_weak(T& expected, T desired,
                                           std::memory_order,
                                           std::memory_order) const noexcept
-                                                            { *obj_ = desired; return true; }
+                                                            { assert(*obj_ == expected); *obj_ = desired; return true; }
 
         bool        compare_exchange_weak(T& expected, T desired,
                                            std::memory_order order = std::memory_order_seq_cst ) const noexcept
-                                                            { *obj_ = desired; return true; }
+                                                            { assert(*obj_ == expected); *obj_ = desired; return true; }
 
         bool        compare_exchange_strong(T& expected, T desired,
                                             std::memory_order,
                                             std::memory_order) const noexcept
-                                                            { *obj_ = desired; return true; }
+                                                            { assert(*obj_ == expected); *obj_ = desired; return true; }
 
 
         bool        compare_exchange_strong(T& expected, T desired,
                                             std::memory_order order = std::memory_order_seq_cst) const noexcept
-                                                            { *obj_ = desired; return true; }
+                                                            { assert(*obj_ == expected); *obj_ = desired; return true; }
 
         // would be great to have wait and notify, but unclear how to implement them efficiently with __atomic
         //void wait(T old, std::memory_order order = std::memory_order::seq_cst) const noexcept;
