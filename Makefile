@@ -3,7 +3,7 @@ build: ripser
 
 all: ripser ripser-coeff ripser-debug
 
-FLAGS=-Iinclude
+FLAGS=-Iinclude -pthread
 
 #FLAGS+=-DUSE_PARALLEL_STL -ltbb -std=c++17
 

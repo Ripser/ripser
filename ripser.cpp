@@ -669,20 +669,22 @@ public:
 			}
 		}
 #elif defined(USE_PARALLEL_STL)
+		int epoch_counter = 0;
 		std::for_each(std::execution::par, mrzv::counting_iterator(0), mrzv::counting_iterator(columns_to_reduce.size()),
 				[&](size_t index_column_to_reduce) {
-			static thread_local int count = 0;
+			thread_local int count = 0;
+			thread_local mrzv::MemoryManager<MatrixColumn> memory_manager(epoch_counter, std::thread::hardware_concurrency());
 
 			bool first = true;
 			size_t next;
 			do {
 				next = index_column_to_reduce;
-				index_column_to_reduce = f(next, first);
+				index_column_to_reduce = f(next, first, memory_manager);
 				first = false;
 			} while (next != index_column_to_reduce);
 
 			if (++count == 1024) {
-				// TODO: invoke quiescent
+				memory_manager.quiescent();
 				count = 0;
 			}
 		});
