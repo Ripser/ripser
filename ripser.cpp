@@ -569,9 +569,10 @@ public:
 		return result;
 	}
 
-	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
+	std::pair<diameter_entry_t,bool> init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               WorkingColumn& working_coboundary, const index_t& dim,
-	                                               entry_hash_map& pivot_column_index) {
+	                                               entry_hash_map& pivot_column_index, Matrix& reduction_matrix,
+												   const size_t index_column_to_reduce) {
 		thread_local static std::vector<diameter_entry_t> cofacet_entries;
 		bool check_for_emergent_pair = true;
 		cofacet_entries.clear();
@@ -580,18 +581,21 @@ public:
 			diameter_entry_t cofacet = cofacets.next();
 			if (get_diameter(cofacet) <= threshold) {
 				cofacet_entries.push_back(cofacet);
-#ifdef USING_SERIAL
-				// I don't see how to implement this optimization in parallel
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(cofacet))) {
-					if (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
-						return cofacet;
+					if (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) {
+						MatrixColumn* expected = nullptr;
+						MatrixColumn* desired = new MatrixColumn;
+						if (!reduction_matrix.update(index_column_to_reduce, expected, desired))
+							delete desired;
+						else if (pivot_column_index.insert({get_entry(cofacet), make_entry(index_column_to_reduce, get_coefficient(cofacet))}).second)
+							return { cofacet, true };
+					}
 					check_for_emergent_pair = false;
 				}
-#endif
 			}
 		}
 		for (auto cofacet : cofacet_entries) working_coboundary.push(cofacet);
-		return get_pivot(working_coboundary);
+		return { get_pivot(working_coboundary), false };
 	}
 
 	void add_simplex_coboundary(const diameter_entry_t simplex, const index_t& dim,
@@ -753,10 +757,13 @@ public:
 			WorkingColumn working_reduction_column, working_coboundary;
 
 			diameter_entry_t pivot;
-			if (first)
-				pivot = init_coboundary_and_get_pivot(
-					column_to_reduce, working_coboundary, dim, pivot_column_index);
-			else {
+			if (first) {
+				bool emergent;
+				std::tie(pivot,emergent) = init_coboundary_and_get_pivot(
+					column_to_reduce, working_coboundary, dim, pivot_column_index, reduction_matrix, index_column_to_reduce);
+				if (emergent)
+					return index_column_to_reduce;
+			} else {
 				MatrixColumn* reduction_column_to_reduce = reduction_matrix.column(index_column_to_reduce);
 				add_coboundary(reduction_column_to_reduce, columns_to_reduce, index_column_to_reduce,
 							   1, dim, working_reduction_column, working_coboundary, false);
