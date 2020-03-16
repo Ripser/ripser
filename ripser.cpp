@@ -41,8 +41,10 @@
 //#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
-#define USE_SERIAL
-#if defined(USE_SERIAL)
+//#define USE_SERIAL
+#define USE_SHUFFLED_SERIAL
+
+#if defined(USE_SERIAL) || defined(USE_SHUFFLED_SERIAL)
 #define USE_SERIAL_ATOMIC_REF
 #endif
 
@@ -61,11 +63,17 @@
 #include <sstream>
 #include <unordered_map>
 
+#include <thread>
 #include <atomic_ref.hpp>
+
+#include <counting_iterator.hpp>
+
+#ifdef USE_SHUFFLED_SERIAL
+#include <random>
+#endif
 
 #ifdef USE_PARALLEL_STL
 #include <execution>
-#include <counting_iterator.hpp>
 #endif
 
 #ifdef USE_GOOGLE_HASHMAP
@@ -626,6 +634,28 @@ public:
 			size_t next = f(index_column_to_reduce, true);
 			assert(next == index_column_to_reduce);
 		}
+#elif defined(USE_SHUFFLED_SERIAL) // meant for debugging
+		std::vector<size_t> indices(mrzv::counting_iterator(0), mrzv::counting_iterator(columns_to_reduce.size()));
+		std::random_device rd;
+		std::mt19937 g(rd());
+		std::shuffle(indices.begin(), indices.end(), g);
+
+		size_t count = 0;
+		for (size_t index_column_to_reduce : indices) {
+			bool first = true;
+			size_t next;
+			do {
+				std::cout << index_column_to_reduce << ' ' << first << std::endl;
+				next = index_column_to_reduce;
+				index_column_to_reduce = f(next, first);
+				first = false;
+			} while (next != index_column_to_reduce);
+
+			if (++count == 1024) {
+				// TODO: invoke quiescent
+				count = 0;
+			}
+		}
 #elif defined(USE_PARALLEL_STL)
 		std::for_each(std::execution::par, mrzv::counting_iterator(0), mrzv::counting_iterator(columns_to_reduce.size()),
 				[&](size_t index_column_to_reduce) {
@@ -646,6 +676,36 @@ public:
 		});
 		// need to make sure the last call to quiescent happens somehow
 #else	// default: hand-rolled chunking
+		const size_t chunk_size = 1024;
+		size_t chunk = 0;
+		unsigned num_threads = std::thread::hardware_concurrency();
+
+		std::vector<std::thread> threads;
+		for (unsigned t = 0; t < num_threads; ++t)
+			threads.emplace_back([&]() {
+				mrzv::atomic_ref<size_t> achunk(chunk);
+				
+				size_t cur_chunk = achunk++;
+				while(cur_chunk * chunk_size < columns_to_reduce.size()) {
+					size_t from = cur_chunk * chunk_size;
+					size_t to   = std::min((cur_chunk + 1) * chunk_size, columns_to_reduce.size());
+					for (size_t idx = from; idx < to; ++idx) {
+						size_t index_column_to_reduce = idx;
+						bool first = true;
+						size_t next;
+						do {
+							next = index_column_to_reduce;
+							index_column_to_reduce = f(next, first);
+							first = false;
+						} while (next != index_column_to_reduce);
+					}
+					cur_chunk = achunk++;
+					// TODO: invoke quiescent
+				}
+			});
+
+		for (auto& thread : threads)
+			thread.join();
 #endif
 	}
 
