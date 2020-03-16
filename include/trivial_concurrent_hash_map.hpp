@@ -70,8 +70,10 @@ find(Key k)
         atomic_ref<Key> ak(it->first);
         Key kk = ak;
 
-        if (equal(kk, k))
-            return it;          // TODO: should we make sure x.second != -1 or is this user's problem?
+        if (equal(kk, k)) {
+            while(value(it) == dummy_value());  // make sure a value has been written (possibly should add exponential backoff)
+            return it;
+        }
         else if (equal(kk, dummy_key()))
             return end();
 
