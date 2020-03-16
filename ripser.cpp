@@ -722,13 +722,13 @@ public:
 	void compute_pairs(const std::vector<diameter_index_t>& columns_to_reduce,
 	                   entry_hash_map& pivot_column_index, const index_t dim) {
 
-#ifdef PRINT_PERSISTENCE_PAIRS
+#if defined(PRINT_PERSISTENCE_PAIRS) && defined(USING_SERIAL)
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
 
 		Matrix reduction_matrix(columns_to_reduce.size());
 
-#ifdef INDICATE_PROGRESS
+#if defined(INDICATE_PROGRESS) && defined(USING_SERIAL)
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
 		foreach(columns_to_reduce, [&](index_t index_column_to_reduce, bool first) {
@@ -749,7 +749,7 @@ public:
 			}
 
 			while (true) {
-#ifdef INDICATE_PROGRESS
+#if defined(INDICATE_PROGRESS) && defined(USING_SERIAL)
 				if (std::chrono::steady_clock::now() > next) {
 					std::cerr << clear_line << "reducing column " << index_column_to_reduce + 1
 					          << "/" << columns_to_reduce.size() << " (diameter " << diameter << ")"
@@ -808,7 +808,7 @@ public:
 							}
 						}
 					} else {
-#ifdef PRINT_PERSISTENCE_PAIRS
+#if defined(PRINT_PERSISTENCE_PAIRS) && defined(USING_SERIAL)
 						value_t death = get_diameter(pivot);
 						if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
@@ -832,7 +832,7 @@ public:
 					}
 				} else {
 					// TODO: these will need special attention, if output happens after the reduction, not during
-#ifdef PRINT_PERSISTENCE_PAIRS
+#if defined(PRINT_PERSISTENCE_PAIRS) && defined(USING_SERIAL)
 #ifdef INDICATE_PROGRESS
 					std::cerr << clear_line << std::flush;
 #endif
@@ -843,7 +843,7 @@ public:
 			}
 			return index_column_to_reduce;
 		});
-#ifdef INDICATE_PROGRESS
+#if defined(INDICATE_PROGRESS) && defined(USING_SERIAL)
 		std::cerr << clear_line << std::flush;
 #endif
 	}
