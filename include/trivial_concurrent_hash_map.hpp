@@ -39,6 +39,9 @@ class trivial_concurrent_hash_map
         Key                 key(iterator it)        { return atomic_ref<Key>(it->first).load(); }
         T                   value(iterator it)      { return atomic_ref<T>(it->second).load(); }
 
+        template<class F>
+        void foreach(const F& f) const              { for(auto& x : storage_) if (x.first != dummy_key()) f(x); }
+
     public:
         static Key          dummy_key()             { return static_cast<Key>(-1); }
         static T            dummy_value()           { return static_cast<T>(-1); }

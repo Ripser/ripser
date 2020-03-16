@@ -745,11 +745,20 @@ public:
 	void compute_pairs(const std::vector<diameter_index_t>& columns_to_reduce,
 	                   entry_hash_map& pivot_column_index, const index_t dim) {
 
-#if defined(PRINT_PERSISTENCE_PAIRS) && defined(USING_SERIAL)
+#if defined(PRINT_PERSISTENCE_PAIRS)
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
 
 		Matrix reduction_matrix(columns_to_reduce.size());
+
+#if !defined(USING_SERIAL)
+		// extra vector is a work-around inability to store floats in the hash_map
+		typedef hash_map<entry_t, size_t, entry_hash, equal_index> entry_diameter_index_map;
+		std::atomic<size_t> last_diameter_index { 0 };
+		std::vector<value_t> diameters(columns_to_reduce.size());
+		entry_diameter_index_map deaths;
+		deaths.reserve(columns_to_reduce.size());
+#endif
 
 #if defined(INDICATE_PROGRESS) && defined(USING_SERIAL)
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
@@ -843,6 +852,11 @@ public:
 							std::cout << " [" << diameter << "," << death << ")" << (first ? "" : " <- correction") << std::endl;
 						}
 #endif
+#if defined(PRINT_PERSISTENCE_PAIRS) && !defined(USING_SERIAL)
+						size_t location = last_diameter_index++;
+						diameters[location] = get_diameter(pivot);
+						deaths.insert({get_entry(pivot), location});
+#endif
 						MatrixColumn* new_column = new MatrixColumn(generate_column(std::move(working_reduction_column)));
 						MatrixColumn* previous = reduction_matrix.exchange(index_column_to_reduce, new_column);
 						memory_manager.retire(previous);
@@ -871,6 +885,17 @@ public:
 		});
 #if defined(INDICATE_PROGRESS) && defined(USING_SERIAL)
 		std::cerr << clear_line << std::flush;
+#endif
+#if defined(PRINT_PERSISTENCE_PAIRS) && !defined(USING_SERIAL)
+		pivot_column_index.foreach([&](const typename entry_hash_map::value_type& x) {
+			auto it = deaths.find(x.first);
+			if (it == deaths.end()) return;
+			value_t death = diameters[it->second];
+			value_t birth = get_diameter(columns_to_reduce[get_index(x.second)]);
+			if (death > birth * ratio)
+				std::cout << " [" << birth << "," << death << ")" << std::endl;
+		});
+		// TODO: this doesn't print unpaired values
 #endif
 	}
 
