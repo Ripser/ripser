@@ -401,6 +401,7 @@ template <typename DistanceMatrix> class ripser {
 	const value_t threshold;
 	const float ratio;
 	const coefficient_t modulus;
+	const unsigned num_threads;
 	const binomial_coeff_table binomial_coeff;
 	const std::vector<coefficient_t> multiplicative_inverse;
 
@@ -426,10 +427,10 @@ template <typename DistanceMatrix> class ripser {
 
 public:
 	ripser(DistanceMatrix&& _dist, index_t _dim_max, value_t _threshold, float _ratio,
-	       coefficient_t _modulus)
+	       coefficient_t _modulus, unsigned _num_threads)
 	    : dist(std::move(_dist)), n(dist.size()),
 	      dim_max(std::min(_dim_max, index_t(dist.size() - 2))), threshold(_threshold),
-	      ratio(_ratio), modulus(_modulus), binomial_coeff(n, dim_max + 2),
+	      ratio(_ratio), modulus(_modulus), num_threads(_num_threads), binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
 	index_t get_max_vertex(const index_t idx, const index_t k, const index_t n) const {
@@ -628,7 +629,7 @@ public:
 	}
 
 	template<class F>
-	static void foreach(const std::vector<diameter_index_t>& columns_to_reduce, const F& f) {
+	void foreach(const std::vector<diameter_index_t>& columns_to_reduce, const F& f) {
 #ifdef USE_SERIAL
 		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
@@ -678,17 +679,31 @@ public:
 #else	// default: hand-rolled chunking
 		const size_t chunk_size = 1024;
 		size_t chunk = 0;
-		unsigned num_threads = std::thread::hardware_concurrency();
+		unsigned n_threads = !num_threads ? std::thread::hardware_concurrency() : num_threads;
+		std::atomic<int> progress(0);
 
 		std::vector<std::thread> threads;
-		for (unsigned t = 0; t < num_threads; ++t)
+		for (unsigned t = 0; t < n_threads; ++t)
 			threads.emplace_back([&]() {
 				mrzv::atomic_ref<size_t> achunk(chunk);
+
+				int indicate_progress = progress++;
+				std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 				
 				size_t cur_chunk = achunk++;
 				while(cur_chunk * chunk_size < columns_to_reduce.size()) {
 					size_t from = cur_chunk * chunk_size;
 					size_t to   = std::min((cur_chunk + 1) * chunk_size, columns_to_reduce.size());
+#ifdef INDICATE_PROGRESS
+					if (indicate_progress == 0) {
+						if (std::chrono::steady_clock::now() > next) {
+							std::cerr << clear_line << "reducing columns " << from << " - " << to
+									  << "/" << columns_to_reduce.size()
+									  << std::flush;
+							next = std::chrono::steady_clock::now() + time_step;
+						}
+					}
+#endif
 					for (size_t idx = from; idx < to; ++idx) {
 						size_t index_column_to_reduce = idx;
 						bool first = true;
@@ -1180,6 +1195,10 @@ void print_usage_and_exit(int exit_code) {
 	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ"
 	    << std::endl
 #endif
+#ifndef USING_SERIAL
+	    << "  --threads <t>    number of threads to use"
+	    << std::endl
+#endif
 	    << "  --ratio <r>      only show persistence pairs with death/birth ratio > r" << std::endl
 	    << std::endl;
 	exit(exit_code);
@@ -1194,6 +1213,7 @@ int main(int argc, char** argv) {
 	value_t threshold = std::numeric_limits<value_t>::max();
 	float ratio = 1;
 	coefficient_t modulus = 2;
+	unsigned num_threads = 0;
 
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
@@ -1239,6 +1259,13 @@ int main(int argc, char** argv) {
 			modulus = std::stol(parameter, &next_pos);
 			if (next_pos != parameter.size() || !is_prime(modulus)) print_usage_and_exit(-1);
 #endif
+#ifndef USING_SERIAL
+		} else if (arg == "--threads") {
+			std::string parameter = std::string(argv[++i]);
+			size_t next_pos;
+			num_threads = std::stol(parameter, &next_pos);
+			if (next_pos != parameter.size() || !is_prime(modulus)) print_usage_and_exit(-1);
+#endif
 		} else {
 			if (filename) { print_usage_and_exit(-1); }
 			filename = argv[i];
@@ -1258,7 +1285,7 @@ int main(int argc, char** argv) {
 		          << dist.num_edges << "/" << (dist.size() * (dist.size() - 1)) / 2 << " entries"
 		          << std::endl;
 
-		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
+		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus, num_threads)
 		    .compute_barcodes();
 	} else {
 		compressed_lower_distance_matrix dist =
@@ -1290,7 +1317,7 @@ int main(int argc, char** argv) {
 		if (threshold >= max) {
 			std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
 			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
-			                                         modulus)
+			                                         modulus, num_threads)
 			    .compute_barcodes();
 		} else {
 			std::cout << "sparse distance matrix with " << dist.size() << " points and "
@@ -1298,7 +1325,7 @@ int main(int argc, char** argv) {
 			          << std::endl;
 
 			ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold),
-			                               dim_max, threshold, ratio, modulus)
+			                               dim_max, threshold, ratio, modulus, num_threads)
 			    .compute_barcodes();
 		}
 		exit(0);
