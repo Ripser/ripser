@@ -623,19 +623,28 @@ public:
 #ifdef USE_SERIAL
 		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
-			f(index_column_to_reduce);
+			size_t next = f(index_column_to_reduce, true);
+			assert(next == index_column_to_reduce);
 		}
 #elif defined(USE_PARALLEL_STL)
 		std::for_each(std::execution::par, mrzv::counting_iterator(0), mrzv::counting_iterator(columns_to_reduce.size()),
-				[&](size_t index_column_to_reduce)
-		{
+				[&](size_t index_column_to_reduce) {
 			static thread_local int count = 0;
-			f(index_column_to_reduce);
+
+			bool first = true;
+			size_t next;
+			do {
+				next = index_column_to_reduce;
+				index_column_to_reduce = f(next, first);
+				first = false;
+			} while (next != index_column_to_reduce);
+
 			if (++count == 1024) {
 				// TODO: invoke quiescent
 				count = 0;
 			}
 		});
+		// need to make sure the last call to quiescent happens somehow
 #else	// default: hand-rolled chunking
 #endif
 	}
@@ -652,14 +661,22 @@ public:
 #ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
-		foreach(columns_to_reduce, [&](size_t index_column_to_reduce) {
+		foreach(columns_to_reduce, [&](index_t index_column_to_reduce, bool first) {
 			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
 			value_t diameter = get_diameter(column_to_reduce);
 
 			WorkingColumn working_reduction_column, working_coboundary;
 
-			diameter_entry_t pivot = init_coboundary_and_get_pivot(
-			    column_to_reduce, working_coboundary, dim, pivot_column_index);
+			diameter_entry_t pivot;
+			if (first)
+				pivot = init_coboundary_and_get_pivot(
+					column_to_reduce, working_coboundary, dim, pivot_column_index);
+			else {
+				MatrixColumn* reduction_column_to_reduce = reduction_matrix.column(index_column_to_reduce);
+				add_coboundary(reduction_column_to_reduce, columns_to_reduce, index_column_to_reduce,
+							   1, dim, working_reduction_column, working_coboundary);
+				pivot = get_pivot(working_coboundary);
+			}
 
 			while (true) {
 #ifdef INDICATE_PROGRESS
@@ -713,7 +730,7 @@ public:
 							MatrixColumn* previous = reduction_matrix.exchange(index_column_to_reduce, new_column);
 							// TODO: retire previous
 							if (pivot_column_index.update(pair, entry_column_to_add, make_entry(index_column_to_reduce, get_coefficient(pivot)))) {
-								// FIXME: advance to the next column
+								return index_column_to_add;
 							} else {
 								continue; // re-read the pair
 							}
@@ -740,6 +757,7 @@ public:
 						break;
 					}
 				} else {
+					// TODO: these will need special attention, if output happens after the reduction, not during
 #ifdef PRINT_PERSISTENCE_PAIRS
 #ifdef INDICATE_PROGRESS
 					std::cerr << clear_line << std::flush;
@@ -749,6 +767,7 @@ public:
 					break;
 				}
 			}
+			return index_column_to_reduce;
 		});
 #ifdef INDICATE_PROGRESS
 		std::cerr << clear_line << std::flush;
