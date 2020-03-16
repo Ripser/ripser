@@ -97,7 +97,7 @@ class atomic_ref<T, typename std::enable_if<std::is_integral<T>::value>::type>: 
         T operator|=( T arg ) const noexcept            { return fetch_or(arg) | arg; }
         T operator^=( T arg ) const noexcept            { return fetch_xor(arg) ^ arg; }
 
-        T fetch_add(T arg, std::memory_order) const noexcept
+        T fetch_add(T arg, std::memory_order order = std::memory_order_seq_cst) const noexcept
                                                         { T result = *obj_; *obj_ += arg; return result; }
 
         T fetch_sub(T arg, std::memory_order order = std::memory_order_seq_cst) const noexcept

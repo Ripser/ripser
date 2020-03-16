@@ -636,9 +636,12 @@ public:
 	template<class F>
 	void foreach(const std::vector<diameter_index_t>& columns_to_reduce, const F& f) {
 #ifdef USE_SERIAL
+		int epoch_counter = 0;
+		mrzv::MemoryManager<MatrixColumn> memory_manager(epoch_counter, 1);
+
 		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
 		     ++index_column_to_reduce) {
-			size_t next = f(index_column_to_reduce, true);
+			size_t next = f(index_column_to_reduce, true, memory_manager);
 			assert(next == index_column_to_reduce);
 		}
 #elif defined(USE_SHUFFLED_SERIAL) // meant for debugging
@@ -647,18 +650,21 @@ public:
 		std::mt19937 g(rd());
 		std::shuffle(indices.begin(), indices.end(), g);
 
+		int epoch_counter = 0;
+		mrzv::MemoryManager<MatrixColumn> memory_manager(epoch_counter, 1);
+
 		size_t count = 0;
 		for (size_t index_column_to_reduce : indices) {
 			bool first = true;
 			size_t next;
 			do {
 				next = index_column_to_reduce;
-				index_column_to_reduce = f(next, first);
+				index_column_to_reduce = f(next, first, memory_manager);
 				first = false;
 			} while (next != index_column_to_reduce);
 
 			if (++count == 1024) {
-				// TODO: invoke quiescent
+				memory_manager.quiescent();
 				count = 0;
 			}
 		}
@@ -687,7 +693,7 @@ public:
 		unsigned n_threads = !num_threads ? std::thread::hardware_concurrency() : num_threads;
 		std::atomic<int> progress(0);
 
-		int epoch_counter;
+		int epoch_counter = 0;
 		std::vector<std::thread> threads;
 		for (unsigned t = 0; t < n_threads; ++t)
 			threads.emplace_back([&]() {
