@@ -45,6 +45,7 @@
 //#define USE_SHUFFLED_SERIAL
 
 #if defined(USE_SERIAL) || defined(USE_SHUFFLED_SERIAL)
+#define USING_SERIAL
 #define USE_SERIAL_ATOMIC_REF
 #endif
 
@@ -578,11 +579,14 @@ public:
 			diameter_entry_t cofacet = cofacets.next();
 			if (get_diameter(cofacet) <= threshold) {
 				cofacet_entries.push_back(cofacet);
+#ifdef USING_SERIAL
+				// I don't see how to implement this optimization in parallel
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(cofacet))) {
 					if (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
 						return cofacet;
 					check_for_emergent_pair = false;
 				}
+#endif
 			}
 		}
 		for (auto cofacet : cofacet_entries) working_coboundary.push(cofacet);
