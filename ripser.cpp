@@ -42,7 +42,7 @@
 #define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_SERIAL
-#define USE_SHUFFLED_SERIAL
+//#define USE_SHUFFLED_SERIAL
 
 #if defined(USE_SERIAL) || defined(USE_SHUFFLED_SERIAL)
 #define USE_SERIAL_ATOMIC_REF
@@ -280,9 +280,6 @@ struct sparse_distance_matrix {
 	std::vector<std::vector<index_diameter_t>> neighbors;
 
 	index_t num_edges;
-
-	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_it;
-	mutable std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_end;
 
 	sparse_distance_matrix(std::vector<std::vector<index_diameter_t>>&& _neighbors,
 	                       index_t _num_edges)
@@ -913,8 +910,8 @@ template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator 
 	const coefficient_t modulus;
 	const sparse_distance_matrix& dist;
 	const binomial_coeff_table& binomial_coeff;
-	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_it;
-	std::vector<std::vector<index_diameter_t>::const_reverse_iterator>& neighbor_end;
+	static thread_local std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_it;
+	static thread_local std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_end;
 	index_diameter_t neighbor;
 
 public:
@@ -922,8 +919,7 @@ public:
 	                              const ripser& _parent)
 	    : parent(_parent), idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1),
 	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
-	      binomial_coeff(parent.binomial_coeff), neighbor_it(dist.neighbor_it),
-	      neighbor_end(dist.neighbor_end) {
+	      binomial_coeff(parent.binomial_coeff) {
 		neighbor_it.clear();
 		neighbor_end.clear();
 
@@ -967,6 +963,9 @@ public:
 		return diameter_entry_t(cofacet_diameter, cofacet_index, cofacet_coefficient);
 	}
 };
+
+thread_local std::vector<std::vector<index_diameter_t>::const_reverse_iterator> ripser<sparse_distance_matrix>::simplex_coboundary_enumerator::neighbor_it;
+thread_local std::vector<std::vector<index_diameter_t>::const_reverse_iterator> ripser<sparse_distance_matrix>::simplex_coboundary_enumerator::neighbor_end;
 
 template <> std::vector<diameter_index_t> ripser<compressed_lower_distance_matrix>::get_edges() {
 	std::vector<diameter_index_t> edges;
