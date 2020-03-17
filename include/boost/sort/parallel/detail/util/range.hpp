@@ -171,7 +171,7 @@ inline range< Iter2_t > uninit_move (const range< Iter2_t > &dest,
 template < class Iter_t >
 inline void destroy (range< Iter_t > rng)
 {
-    destroy (rng.first, rng.last);
+    detail::util::destroy (rng.first, rng.last);
 };
 //
 //-----------------------------------------------------------------------------
