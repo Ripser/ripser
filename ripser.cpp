@@ -71,6 +71,10 @@
 
 #include <counting_iterator.hpp>
 
+#ifndef USING_SERIAL
+#include <boost/sort/parallel/sort.hpp>
+#endif
+
 #ifdef USE_SHUFFLED_SERIAL
 #include <random>
 #endif
@@ -218,7 +222,7 @@ void set_coefficient(diameter_entry_t& p, const coefficient_t c) {
 }
 
 template <typename Entry> struct greater_diameter_or_smaller_index {
-	bool operator()(const Entry& a, const Entry& b) {
+	bool operator()(const Entry& a, const Entry& b) const {
 		return (get_diameter(a) > get_diameter(b)) ||
 		       ((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
 	}
@@ -556,9 +560,13 @@ public:
 		          << std::flush;
 #endif
 
-		// TODO: use parallel sort
+#ifdef USING_SERIAL
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
+#else
+		boost::sort::parallel::parallel_sort(columns_to_reduce.begin(), columns_to_reduce.end(),
+				  greater_diameter_or_smaller_index<diameter_index_t>(), num_threads);
+#endif
 #ifdef INDICATE_PROGRESS
 		std::cerr << clear_line << std::flush;
 #endif
@@ -948,7 +956,7 @@ public:
 			}
 			return index_column_to_reduce;
 		});
-#if defined(INDICATE_PROGRESS) && defined(USING_SERIAL)
+#if defined(INDICATE_PROGRESS)
 		std::cerr << clear_line << std::flush;
 #endif
 #if defined(PRINT_PERSISTENCE_PAIRS) && !defined(USING_SERIAL)
