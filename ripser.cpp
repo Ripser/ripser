@@ -65,6 +65,7 @@
 #include <unordered_map>
 
 #include <thread>
+#include <future>
 #include <atomic_ref.hpp>
 #include <reclamation.hpp>
 
@@ -431,7 +432,13 @@ public:
 	       coefficient_t _modulus, unsigned _num_threads)
 	    : dist(std::move(_dist)), n(dist.size()),
 	      dim_max(std::min(_dim_max, index_t(dist.size() - 2))), threshold(_threshold),
-	      ratio(_ratio), modulus(_modulus), num_threads(_num_threads), binomial_coeff(n, dim_max + 2),
+	      ratio(_ratio), modulus(_modulus),
+#ifndef USING_SERIAL
+		  num_threads((_num_threads == 0 ? std::thread::hardware_concurrency() : _num_threads)),
+#else
+		  num_threads(1),
+#endif
+		  binomial_coeff(n, dim_max + 2),
 	      multiplicative_inverse(multiplicative_inverse_vector(_modulus)) {}
 
 	index_t get_max_vertex(const index_t idx, const index_t k, const index_t n) const {
@@ -469,28 +476,78 @@ public:
 		columns_to_reduce.clear();
 		std::vector<diameter_index_t> next_simplices;
 
-		for (diameter_index_t& simplex : simplices) {
-			simplex_coboundary_enumerator cofacets(diameter_entry_t(simplex, 1), dim, *this);
+		const size_t chunk_size = 1024;
+		std::atomic<size_t> achunk {0};
+		std::atomic<int> progress {0};
+		std::vector<std::future<std::pair<std::vector<diameter_index_t>, std::vector<diameter_index_t>>>> futures;
+		for (unsigned i = 0; i < num_threads; ++i)
+			futures.emplace_back(std::async(std::launch::async, [&]()
+						-> std::pair<std::vector<diameter_index_t>, std::vector<diameter_index_t>> {
+				std::vector<diameter_index_t> next_simplices;
+				std::vector<diameter_index_t> columns_to_reduce;
 
-			while (cofacets.has_next(false)) {
+				int indicate_progress = progress++;
+				size_t cur_chunk = achunk++;
+				while(cur_chunk * chunk_size < simplices.size()) {
+					size_t from = cur_chunk * chunk_size;
+					size_t to   = std::min((cur_chunk + 1) * chunk_size, simplices.size());
+
+					for (size_t idx = from; idx < to; ++idx) {
+						auto& simplex = simplices[idx];
+						simplex_coboundary_enumerator cofacets(diameter_entry_t(simplex, 1), dim, *this);
+						while (cofacets.has_next(false)) {
 #ifdef INDICATE_PROGRESS
-				if (std::chrono::steady_clock::now() > next) {
-					std::cerr << clear_line << "assembling " << next_simplices.size()
-					          << " columns (processing " << std::distance(&simplices[0], &simplex)
-					          << "/" << simplices.size() << " simplices)" << std::flush;
-					next = std::chrono::steady_clock::now() + time_step;
-				}
+							if (indicate_progress == 0) {
+								if (std::chrono::steady_clock::now() > next) {
+									std::cerr << clear_line << "assembling columns (processing "
+											  << idx << "/" << simplices.size() << " simplices)" << std::flush;
+									next = std::chrono::steady_clock::now() + time_step;
+								}
+							}
 #endif
-				auto cofacet = cofacets.next();
-				if (get_diameter(cofacet) <= threshold) {
+							auto cofacet = cofacets.next();
+							if (get_diameter(cofacet) <= threshold) {
 
-					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
+								next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
 
-					if (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
-						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
+								if (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
+									columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
+							}
+						}
+					}
+					cur_chunk = achunk++;
 				}
-			}
+
+				return { next_simplices, columns_to_reduce };
+			}));
+
+		// figure out offsets to put everything together and resize
+		std::vector<std::vector<diameter_index_t>> next_simplices_vec(futures.size()), columns_to_reduce_vec(futures.size());
+		std::vector<size_t> simplices_prefix { 0 }, columns_to_reduce_prefix { 0 };
+		for (unsigned i = 0; i < num_threads; ++i) {
+			auto x = futures[i].get();
+			next_simplices_vec[i] = std::move(x.first);
+			columns_to_reduce_vec[i] = std::move(x.second);
+
+			simplices_prefix.push_back(simplices_prefix.back() + next_simplices_vec[i].size());
+			columns_to_reduce_prefix.push_back(columns_to_reduce_prefix.back() + columns_to_reduce_vec[i].size());
 		}
+		next_simplices.resize(simplices_prefix.back());
+		columns_to_reduce.resize(columns_to_reduce_prefix.back());
+
+		// copy into the arrays
+		std::vector<std::future<void>> handles;
+		for (unsigned i = 0; i < num_threads; ++i)
+			handles.emplace_back(std::async(std::launch::async, [&,i]() {
+				size_t k = 0;
+				for (size_t j = simplices_prefix[i]; j < simplices_prefix[i+1]; ++j)
+					next_simplices[j] = next_simplices_vec[i][k++];
+				
+				k = 0;
+				for (size_t j = columns_to_reduce_prefix[i]; j < columns_to_reduce_prefix[i+1]; ++j)
+					columns_to_reduce[j] = columns_to_reduce_vec[i][k++];
+			}));
+		handles.clear();		// force execution
 
 		simplices.swap(next_simplices);
 
@@ -499,6 +556,7 @@ public:
 		          << std::flush;
 #endif
 
+		// TODO: use parallel sort
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
 #ifdef INDICATE_PROGRESS
@@ -691,7 +749,7 @@ public:
 #else	// default: hand-rolled chunking
 		const size_t chunk_size = 1024;
 		size_t chunk = 0;
-		unsigned n_threads = !num_threads ? std::thread::hardware_concurrency() : num_threads;
+		unsigned n_threads = num_threads;
 		std::atomic<int> progress(0);
 
 		int epoch_counter = 0;
