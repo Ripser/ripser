@@ -688,7 +688,6 @@ public:
 				count = 0;
 			}
 		});
-		// need to make sure the last call to quiescent happens somehow
 #else	// default: hand-rolled chunking
 		const size_t chunk_size = 1024;
 		size_t chunk = 0;
@@ -771,7 +770,7 @@ public:
 #if defined(INDICATE_PROGRESS) && defined(USING_SERIAL)
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
-		foreach(columns_to_reduce, [&](index_t index_column_to_reduce, bool first, mrzv::MemoryManager<MatrixColumn> memory_manager) {
+		foreach(columns_to_reduce, [&](index_t index_column_to_reduce, bool first, mrzv::MemoryManager<MatrixColumn>& memory_manager) {
 			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
 			value_t diameter = get_diameter(column_to_reduce);
 
