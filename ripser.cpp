@@ -482,7 +482,9 @@ public:
 
 		const size_t chunk_size = 1024;
 		std::atomic<size_t> achunk {0};
+#ifdef INDICATE_PROGRESS
 		std::atomic<int> progress {0};
+#endif
 		std::vector<std::future<std::pair<std::vector<diameter_index_t>, std::vector<diameter_index_t>>>> futures;
 		for (unsigned i = 0; i < num_threads; ++i)
 			futures.emplace_back(std::async(std::launch::async, [&]()
@@ -490,7 +492,9 @@ public:
 				std::vector<diameter_index_t> next_simplices;
 				std::vector<diameter_index_t> columns_to_reduce;
 
+#ifdef INDICATE_PROGRESS
 				int indicate_progress = progress++;
+#endif
 				size_t cur_chunk = achunk++;
 				while(cur_chunk * chunk_size < simplices.size()) {
 					size_t from = cur_chunk * chunk_size;
@@ -758,7 +762,9 @@ public:
 		const size_t chunk_size = 1024;
 		size_t chunk = 0;
 		unsigned n_threads = num_threads;
+#ifdef INDICATE_PROGRESS
 		std::atomic<int> progress(0);
+#endif
 
 		int epoch_counter = 0;
 		std::vector<std::thread> threads;
@@ -768,8 +774,10 @@ public:
 
 				mrzv::MemoryManager<MatrixColumn> memory_manager(epoch_counter, n_threads);
 
+#ifdef INDICATE_PROGRESS
 				int indicate_progress = progress++;
 				std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
+#endif
 				
 				size_t cur_chunk = achunk++;
 				while(cur_chunk * chunk_size < columns_to_reduce.size()) {
