@@ -21,10 +21,10 @@ class trivial_concurrent_hash_map
         using Storage       = std::vector<value_type>;
         using iterator      = typename Storage::iterator;
 
-        static constexpr size_t storage_multiplier = 4;
+        static constexpr size_t storage_multiplier = 10;
 
     public:
-        void                reserve(size_t hint)    { storage_.resize(storage_multiplier * hint, dummy()); }
+        void                reserve(size_t hint)    { storage_.clear(); storage_.resize(storage_multiplier * hint, dummy()); }
 
         inline iterator     find(Key k);
         inline std::pair<iterator,bool>
