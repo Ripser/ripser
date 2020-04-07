@@ -25,7 +25,7 @@ struct MemoryManager
                 delete p;
         }
         bool is_even_epoch(int counter) const   { return (counter / n_threads_) % 2 == 0; }
-        void retire(T* ptr)                     { retired_.push_back(ptr); }
+        void retire(T* ptr)                     { if(ptr) retired_.push_back(ptr); }
         void quiescent()
         {
             if (even_epoch_ != is_even_epoch(counter_))

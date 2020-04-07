@@ -654,11 +654,7 @@ public:
 				cofacet_entries.push_back(cofacet);
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(cofacet))) {
 					if (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) {
-						MatrixColumn* expected = nullptr;
-						MatrixColumn* desired = new MatrixColumn;
-						if (!reduction_matrix.update(index_column_to_reduce, expected, desired))
-							delete desired;
-						else if (pivot_column_index.insert({get_entry(cofacet), make_entry(index_column_to_reduce, get_coefficient(cofacet))}).second)
+						if (pivot_column_index.insert({get_entry(cofacet), make_entry(index_column_to_reduce, get_coefficient(cofacet))}).second)
 							return { cofacet, true };
 					}
 					check_for_emergent_pair = false;
@@ -686,13 +682,17 @@ public:
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
 		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary, add_diagonal);
 
+		if (!reduction_column_to_add) return;
 		for (diameter_entry_t simplex : *reduction_column_to_add) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
 			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
 		}
 	}
 
-	MatrixColumn generate_column(WorkingColumn&& working_reduction_column) {
+	MatrixColumn* generate_column(WorkingColumn&& working_reduction_column) {
+		if (working_reduction_column.empty())
+			return nullptr;
+
 		MatrixColumn column;
 		while (true) {
 			diameter_entry_t e = pop_pivot(working_reduction_column);
@@ -700,7 +700,9 @@ public:
 			assert(get_coefficient(e) > 0);
 			column.push_back(e);
 		}
-		return column;
+
+		if (column.empty()) return nullptr;
+		return new MatrixColumn(std::move(column));
 	}
 
 	template<class F>
@@ -912,7 +914,7 @@ public:
 							pivot = get_pivot(working_coboundary);
 						} else {
 							// pivot to the right
-							MatrixColumn* new_column = new MatrixColumn(generate_column(std::move(working_reduction_column)));
+							MatrixColumn* new_column = generate_column(std::move(working_reduction_column));
 							MatrixColumn* previous = reduction_matrix.exchange(index_column_to_reduce, new_column);
 							assert(get_index(get_column_pivot(new_column, columns_to_reduce, index_column_to_reduce, 1, dim)) == get_index(pivot));
 							memory_manager.retire(previous);
@@ -938,7 +940,7 @@ public:
 						diameters[location] = get_diameter(pivot);
 						deaths.insert({get_entry(pivot), location});
 #endif
-						MatrixColumn* new_column = new MatrixColumn(generate_column(std::move(working_reduction_column)));
+						MatrixColumn* new_column = generate_column(std::move(working_reduction_column));
 						MatrixColumn* previous = reduction_matrix.exchange(index_column_to_reduce, new_column);
 						memory_manager.retire(previous);
 
