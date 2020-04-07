@@ -97,7 +97,20 @@ template <class Key, class T, class H, class E>
 class hash_map : public mrzv::trivial_concurrent_hash_map<Key, T, H, E> {};
 #else
 template <class Key, class T, class H, class E>
-class hash_map : public std::unordered_map<Key, T, H, E> {};
+class hash_map : public std::unordered_map<Key, T, H, E>
+{
+    public:
+        using Parent = std::unordered_map<Key,T,H,E>;
+        using iterator = typename Parent::iterator;
+
+        Key key(iterator it) const { return it->first; }
+        T   value(iterator it) const { return it->second; }
+
+        bool update(iterator it, T& expected, T desired) { it->second = desired; return true; }
+
+        template<class F>
+        void foreach(const F& f) const  { for(auto& x : (*this)) f(x); }
+};
 #endif
 
 typedef float value_t;
