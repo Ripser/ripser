@@ -39,7 +39,7 @@
 //#define USE_COEFFICIENTS
 
 #define INDICATE_PROGRESS
-#define PRINT_PERSISTENCE_PAIRS
+//#define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_SERIAL
 //#define USE_SHUFFLED_SERIAL
@@ -52,6 +52,8 @@
 #define USE_CONCURRENT_PIVOTS
 
 //#define USE_GOOGLE_HASHMAP
+
+//#define USE_TBB_HASHMAP
 
 #include <algorithm>
 #include <cassert>
@@ -95,6 +97,25 @@ public:
 #include <trivial_concurrent_hash_map.hpp>
 template <class Key, class T, class H, class E>
 class hash_map : public mrzv::trivial_concurrent_hash_map<Key, T, H, E> {};
+#elif defined(USE_TBB_HASHMAP)
+#include <tbb/concurrent_unordered_map.h>
+template <class Key, class T, class H, class E>
+class hash_map : public tbb::concurrent_unordered_map<Key, T, H, E>
+{
+    public:
+        using Parent = tbb::concurrent_unordered_map<Key, T, H, E>;
+        using iterator = typename Parent::iterator;
+
+        Key key(iterator it) const { return it->first; }
+        T   value(iterator it) const { return it->second; }
+
+        bool update(iterator it, T& expected, T desired) { it->second = desired; return true; }
+
+        template<class F>
+        void foreach(const F& f) const  { for(auto& x : (*this)) f(x); }
+
+        void reserve(size_t hint) {}
+};
 #else
 template <class Key, class T, class H, class E>
 class hash_map : public std::unordered_map<Key, T, H, E>
@@ -779,6 +800,7 @@ public:
 		unsigned n_threads = num_threads;
 #ifdef INDICATE_PROGRESS
 		std::atomic<int> progress(0);
+		std::cerr << clear_line << "Starting reduction of " << columns_to_reduce.size() << " columns" << std::endl;
 #endif
 
 		int epoch_counter = 0;
