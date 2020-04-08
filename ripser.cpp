@@ -869,7 +869,7 @@ public:
 
 		Matrix reduction_matrix(columns_to_reduce.size());
 
-#if !defined(USING_SERIAL)
+#if defined(PRINT_PERSISTENCE_PAIRS) && !defined(USING_SERIAL)
 		// extra vector is a work-around inability to store floats in the hash_map
 		typedef hash_map<entry_t, size_t, entry_hash, equal_index> entry_diameter_index_map;
 		std::atomic<size_t> last_diameter_index { 0 };
