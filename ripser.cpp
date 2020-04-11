@@ -85,6 +85,11 @@
 #include <execution>
 #endif
 
+#ifdef USE_TBB
+#include <tbb/tbb.h>
+#include <tbb/parallel_sort.h>
+#endif
+
 #ifdef USE_GOOGLE_HASHMAP
 #include <sparsehash/dense_hash_map>
 template <class Key, class T, class H, class E>
@@ -519,13 +524,18 @@ public:
 #ifdef INDICATE_PROGRESS
 		std::atomic<int> progress {0};
 #endif
-		std::vector<std::future<std::pair<std::vector<diameter_index_t>, std::vector<diameter_index_t>>>> futures;
-		for (unsigned i = 0; i < num_threads; ++i)
-			futures.emplace_back(std::async(std::launch::async, [&]()
-						-> std::pair<std::vector<diameter_index_t>, std::vector<diameter_index_t>> {
-				std::vector<diameter_index_t> next_simplices;
-				std::vector<diameter_index_t> columns_to_reduce;
 
+		std::vector<std::vector<diameter_index_t>> next_simplices_vec(num_threads), columns_to_reduce_vec(num_threads);
+#if defined(USE_TBB)
+		tbb::parallel_for<unsigned>(0, num_threads,
+				[&](unsigned i) {
+#else
+		std::vector<std::future<void>> handles;
+		for (unsigned i = 0; i < num_threads; ++i)
+			handles.emplace_back(std::async(std::launch::async, [&,i]() {
+#endif
+				std::vector<diameter_index_t>& next_simplices    = next_simplices_vec[i];
+				std::vector<diameter_index_t>& columns_to_reduce = columns_to_reduce_vec[i];
 #ifdef INDICATE_PROGRESS
 				int indicate_progress = progress++;
 #endif
@@ -559,18 +569,16 @@ public:
 					}
 					cur_chunk = achunk++;
 				}
-
-				return { next_simplices, columns_to_reduce };
+#if defined(USE_TBB)
+            });
+#else
 			}));
+        handles.clear();
+#endif
 
 		// figure out offsets to put everything together and resize
-		std::vector<std::vector<diameter_index_t>> next_simplices_vec(futures.size()), columns_to_reduce_vec(futures.size());
 		std::vector<size_t> simplices_prefix { 0 }, columns_to_reduce_prefix { 0 };
 		for (unsigned i = 0; i < num_threads; ++i) {
-			auto x = futures[i].get();
-			next_simplices_vec[i] = std::move(x.first);
-			columns_to_reduce_vec[i] = std::move(x.second);
-
 			simplices_prefix.push_back(simplices_prefix.back() + next_simplices_vec[i].size());
 			columns_to_reduce_prefix.push_back(columns_to_reduce_prefix.back() + columns_to_reduce_vec[i].size());
 		}
@@ -578,9 +586,13 @@ public:
 		columns_to_reduce.resize(columns_to_reduce_prefix.back());
 
 		// copy into the arrays
-		std::vector<std::future<void>> handles;
+#if defined(USE_TBB)
+		tbb::parallel_for<unsigned>(0, num_threads,
+				[&](unsigned i) {
+#else
 		for (unsigned i = 0; i < num_threads; ++i)
 			handles.emplace_back(std::async(std::launch::async, [&,i]() {
+#endif
 				size_t k = 0;
 				for (size_t j = simplices_prefix[i]; j < simplices_prefix[i+1]; ++j)
 					next_simplices[j] = next_simplices_vec[i][k++];
@@ -588,8 +600,12 @@ public:
 				k = 0;
 				for (size_t j = columns_to_reduce_prefix[i]; j < columns_to_reduce_prefix[i+1]; ++j)
 					columns_to_reduce[j] = columns_to_reduce_vec[i][k++];
+#if defined(USE_TBB)
+            });
+#else
 			}));
 		handles.clear();		// force execution
+#endif
 
 		simplices.swap(next_simplices);
 
@@ -600,6 +616,9 @@ public:
 
 #ifdef USING_SERIAL
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
+		          greater_diameter_or_smaller_index<diameter_index_t>());
+#elif defined(USE_TBB)
+		tbb::parallel_sort(columns_to_reduce.begin(), columns_to_reduce.end(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
 #else
 		boost::sort::parallel::parallel_sort(columns_to_reduce.begin(), columns_to_reduce.end(),
@@ -741,6 +760,10 @@ public:
 
 	template<class F>
 	void foreach(const std::vector<diameter_index_t>& columns_to_reduce, const F& f) {
+#if defined(INDICATE_PROGRESS) && !defined(USE_SERIAL)
+		std::atomic<int> progress(0);
+		std::cerr << clear_line << "Starting reduction of " << columns_to_reduce.size() << " columns" << std::endl;
+#endif
 #ifdef USE_SERIAL
 		int epoch_counter = 0;
 		mrzv::MemoryManager<MatrixColumn> memory_manager(epoch_counter, 1);
@@ -794,14 +817,30 @@ public:
 				count = 0;
 			}
 		});
+#elif defined(USE_TBB)
+		int epoch_counter = 0;
+		tbb::parallel_for<size_t>(0, columns_to_reduce.size(),
+				[&](size_t index_column_to_reduce) {
+			thread_local int count = 0;
+			thread_local mrzv::MemoryManager<MatrixColumn> memory_manager(epoch_counter, num_threads);
+
+			bool first = true;
+			size_t next;
+			do {
+				next = index_column_to_reduce;
+				index_column_to_reduce = f(next, first, memory_manager);
+				first = false;
+			} while (next != index_column_to_reduce);
+
+			if (++count == 1024) {
+				memory_manager.quiescent();
+				count = 0;
+			}
+		});
 #else	// default: hand-rolled chunking
 		const size_t chunk_size = 1024;
 		size_t chunk = 0;
 		unsigned n_threads = num_threads;
-#ifdef INDICATE_PROGRESS
-		std::atomic<int> progress(0);
-		std::cerr << clear_line << "Starting reduction of " << columns_to_reduce.size() << " columns" << std::endl;
-#endif
 
 		int epoch_counter = 0;
 		std::vector<std::thread> threads;
@@ -1425,6 +1464,10 @@ int main(int argc, char** argv) {
 			filename = argv[i];
 		}
 	}
+
+#ifdef USE_TBB
+	tbb::task_scheduler_init init(num_threads);
+#endif
 
 	std::ifstream file_stream(filename);
 	if (filename && file_stream.fail()) {
