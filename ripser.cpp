@@ -49,7 +49,9 @@
 #define USE_SERIAL_ATOMIC_REF
 #endif
 
-#define USE_CONCURRENT_PIVOTS
+#if !(defined USING_SERIAL)
+#define USE_TRIVIAL_CONCURRENT_HASHMAP
+#endif
 
 //#define USE_GOOGLE_HASHMAP
 
@@ -98,10 +100,6 @@ public:
 	explicit hash_map() : google::dense_hash_map<Key, T, H, E>() { this->set_empty_key(-1); }
 	inline void reserve(size_t hint) { this->resize(hint); }
 };
-#elif defined(USE_CONCURRENT_PIVOTS)
-#include <trivial_concurrent_hash_map.hpp>
-template <class Key, class T, class H, class E>
-class hash_map : public mrzv::trivial_concurrent_hash_map<Key, T, H, E> {};
 #elif defined(USE_TBB_HASHMAP)
 #include <tbb/concurrent_unordered_map.h>
 template <class Key, class T, class H, class E>
@@ -121,6 +119,10 @@ class hash_map : public tbb::concurrent_unordered_map<Key, T, H, E>
 
         void reserve(size_t hint) {}
 };
+#elif defined(USE_TRIVIAL_CONCURRENT_HASHMAP)
+#include <trivial_concurrent_hash_map.hpp>
+template <class Key, class T, class H, class E>
+class hash_map : public mrzv::trivial_concurrent_hash_map<Key, T, H, E> {};
 #else
 template <class Key, class T, class H, class E>
 class hash_map : public std::unordered_map<Key, T, H, E>
