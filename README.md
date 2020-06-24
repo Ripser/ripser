@@ -2,6 +2,8 @@
 
 Copyright © 2015–2019 [Ulrich Bauer].
 
+This branch implements a version of the algorithm described in
+[Towards Lockfree Persistent Homology](https://mrzv.org/publications/lockfree-persistence/).
 
 ### Description
 
