@@ -39,7 +39,7 @@
 #define USE_COEFFICIENTS
 
 #define INDICATE_PROGRESS
-#define PRINT_PERSISTENCE_PAIRS
+//#define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
 
@@ -707,6 +707,8 @@ public:
 
 	void compute_pairs(const std::vector<diameter_index_t>& columns_to_reduce,
 	                   entry_hash_map& pivot_column_index, const index_t dim) {
+	                   
+	    int non_apparent_pairs = 0;
 
 #ifdef PRINT_PERSISTENCE_PAIRS
 		std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
@@ -769,8 +771,11 @@ public:
 							pivot = get_pivot(working_coboundary);
 
 						} else {
+							++non_apparent_pairs;
 #ifdef PRINT_PERSISTENCE_PAIRS
 							value_t death = get_diameter(pivot);
+							
+							
 							if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
 								std::cerr << clear_line << std::flush;
@@ -803,6 +808,9 @@ public:
 #ifdef INDICATE_PROGRESS
 		std::cerr << clear_line << std::flush;
 #endif
+
+		std::cout << non_apparent_pairs << " non-apparent pairs" << std::endl;
+
 	}
 
 	std::vector<diameter_index_t> get_edges();
@@ -1253,7 +1261,7 @@ int main(int argc, char** argv) {
 		}
 		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
 
-		if (threshold >= max) {
+		if (true) {
 			std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
 			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
 			                                         modulus)
