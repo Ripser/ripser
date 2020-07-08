@@ -569,8 +569,8 @@ public:
 					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
 
 					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
-					&& (get_index(get_apparent_cofacet(cofacet, dim + 1)) == -1)
-					&& (get_index(get_apparent_facet(cofacet, dim + 1)) == -1)
+//					&& (get_index(get_apparent_cofacet(cofacet, dim + 1)) == -1)
+//					&& (get_index(get_apparent_facet(cofacet, dim + 1)) == -1)
 						)
 						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
 				}
@@ -614,8 +614,8 @@ public:
 #endif
 				dset.link(u, v);
 			} else {
-				if ((get_index(get_apparent_cofacet(e, 1)) == -1)
-				&& (get_index(get_apparent_facet(e, 1)) == -1))
+//				if ((get_index(get_apparent_cofacet(e, 1)) == -1)
+//				&& (get_index(get_apparent_facet(e, 1)) == -1))
 					columns_to_reduce.push_back(e);
 			}
 		}
@@ -759,19 +759,22 @@ public:
 
 						pivot = get_pivot(working_coboundary);
 					} else {
-						auto check = get_apparent_facet(pivot, dim + 1);
-
-						if (get_index(check) != -1) {
-
-							set_coefficient(check, modulus - get_coefficient(check));
-
-							add_simplex_coboundary(check, dim, working_reduction_column,
-							                       working_coboundary);
-
-							pivot = get_pivot(working_coboundary);
-
-						} else {
-							++non_apparent_pairs;
+//						auto check = get_apparent_facet(pivot, dim + 1);
+//
+//						if (get_index(check) != -1) {
+//
+//							set_coefficient(check, modulus - get_coefficient(check));
+//
+//							add_simplex_coboundary(check, dim, working_reduction_column,
+//							                       working_coboundary);
+//
+//							pivot = get_pivot(working_coboundary);
+//
+//						} else {
+						
+							auto check = get_apparent_facet(pivot, dim + 1);
+							if (get_index(check) == -1) ++non_apparent_pairs;
+						
 #ifdef PRINT_PERSISTENCE_PAIRS
 							value_t death = get_diameter(pivot);
 							
@@ -792,7 +795,7 @@ public:
 								reduction_matrix.push_back(e);
 							}
 							break;
-						}
+//						}
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
