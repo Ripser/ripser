@@ -468,11 +468,12 @@ public:
 		}
 		
 		bool has_next() {
-			v = parent.get_max_vertex(idx_below, k, v);
-			return (v != -1) && (binomial_coeff(v, k) <= idx_below);
+			return (k > 0);
 		}
 		
 		diameter_entry_t next() {
+			v = parent.get_max_vertex(idx_below, k, v);
+			
 			index_t face_index = idx_above - binomial_coeff(v, k) + idx_below;
 			
 			value_t face_diameter = parent.compute_diameter(face_index, dim - 1);
@@ -483,11 +484,9 @@ public:
 			idx_below -= binomial_coeff(v, k);
 			idx_above += binomial_coeff(v, k - 1);
 			
-			--v;
 			--k;
-			
+						
 			return diameter_entry_t(face_diameter, face_index, face_coefficient);
-			;
 		}
 	};
 	
