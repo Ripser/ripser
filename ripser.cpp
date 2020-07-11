@@ -916,7 +916,13 @@ public:
 		k = _dim + 1;
 		vertices.resize(_dim + 1);
 		simplex = _simplex;
-		parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.rbegin());
+		parent.get_simplex_vertices(idx_below, _dim, parent.n, vertices.rbegin());
+		neighbor_it.clear();
+		neighbor_end.clear();
+		for (auto v : vertices) {
+			neighbor_it.push_back(dist.neighbors[v].rbegin());
+			neighbor_end.push_back(dist.neighbors[v].rend());
+		}
 	}
 
 	bool has_next(bool all_cofacets = true) {
