@@ -39,7 +39,7 @@
 //#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
-#define PRINT_PERSISTENCE_PAIRS
+//#define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
 
@@ -667,7 +667,7 @@ public:
 		std::cout << "dim " << dim << ":" << std::endl;
 #endif
 
-		int num_shortcut_pairs = 0, num_apparent_pairs = 0, num_zero_pairs = 0, num_emergent_pairs = 0;
+		int num_shortcut_pairs = 0, num_apparent_pairs = 0, num_zero_pairs = 0, num_emergent_pairs = 0, num_essential = 0;
 	
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
 
@@ -717,7 +717,6 @@ public:
 
 						pivot = get_pivot(working_coboundary);
 					} else {
-#ifdef PRINT_PERSISTENCE_PAIRS
 						value_t death = get_diameter(pivot);
 						if (death == diameter) ++num_zero_pairs;
 						
@@ -726,9 +725,16 @@ public:
 						while (faces.has_next())
 							might_be_apparent_pair &= !greater_diameter_or_smaller_index<diameter_entry_t>()(faces.next(), column_to_reduce);
 						
-						if (might_be_apparent_pair) ++num_apparent_pairs;
-						
-						
+						if (might_be_apparent_pair)
+//						{
+++num_apparent_pairs;
+//							std::cout << "a ";
+//						} else std::cout << "  ";
+//
+//						std::cout << get_index(pivot) << ":" << get_index(column_to_reduce) << std::endl;
+
+
+#ifdef PRINT_PERSISTENCE_PAIRS
 						
 						if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
@@ -748,6 +754,7 @@ public:
 						break;
 					}
 				} else {
+					++num_essential;
 #ifdef PRINT_PERSISTENCE_PAIRS
 #ifdef INDICATE_PROGRESS
 					std::cerr << clear_line << std::flush;
@@ -765,12 +772,13 @@ public:
 		std::cerr << clear_line << std::flush;
 #endif
 		std::cout
+		<< num_essential << "/"
 		<< columns_to_reduce.size() - num_zero_pairs << "/"
 		<< num_emergent_pairs << "/"
 		<< columns_to_reduce.size() - num_shortcut_pairs << "/"
 		<< columns_to_reduce.size() - num_apparent_pairs << "/"
 		<< columns_to_reduce.size()
-		<< "  non-zero / non-emergent / non-shortcut / non-apparent / total columns"
+		<< "  essential / non-zero / non-emergent / non-shortcut / non-apparent / total pairs"
 		<< std::endl;
 	}
 
