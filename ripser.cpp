@@ -36,7 +36,7 @@
 
 */
 
-#define USE_COEFFICIENTS
+//#define USE_COEFFICIENTS
 
 //#define INDICATE_PROGRESS
 //#define PRINT_PERSISTENCE_PAIRS
@@ -673,7 +673,7 @@ public:
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
-		bool check_for_emergent_pair = false;
+		bool check_for_emergent_pair = true;
 		cofacet_entries.clear();
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -784,6 +784,7 @@ public:
 //						} else {
 						
 
+#ifdef PRINT_PERSISTENCE_PAIRS
 							auto column_to_reduce_check = get_apparent_facet(pivot, dim + 1);
 
 							auto pivot_check = get_apparent_cofacet(column_to_reduce, dim);
@@ -794,10 +795,13 @@ public:
 							} else std::cout << "a ";
 
 							std::cout << get_index(pivot) << ":" << get_index(column_to_reduce) << std::endl;
+#else
+							auto check =
+							get_apparent_facet(pivot, dim + 1);
+//							get_apparent_cofacet(column_to_reduce, dim);
+							if (get_index(check) == -1) ++non_apparent_pairs;
+#endif
 
-//							auto check = get_apparent_facet(pivot, dim + 1);
-//							if (get_index(check) == -1) ++non_apparent_pairs;
-						
 #ifdef PRINT_PERSISTENCE_PAIRS
 							value_t death = get_diameter(pivot);
 							
@@ -821,6 +825,7 @@ public:
 //						}
 					}
 				} else {
+					++non_apparent_pairs;
 #ifdef PRINT_PERSISTENCE_PAIRS
 #ifdef INDICATE_PROGRESS
 					std::cerr << clear_line << std::flush;
@@ -1299,7 +1304,7 @@ int main(int argc, char** argv) {
 		}
 		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
 
-		if (true) {
+		if (threshold >= max) {
 			std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
 			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
 			                                         modulus)
