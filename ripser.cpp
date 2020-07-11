@@ -38,7 +38,7 @@
 
 #define USE_COEFFICIENTS
 
-#define INDICATE_PROGRESS
+//#define INDICATE_PROGRESS
 //#define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
@@ -132,6 +132,8 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 	return inverse;
 }
 
+
+
 #ifdef USE_COEFFICIENTS
 
 struct __attribute__((packed)) entry_t {
@@ -202,6 +204,11 @@ template <typename Entry> struct greater_diameter_or_smaller_index {
 		       ((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
 	}
 };
+
+std::ostream& operator<<(std::ostream& stream, const diameter_entry_t& e) {
+	stream << get_entry(e) << ":" << get_diameter(e);
+	return stream;
+}
 
 enum compressed_matrix_layout { LOWER_TRIANGULAR, UPPER_TRIANGULAR };
 
@@ -493,6 +500,8 @@ public:
 	diameter_entry_t get_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
 		simplex_boundary_enumerator facets(simplex, dim, *this);
 		
+//		std::cout << simplex << " has facets:" << std::endl;
+//
 		simplex_coboundary_enumerator cofacets(0, dim - 1, *this);
 		
 		while (facets.has_next()) {
@@ -500,9 +509,11 @@ public:
 			
 			if (get_diameter(facet) == get_diameter(simplex)) {
 				cofacets.init(facet, dim - 1);
+//				std::cout << "  " << facet << " has cofacets:" << std::endl;
 				
 				while (cofacets.has_next()) {
 					auto cofacet = cofacets.next();
+//					std::cout << "    " << cofacet << std::endl;
 
 					if (get_diameter(cofacet) == get_diameter(simplex)) {
 						if (get_index(cofacet) == get_index(simplex)) return facet;
@@ -772,8 +783,20 @@ public:
 //
 //						} else {
 						
-							auto check = get_apparent_facet(pivot, dim + 1);
-							if (get_index(check) == -1) ++non_apparent_pairs;
+
+							auto column_to_reduce_check = get_apparent_facet(pivot, dim + 1);
+
+							auto pivot_check = get_apparent_cofacet(column_to_reduce, dim);
+							if (get_index(column_to_reduce_check) == -1 || get_index(pivot_check) == -1)
+							{
+								++non_apparent_pairs;
+								std::cout << "  ";
+							} else std::cout << "a ";
+
+							std::cout << get_index(pivot) << ":" << get_index(column_to_reduce) << std::endl;
+
+//							auto check = get_apparent_facet(pivot, dim + 1);
+//							if (get_index(check) == -1) ++non_apparent_pairs;
 						
 #ifdef PRINT_PERSISTENCE_PAIRS
 							value_t death = get_diameter(pivot);
@@ -877,7 +900,8 @@ public:
 			assert(k != -1);
 		}
 		value_t cofacet_diameter = get_diameter(simplex);
-		for (index_t w : vertices) cofacet_diameter = std::max(cofacet_diameter, dist(v, w));
+		for (index_t w : vertices)
+			cofacet_diameter = std::max(cofacet_diameter, dist(v, w));
 		index_t cofacet_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
 		coefficient_t cofacet_coefficient =
 		    (k & 1 ? modulus - 1 : 1) * get_coefficient(simplex) % modulus;
@@ -926,12 +950,15 @@ public:
 	}
 
 	bool has_next(bool all_cofacets = true) {
+//		auto v0 = vertices[0];
 		for (auto &it0 = neighbor_it[0], &end0 = neighbor_end[0]; it0 != end0; ++it0) {
 			neighbor = *it0;
 			for (size_t idx = 1; idx < neighbor_it.size(); ++idx) {
+//				auto vi = vertices[idx];
 				auto &it = neighbor_it[idx], end = neighbor_end[idx];
 				while (get_index(*it) > get_index(neighbor))
 					if (++it == end) return false;
+//				auto other_neighbor = *it;
 				if (get_index(*it) != get_index(neighbor))
 					goto continue_outer;
 				else
@@ -950,11 +977,13 @@ public:
 	}
 
 	diameter_entry_t next() {
-		++neighbor_it[0];
 		value_t cofacet_diameter = std::max(get_diameter(simplex), get_diameter(neighbor));
 		index_t cofacet_index = idx_above + binomial_coeff(get_index(neighbor), k + 1) + idx_below;
 		coefficient_t cofacet_coefficient =
 		    (k & 1 ? modulus - 1 : 1) * get_coefficient(simplex) % modulus;
+
+		++neighbor_it[0];
+
 		return diameter_entry_t(cofacet_diameter, cofacet_index, cofacet_coefficient);
 	}
 };
