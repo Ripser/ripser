@@ -626,6 +626,7 @@ public:
 #ifdef USE_COEFFICIENTS
 			if (modulus != 2) std::cout << ":" << normalize(get_coefficient(e), modulus);
 #endif
+			std::cout << " (" << get_diameter(e) <<  ")";
 			cycle.pop();
 			if (get_index(e = get_pivot(cycle)) != -1)
 				std::cout << ", ";
