@@ -38,7 +38,7 @@
 
 //#define USE_COEFFICIENTS
 
-//#define INDICATE_PROGRESS
+#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
@@ -736,7 +736,7 @@ public:
 			reduction_matrix.append_column();
 
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>, Sorter>
-			    working_reduction_column, working_coboundary;
+			    working_reduction_column, working_coboundary, final_coboundary;
 
 			diameter_entry_t pivot = init_coboundary_and_get_pivot<BoundaryEnumerator>(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
@@ -765,42 +765,50 @@ public:
 
 						pivot = get_pivot(working_coboundary);
 					} else {
+						if (final_coboundary.empty()) {
+							pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
+							
+							while (true) {
+								diameter_entry_t e = pop_pivot(working_reduction_column);
+								if (get_index(e) == -1) break;
+								assert(get_coefficient(e) > 0);
+								reduction_matrix.push_back(e);
+							}
+
+							value_t birth = get_diameter(pivot);
+							if (cohomology || (birth * ratio >= diameter)) break;
+
+						}
+						
+						final_coboundary.push(pop_pivot(working_coboundary));
+						pivot = get_pivot(working_coboundary);
+					}
+				} else {
+					if (final_coboundary.empty()) {
 #ifdef PRINT_PERSISTENCE_PAIRS
+#ifdef INDICATE_PROGRESS
+						std::cerr << clear_line << std::flush;
+#endif
+						std::cout << "+[" << diameter << ", ):  ";
+						print_chain(working_reduction_column, dim);
+#endif
+						
+					} else {
+						pivot = get_pivot(final_coboundary);
 						value_t death = get_diameter(pivot);
 						if (diameter > death * ratio) {
 #ifdef INDICATE_PROGRESS
 							std::cerr << clear_line << std::flush;
 #endif
-							auto cycle = working_coboundary;
 							
 							if (cohomology)
 								;//std::cout << " [" << death << "," << diameter << ")" << std::endl;
 							else {
 								std::cout << " [" << death << "," << diameter << "):  ";
-								print_chain(cycle, dim - 1);
+								print_chain(final_coboundary, dim - 1);
 							}
 						}
-#endif
-						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
-
-						while (true) {
-							diameter_entry_t e = pop_pivot(working_reduction_column);
-							if (get_index(e) == -1) break;
-							assert(get_coefficient(e) > 0);
-							reduction_matrix.push_back(e);
-						}
-						break;
 					}
-				} else {
-#ifdef PRINT_PERSISTENCE_PAIRS
-#ifdef INDICATE_PROGRESS
-					std::cerr << clear_line << std::flush;
-#endif
-                    if (!cohomology) {
-                        std::cout << " [" << diameter << ", ):  ";
-                        print_chain(working_coboundary, dim);
-                    }
-#endif
 					break;
 				}
 			}
