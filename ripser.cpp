@@ -712,8 +712,8 @@ public:
 			                    greater_diameter_or_smaller_index<diameter_entry_t>>
 			    working_reduction_column, working_coboundary;
 
-			diameter_entry_t pivot = init_coboundary_and_get_pivot(
-			    column_to_reduce, working_coboundary, dim, pivot_column_index);
+			diameter_entry_t e, pivot = init_coboundary_and_get_pivot(
+			                        column_to_reduce, working_coboundary, dim, pivot_column_index);
 
 			while (true) {
 #ifdef INDICATE_PROGRESS
@@ -729,7 +729,6 @@ public:
 					if (pair != pivot_column_index.end()) {
 						entry_t other_pivot = pair->first;
 						index_t index_column_to_add = pair->second;
-
 						coefficient_t factor =
 						    modulus - get_coefficient(pivot) *
 						                  multiplicative_inverse[get_coefficient(other_pivot)] %
@@ -739,38 +738,34 @@ public:
 						               factor, dim, working_reduction_column, working_coboundary);
 
 						pivot = get_pivot(working_coboundary);
+					} else if (get_index(e = get_apparent_facet(pivot, dim + 1)) != -1) {
+
+						set_coefficient(e, modulus - get_coefficient(e));
+
+						add_simplex_coboundary(e, dim, working_reduction_column,
+						                       working_coboundary);
+
+						pivot = get_pivot(working_coboundary);
+
 					} else {
-						auto check = get_apparent_facet(pivot, dim + 1);
-
-						if (get_index(check) != -1) {
-
-							set_coefficient(check, modulus - get_coefficient(check));
-
-							add_simplex_coboundary(check, dim, working_reduction_column,
-							                       working_coboundary);
-
-							pivot = get_pivot(working_coboundary);
-
-						} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
-							value_t death = get_diameter(pivot);
-							if (death > diameter * ratio) {
+						value_t death = get_diameter(pivot);
+						if (death > diameter * ratio) {
 #ifdef INDICATE_PROGRESS
-								std::cerr << clear_line << std::flush;
+							std::cerr << clear_line << std::flush;
 #endif
-								std::cout << " [" << diameter << "," << death << ")" << std::endl;
-							}
-#endif
-							pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
-
-							while (true) {
-								diameter_entry_t e = pop_pivot(working_reduction_column);
-								if (get_index(e) == -1) break;
-								assert(get_coefficient(e) > 0);
-								reduction_matrix.push_back(e);
-							}
-							break;
+							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 						}
+#endif
+						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
+
+						while (true) {
+							diameter_entry_t e = pop_pivot(working_reduction_column);
+							if (get_index(e) == -1) break;
+							assert(get_coefficient(e) > 0);
+							reduction_matrix.push_back(e);
+						}
+						break;
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
