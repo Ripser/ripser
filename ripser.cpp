@@ -280,9 +280,8 @@ struct sparse_distance_matrix {
 	}
 	
 	value_t operator()(const index_t i, const index_t j) const {
-		for (auto neighbor: neighbors[i])
-			if (get_index(neighbor) == j) return get_diameter(neighbor);
-		return std::numeric_limits<value_t>::infinity();
+		auto neighbor = std::lower_bound(neighbors[i].begin(), neighbors[i].end(), index_diameter_t{j,0});
+		return (neighbor != neighbors[i].end() && get_index(*neighbor) == j) ? get_diameter(*neighbor) : std::numeric_limits<value_t>::infinity();
 	}
 
 	size_t size() const { return neighbors.size(); }
