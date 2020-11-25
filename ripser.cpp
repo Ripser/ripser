@@ -505,11 +505,9 @@ public:
 					auto cofacet = cofacets.next();
 
 					if (get_diameter(cofacet) == get_diameter(simplex)) {
-						if (get_index(cofacet) == get_index(simplex)) return facet;
-						break;
+						return (get_index(cofacet) == get_index(simplex)) ? facet : std::make_pair(0,-1);
 					}
 				}
-				break;
 			}
 		}
 		return std::make_pair(0,-1);
@@ -528,11 +526,9 @@ public:
 					auto facet = facets.next();
 					
 					if (get_diameter(facet) == get_diameter(simplex)) {
-						if (get_index(facet) == get_index(simplex)) return cofacet;
-						break;
+						return (get_index(facet) == get_index(simplex)) ? cofacet : std::make_pair(0,-1);
 					}
 				}
-				break;
 			}
 		}
 		return std::make_pair(0,-1);
