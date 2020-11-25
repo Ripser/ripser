@@ -962,10 +962,15 @@ enum file_format {
 	BINARY
 };
 
+static const uint16_t endian_check(0xff00);
+static const bool is_big_endian = *reinterpret_cast<const uint8_t*>(&endian_check);
+
 template <typename T> T read(std::istream& input_stream) {
 	T result;
-	input_stream.read(reinterpret_cast<char*>(&result), sizeof(T));
-	return result; // on little endian: boost::endian::little_to_native(result);
+	char* p = reinterpret_cast<char*>(&result);
+	if (input_stream.read(p, sizeof(T)).gcount() != sizeof(T)) return T();
+	if (is_big_endian) std::reverse(p, p + sizeof(T));
+	return result;
 }
 
 compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
