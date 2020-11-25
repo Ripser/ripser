@@ -1223,14 +1223,13 @@ int main(int argc, char** argv) {
 		        max = -std::numeric_limits<value_t>::infinity(), max_finite = max;
 		int num_edges = 0;
 
+		value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
 		if (threshold == std::numeric_limits<value_t>::max()) {
-			value_t enclosing_radius = std::numeric_limits<value_t>::infinity();
 			for (size_t i = 0; i < dist.size(); ++i) {
 				value_t r_i = -std::numeric_limits<value_t>::infinity();
 				for (size_t j = 0; j < dist.size(); ++j) r_i = std::max(r_i, dist(i, j));
 				enclosing_radius = std::min(enclosing_radius, r_i);
 			}
-			threshold = enclosing_radius;
 		}
 
 		for (auto d : dist.distances) {
@@ -1242,9 +1241,9 @@ int main(int argc, char** argv) {
 		}
 		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
 
-		if (threshold >= max) {
-			std::cout << "distance matrix with " << dist.size() << " points" << std::endl;
-			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, threshold, ratio,
+		if (threshold == std::numeric_limits<value_t>::max()) {
+			std::cout << "distance matrix with " << dist.size() << " points, using threshold at enclosing radius " << enclosing_radius << std::endl;
+			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, enclosing_radius, ratio,
 			                                         modulus)
 			    .compute_barcodes();
 		} else {
