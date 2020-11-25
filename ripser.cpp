@@ -849,7 +849,7 @@ public:
 template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator {
 	index_t idx_below, idx_above, k;
 	std::vector<index_t> vertices;
-	diameter_entry_t simplex;
+	const diameter_entry_t simplex;
 	const coefficient_t modulus;
 	const sparse_distance_matrix& dist;
 	const binomial_coeff_table& binomial_coeff;
@@ -864,6 +864,7 @@ public:
 	      simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
 	      binomial_coeff(_parent.binomial_coeff) {
 		_parent.get_simplex_vertices(idx_below, _dim, _parent.n, vertices.rbegin());
+
 		for (auto v : vertices) {
 			neighbor_it.push_back(dist.neighbors[v].rbegin());
 			neighbor_end.push_back(dist.neighbors[v].rend());
