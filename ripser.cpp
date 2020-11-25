@@ -278,10 +278,13 @@ struct sparse_distance_matrix {
 					neighbors[i].push_back({j, mat(i, j)});
 				}
 	}
-	
+
 	value_t operator()(const index_t i, const index_t j) const {
-		auto neighbor = std::lower_bound(neighbors[i].begin(), neighbors[i].end(), index_diameter_t{j,0});
-		return (neighbor != neighbors[i].end() && get_index(*neighbor) == j) ? get_diameter(*neighbor) : std::numeric_limits<value_t>::infinity();
+		auto neighbor =
+		    std::lower_bound(neighbors[i].begin(), neighbors[i].end(), index_diameter_t{j, 0});
+		return (neighbor != neighbors[i].end() && get_index(*neighbor) == j)
+		           ? get_diameter(*neighbor)
+		           : std::numeric_limits<value_t>::infinity();
 	}
 
 	size_t size() const { return neighbors.size(); }
@@ -390,7 +393,6 @@ template <typename DistanceMatrix> class ripser {
 	mutable std::vector<diameter_entry_t> cofacet_entries;
 	mutable std::vector<index_t> vertices;
 
-
 	struct entry_hash {
 		std::size_t operator()(const entry_t& e) const {
 			return std::hash<index_t>()(::get_index(e));
@@ -436,7 +438,6 @@ public:
 	value_t compute_diameter(const index_t index, index_t dim) const {
 		value_t diam = -std::numeric_limits<value_t>::infinity();
 
-		
 		vertices.clear();
 		get_simplex_vertices(index, dim, dist.size(), std::back_inserter(vertices));
 
@@ -446,9 +447,9 @@ public:
 			}
 		return diam;
 	}
-	
+
 	class simplex_coboundary_enumerator;
-	
+
 	class simplex_boundary_enumerator {
 	private:
 		index_t idx_below, idx_above, v, k;
@@ -457,38 +458,35 @@ public:
 		const binomial_coeff_table& binomial_coeff;
 		const index_t dim;
 		const ripser& parent;
-		
+
 	public:
 		simplex_boundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
-									const ripser& _parent)
-		: idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1),
-		simplex(_simplex), modulus(_parent.modulus),
-		binomial_coeff(_parent.binomial_coeff), dim(_dim), parent(_parent) {
-		}
-		
-		bool has_next() {
-			return (k > 0);
-		}
-		
+		                            const ripser& _parent)
+		    : idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1),
+		      simplex(_simplex), modulus(_parent.modulus), binomial_coeff(_parent.binomial_coeff),
+		      dim(_dim), parent(_parent) {}
+
+		bool has_next() { return (k > 0); }
+
 		diameter_entry_t next() {
 			v = parent.get_max_vertex(idx_below, k, v);
-			
+
 			index_t face_index = idx_above - binomial_coeff(v, k) + idx_below;
-			
+
 			value_t face_diameter = parent.compute_diameter(face_index, dim - 1);
-			
+
 			coefficient_t face_coefficient =
-			(k & 1 ? 1 : -1 + modulus) * get_coefficient(simplex) % modulus;
-			
+			    (k & 1 ? 1 : -1 + modulus) * get_coefficient(simplex) % modulus;
+
 			idx_below -= binomial_coeff(v, k);
 			idx_above += binomial_coeff(v, k - 1);
-			
+
 			--k;
-						
+
 			return diameter_entry_t(face_diameter, face_index, face_coefficient);
 		}
 	};
-	
+
 	diameter_entry_t get_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
 		simplex_boundary_enumerator facets(simplex, dim, *this);
 		while (facets.has_next()) {
@@ -498,13 +496,14 @@ public:
 				while (cofacets.has_next()) {
 					auto cofacet = cofacets.next();
 					if (get_diameter(cofacet) == get_diameter(simplex))
-						return (get_index(cofacet) == get_index(simplex)) ? facet : std::make_pair(0,-1);
+						return (get_index(cofacet) == get_index(simplex)) ? facet
+						                                                  : std::make_pair(0, -1);
 				}
 			}
 		}
-		return std::make_pair(0,-1);
+		return std::make_pair(0, -1);
 	}
-	
+
 	diameter_entry_t get_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -514,11 +513,12 @@ public:
 				while (facets.has_next()) {
 					auto facet = facets.next();
 					if (get_diameter(facet) == get_diameter(simplex))
-						return (get_index(facet) == get_index(simplex)) ? cofacet : std::make_pair(0,-1);
+						return (get_index(facet) == get_index(simplex)) ? cofacet
+						                                                : std::make_pair(0, -1);
 				}
 			}
 		}
-		return std::make_pair(0,-1);
+		return std::make_pair(0, -1);
 	}
 
 	void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
@@ -551,10 +551,9 @@ public:
 
 					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
 
-					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
-					&& (get_index(get_apparent_cofacet(cofacet, dim + 1)) == -1)
-					&& (get_index(get_apparent_facet(cofacet, dim + 1)) == -1)
-						)
+					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
+					    (get_index(get_apparent_cofacet(cofacet, dim + 1)) == -1) &&
+					    (get_index(get_apparent_facet(cofacet, dim + 1)) == -1))
 						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
 				}
 			}
@@ -597,8 +596,8 @@ public:
 #endif
 				dset.link(u, v);
 			} else {
-				if ((get_index(get_apparent_cofacet(e, 1)) == -1)
-				&& (get_index(get_apparent_facet(e, 1)) == -1))
+				if ((get_index(get_apparent_cofacet(e, 1)) == -1) &&
+				    (get_index(get_apparent_facet(e, 1)) == -1))
 					columns_to_reduce.push_back(e);
 			}
 		}
@@ -677,8 +676,9 @@ public:
 	template <typename Column>
 	void add_coboundary(compressed_sparse_matrix<diameter_entry_t>& reduction_matrix,
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
-	                    const size_t index_column_to_add, const coefficient_t factor, const size_t& dim,
-	                    Column& working_reduction_column, Column& working_coboundary) {
+	                    const size_t index_column_to_add, const coefficient_t factor,
+	                    const size_t& dim, Column& working_reduction_column,
+	                    Column& working_coboundary) {
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
 		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
@@ -714,7 +714,7 @@ public:
 
 			diameter_entry_t pivot = init_coboundary_and_get_pivot(
 			    column_to_reduce, working_coboundary, dim, pivot_column_index);
-			
+
 			while (true) {
 #ifdef INDICATE_PROGRESS
 				if (std::chrono::steady_clock::now() > next) {
@@ -762,7 +762,7 @@ public:
 							}
 #endif
 							pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
-							
+
 							while (true) {
 								diameter_entry_t e = pop_pivot(working_reduction_column);
 								if (get_index(e) == -1) break;
@@ -824,7 +824,7 @@ public:
 	      binomial_coeff(_parent.binomial_coeff) {
 		_parent.get_simplex_vertices(get_index(_simplex), _dim, _parent.n, vertices.rbegin());
 	}
-	
+
 	bool has_next(bool all_cofacets = true) {
 		return (v >= k && (all_cofacets || binomial_coeff(v, k) > idx_below));
 	}
@@ -860,8 +860,8 @@ template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
 	                              const ripser& _parent)
-	    : idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1),
-	      vertices(_dim + 1), simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
+	    : idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1), vertices(_dim + 1),
+	      simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
 	      binomial_coeff(_parent.binomial_coeff) {
 		_parent.get_simplex_vertices(idx_below, _dim, _parent.n, vertices.rbegin());
 		for (auto v : vertices) {
@@ -1220,9 +1220,11 @@ int main(int argc, char** argv) {
 		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
 
 		if (threshold == std::numeric_limits<value_t>::max()) {
-			std::cout << "distance matrix with " << dist.size() << " points, using threshold at enclosing radius " << enclosing_radius << std::endl;
-			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, enclosing_radius, ratio,
-			                                         modulus)
+			std::cout << "distance matrix with " << dist.size()
+			          << " points, using threshold at enclosing radius " << enclosing_radius
+			          << std::endl;
+			ripser<compressed_lower_distance_matrix>(std::move(dist), dim_max, enclosing_radius,
+			                                         ratio, modulus)
 			    .compute_barcodes();
 		} else {
 			std::cout << "sparse distance matrix with " << dist.size() << " points and "
