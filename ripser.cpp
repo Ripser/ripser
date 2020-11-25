@@ -491,21 +491,14 @@ public:
 	
 	diameter_entry_t get_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
 		simplex_boundary_enumerator facets(simplex, dim, *this);
-		
-		simplex_coboundary_enumerator cofacets(0, dim - 1, *this);
-		
 		while (facets.has_next()) {
 			diameter_entry_t facet = facets.next();
-			
 			if (get_diameter(facet) == get_diameter(simplex)) {
-				cofacets.init(facet, dim - 1);
-				
+				simplex_coboundary_enumerator cofacets(facet, dim - 1, *this);
 				while (cofacets.has_next()) {
 					auto cofacet = cofacets.next();
-
-					if (get_diameter(cofacet) == get_diameter(simplex)) {
+					if (get_diameter(cofacet) == get_diameter(simplex))
 						return (get_index(cofacet) == get_index(simplex)) ? facet : std::make_pair(0,-1);
-					}
 				}
 			}
 		}
@@ -514,19 +507,14 @@ public:
 	
 	diameter_entry_t get_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
-		
 		while (cofacets.has_next()) {
 			diameter_entry_t cofacet = cofacets.next();
-			
 			if (get_diameter(cofacet) == get_diameter(simplex)) {
 				simplex_boundary_enumerator facets(cofacet, dim + 1, *this);
-				
 				while (facets.has_next()) {
 					auto facet = facets.next();
-					
-					if (get_diameter(facet) == get_diameter(simplex)) {
+					if (get_diameter(facet) == get_diameter(simplex))
 						return (get_index(facet) == get_index(simplex)) ? cofacet : std::make_pair(0,-1);
-					}
 				}
 			}
 		}
