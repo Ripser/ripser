@@ -916,9 +916,8 @@ sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 compressed_lower_distance_matrix read_lower_distance_matrix(std::istream& input_stream) {
 	std::vector<value_t> distances;
 	value_t value;
-	while (input_stream >> value) {
+	while ((value = next_value_stream(input_stream)) && !std::isnan(value)) {
 		distances.push_back(value);
-		input_stream.ignore();
 	}
 
 	return compressed_lower_distance_matrix(std::move(distances));
@@ -927,9 +926,8 @@ compressed_lower_distance_matrix read_lower_distance_matrix(std::istream& input_
 compressed_lower_distance_matrix read_upper_distance_matrix(std::istream& input_stream) {
 	std::vector<value_t> distances;
 	value_t value;
-	while (input_stream >> value) {
+	while ((value = next_value_stream(input_stream)) && !std::isnan(value)) {
 		distances.push_back(value);
-		input_stream.ignore();
 	}
 
 	return compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
@@ -942,9 +940,8 @@ compressed_lower_distance_matrix read_distance_matrix(std::istream& input_stream
 	value_t value;
 	for (int i = 0; std::getline(input_stream, line); ++i) {
 		std::istringstream s(line);
-		for (int j = 0; j < i && s >> value; ++j) {
+		for (int j = 0; j < i && (value = next_value_stream(s)) && !std::isnan(value); ++j) {
 			distances.push_back(value);
-			s.ignore();
 		}
 	}
 
