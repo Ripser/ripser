@@ -835,6 +835,30 @@ template <typename T> T read(std::istream& input_stream) {
 	return result;
 }
 
+template <typename T> value_t next_value_stream(T& s) {
+	value_t value;
+	std::string tmp;
+	bool valid = false;
+	if (s >> value || !s.eof()) {
+		/* Any input stream fails to convert correctly when Inf or NaN is
+		 * present, this checks if it encounters this kind of values
+		 * if stof fails to find any valid convertion, it throws an
+		 * invalid_argument exception*/
+		if (s.fail()) {
+			s.clear();
+			s >> tmp;
+			value = std::stof(tmp.c_str());
+		}
+
+		/* This check prevent encountering any zero values in distances matrices */
+		if (value != 0) valid = true;
+	}
+
+	s.ignore();
+	return valid ? value : NAN;
+}
+
+
 compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	std::vector<std::vector<value_t>> points;
 
