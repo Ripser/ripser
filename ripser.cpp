@@ -501,40 +501,40 @@ public:
 		}
 	};
 
-    diameter_entry_t get_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
-        simplex_boundary_enumerator facets(simplex, dim, *this);
-        while (facets.has_next()) {
-            diameter_entry_t facet = facets.next();
-            if (get_diameter(facet) == get_diameter(simplex)) {
-                simplex_coboundary_enumerator cofacets(facet, dim - 1, *this);
-                while (cofacets.has_next()) {
-                    diameter_entry_t cofacet = cofacets.next();
-                    if (get_diameter(cofacet) == get_diameter(simplex))
-                        return (get_index(cofacet) == get_index(simplex)) ? facet
-                        : diameter_entry_t(-1);
-                }
-            }
-        }
-        return diameter_entry_t(-1);
-    }
-    
-    diameter_entry_t get_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
-        simplex_coboundary_enumerator cofacets(simplex, dim, *this);
-        while (cofacets.has_next()) {
-            diameter_entry_t cofacet = cofacets.next();
-            if (get_diameter(cofacet) == get_diameter(simplex)) {
-                simplex_boundary_enumerator facets(cofacet, dim + 1, *this);
-                while (facets.has_next()) {
-                    auto facet = facets.next();
-                    if (get_diameter(facet) == get_diameter(simplex))
-                        return (get_index(facet) == get_index(simplex)) ? cofacet
-                        : diameter_entry_t(-1);
-                }
-            }
-        }
-        return diameter_entry_t(-1);
-    }
-    
+	diameter_entry_t get_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
+		simplex_boundary_enumerator facets(simplex, dim, *this);
+		while (facets.has_next()) {
+			diameter_entry_t facet = facets.next();
+			if (get_diameter(facet) == get_diameter(simplex)) {
+				simplex_coboundary_enumerator cofacets(facet, dim - 1, *this);
+				while (cofacets.has_next()) {
+					diameter_entry_t cofacet = cofacets.next();
+					if (get_diameter(cofacet) == get_diameter(simplex))
+						return (get_index(cofacet) == get_index(simplex)) ? facet
+						                                                  : diameter_entry_t(-1);
+				}
+			}
+		}
+		return diameter_entry_t(-1);
+	}
+
+	diameter_entry_t get_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
+		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
+		while (cofacets.has_next()) {
+			diameter_entry_t cofacet = cofacets.next();
+			if (get_diameter(cofacet) == get_diameter(simplex)) {
+				simplex_boundary_enumerator facets(cofacet, dim + 1, *this);
+				while (facets.has_next()) {
+					auto facet = facets.next();
+					if (get_diameter(facet) == get_diameter(simplex))
+						return (get_index(facet) == get_index(simplex)) ? cofacet
+						                                                : diameter_entry_t(-1);
+				}
+			}
+		}
+		return diameter_entry_t(-1);
+	}
+
 	void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
 	                                std::vector<diameter_index_t>& columns_to_reduce,
 	                                entry_hash_map& pivot_column_index, index_t dim) {
@@ -802,11 +802,9 @@ public:
 						    working_reduction_column, working_coboundary);
 
 						pivot = get_pivot(working_coboundary);
-					} else if (cohomology?
-								get_index(e = get_apparent_facet(pivot, dim + 1)) != -1
-							:
-								get_index(e = get_apparent_cofacet(pivot, dim - 1)) != -1
-							) {
+					} else if (cohomology
+					               ? get_index(e = get_apparent_facet(pivot, dim + 1)) != -1
+					               : get_index(e = get_apparent_cofacet(pivot, dim - 1)) != -1) {
 
 						set_coefficient(e, modulus - get_coefficient(e));
 
@@ -829,7 +827,7 @@ public:
 							value_t birth = get_diameter(pivot);
 							if (cohomology || (birth * ratio >= diameter)) break;
 						}
-						
+
 						final_coboundary.push(pop_pivot(working_coboundary));
 						pivot = get_pivot(working_coboundary);
 					}
