@@ -41,7 +41,7 @@
 #define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
-//#define USE_GOOGLE_HASHMAP
+//#define USE_ROBINHOOD_HASHMAP
 
 #include <algorithm>
 #include <cassert>
@@ -54,17 +54,19 @@
 #include <sstream>
 #include <unordered_map>
 
-#ifdef USE_GOOGLE_HASHMAP
-#include <sparsehash/dense_hash_map>
+#ifdef USE_ROBINHOOD_HASHMAP
+
+#include "robin-hood-hashing/src/include/robin_hood.h"
+
 template <class Key, class T, class H, class E>
-class hash_map : public google::dense_hash_map<Key, T, H, E> {
-public:
-	explicit hash_map() : google::dense_hash_map<Key, T, H, E>() { this->set_empty_key(-1); }
-	inline void reserve(size_t hint) { this->resize(hint); }
-};
+using hash_map = robin_hood::unordered_map<Key, T, H, E>;
+template <class Key> using hash = robin_hood::hash<Key>;
+
 #else
-template <class Key, class T, class H, class E>
-class hash_map : public std::unordered_map<Key, T, H, E> {};
+
+template <class Key, class T, class H, class E> using hash_map = std::unordered_map<Key, T, H, E>;
+template <class Key> using hash = std::hash<Key>;
+
 #endif
 
 typedef float value_t;
@@ -408,9 +410,7 @@ template <typename DistanceMatrix> class ripser {
 	mutable std::vector<index_t> vertices;
 
 	struct entry_hash {
-		std::size_t operator()(const entry_t& e) const {
-			return std::hash<index_t>()(::get_index(e));
-		}
+		std::size_t operator()(const entry_t& e) const { return hash<index_t>()(::get_index(e)); }
 	};
 
 	struct equal_index {
@@ -466,7 +466,7 @@ public:
 
 	class simplex_boundary_enumerator {
 	private:
-		index_t idx_below, idx_above, v, k;
+		index_t idx_below, idx_above, j, k;
 		const diameter_entry_t simplex;
 		const coefficient_t modulus;
 		const binomial_coeff_table& binomial_coeff;
@@ -476,24 +476,24 @@ public:
 	public:
 		simplex_boundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
 		                            const ripser& _parent)
-		    : idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1),
+		    : idx_below(get_index(_simplex)), idx_above(0), j(_parent.n - 1), k(_dim),
 		      simplex(_simplex), modulus(_parent.modulus), binomial_coeff(_parent.binomial_coeff),
 		      dim(_dim), parent(_parent) {}
 
-		bool has_next() { return (k > 0); }
+		bool has_next() { return (k >= 0); }
 
 		diameter_entry_t next() {
-			v = parent.get_max_vertex(idx_below, k, v);
+			j = parent.get_max_vertex(idx_below, k + 1, j);
 
-			index_t face_index = idx_above - binomial_coeff(v, k) + idx_below;
+			index_t face_index = idx_above - binomial_coeff(j, k + 1) + idx_below;
 
 			value_t face_diameter = parent.compute_diameter(face_index, dim - 1);
 
 			coefficient_t face_coefficient =
-			    (k & 1 ? 1 : -1 + modulus) * get_coefficient(simplex) % modulus;
+			    (k & 1 ? -1 + modulus : 1) * get_coefficient(simplex) % modulus;
 
-			idx_below -= binomial_coeff(v, k);
-			idx_above += binomial_coeff(v, k - 1);
+			idx_below -= binomial_coeff(j, k + 1);
+			idx_above += binomial_coeff(j, k);
 
 			--k;
 
@@ -501,40 +501,40 @@ public:
 		}
 	};
 
-	diameter_entry_t get_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
-		simplex_boundary_enumerator facets(simplex, dim, *this);
-		while (facets.has_next()) {
-			diameter_entry_t facet = facets.next();
-			if (get_diameter(facet) == get_diameter(simplex)) {
-				simplex_coboundary_enumerator cofacets(facet, dim - 1, *this);
-				while (cofacets.has_next()) {
-					diameter_entry_t cofacet = cofacets.next();
-					if (get_diameter(cofacet) == get_diameter(simplex))
-						return (get_index(cofacet) == get_index(simplex)) ? facet
-						                                                  : diameter_entry_t(-1);
-				}
-			}
-		}
-		return diameter_entry_t(-1);
-	}
-
-	diameter_entry_t get_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
-		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
-		while (cofacets.has_next()) {
-			diameter_entry_t cofacet = cofacets.next();
-			if (get_diameter(cofacet) == get_diameter(simplex)) {
-				simplex_boundary_enumerator facets(cofacet, dim + 1, *this);
-				while (facets.has_next()) {
-					auto facet = facets.next();
-					if (get_diameter(facet) == get_diameter(simplex))
-						return (get_index(facet) == get_index(simplex)) ? cofacet
-						                                                : diameter_entry_t(-1);
-				}
-			}
-		}
-		return diameter_entry_t(-1);
-	}
-
+    diameter_entry_t get_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
+        simplex_boundary_enumerator facets(simplex, dim, *this);
+        while (facets.has_next()) {
+            diameter_entry_t facet = facets.next();
+            if (get_diameter(facet) == get_diameter(simplex)) {
+                simplex_coboundary_enumerator cofacets(facet, dim - 1, *this);
+                while (cofacets.has_next()) {
+                    diameter_entry_t cofacet = cofacets.next();
+                    if (get_diameter(cofacet) == get_diameter(simplex))
+                        return (get_index(cofacet) == get_index(simplex)) ? facet
+                        : diameter_entry_t(-1);
+                }
+            }
+        }
+        return diameter_entry_t(-1);
+    }
+    
+    diameter_entry_t get_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
+        simplex_coboundary_enumerator cofacets(simplex, dim, *this);
+        while (cofacets.has_next()) {
+            diameter_entry_t cofacet = cofacets.next();
+            if (get_diameter(cofacet) == get_diameter(simplex)) {
+                simplex_boundary_enumerator facets(cofacet, dim + 1, *this);
+                while (facets.has_next()) {
+                    auto facet = facets.next();
+                    if (get_diameter(facet) == get_diameter(simplex))
+                        return (get_index(facet) == get_index(simplex)) ? cofacet
+                        : diameter_entry_t(-1);
+                }
+            }
+        }
+        return diameter_entry_t(-1);
+    }
+    
 	void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
 	                                std::vector<diameter_index_t>& columns_to_reduce,
 	                                entry_hash_map& pivot_column_index, index_t dim) {
@@ -914,7 +914,7 @@ public:
 };
 
 template <> class ripser<compressed_lower_distance_matrix>::simplex_coboundary_enumerator {
-	index_t idx_below, idx_above, v, k;
+	index_t idx_below, idx_above, j, k;
 	std::vector<index_t> vertices;
 	const diameter_entry_t simplex;
 	const coefficient_t modulus;
@@ -923,28 +923,28 @@ template <> class ripser<compressed_lower_distance_matrix>::simplex_coboundary_e
 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
-	                              const ripser& _parent)
-	    : idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1),
-	      vertices(_dim + 1), simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
-	      binomial_coeff(_parent.binomial_coeff) {
-		_parent.get_simplex_vertices(get_index(_simplex), _dim, _parent.n, vertices.rbegin());
+	                              const ripser& parent)
+	    : idx_below(get_index(_simplex)), idx_above(0), j(parent.n - 1), k(_dim + 1),
+	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
+	      binomial_coeff(parent.binomial_coeff) {
+		parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.rbegin());
 	}
 
 	bool has_next(bool all_cofacets = true) {
-		return (v >= k && (all_cofacets || binomial_coeff(v, k) > idx_below));
+		return (j >= k && (all_cofacets || binomial_coeff(j, k) > idx_below));
 	}
 
 	diameter_entry_t next() {
-		while ((binomial_coeff(v, k) <= idx_below)) {
-			idx_below -= binomial_coeff(v, k);
-			idx_above += binomial_coeff(v, k + 1);
-			--v;
+		while ((binomial_coeff(j, k) <= idx_below)) {
+			idx_below -= binomial_coeff(j, k);
+			idx_above += binomial_coeff(j, k + 1);
+			--j;
 			--k;
 			assert(k != -1);
 		}
 		value_t cofacet_diameter = get_diameter(simplex);
-		for (index_t w : vertices) cofacet_diameter = std::max(cofacet_diameter, dist(v, w));
-		index_t cofacet_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
+		for (index_t i : vertices) cofacet_diameter = std::max(cofacet_diameter, dist(j, i));
+		index_t cofacet_index = idx_above + binomial_coeff(j--, k + 1) + idx_below;
 		coefficient_t cofacet_coefficient =
 		    (k & 1 ? modulus - 1 : 1) * get_coefficient(simplex) % modulus;
 		return diameter_entry_t(cofacet_diameter, cofacet_index, cofacet_coefficient);
