@@ -531,12 +531,11 @@ public:
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
 
-		--dim;
 		columns_to_reduce.clear();
 		std::vector<diameter_index_t> next_simplices;
 
 		for (diameter_index_t& simplex : simplices) {
-			simplex_coboundary_enumerator cofacets(diameter_entry_t(simplex, 1), dim, *this);
+			simplex_coboundary_enumerator cofacets(diameter_entry_t(simplex, 1), dim - 1, *this);
 
 			while (cofacets.has_next(false)) {
 #ifdef INDICATE_PROGRESS
@@ -552,9 +551,9 @@ public:
 
 					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
 
-					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
-					    (get_index(get_apparent_cofacet(cofacet, dim + 1)) == -1) &&
-					    (get_index(get_apparent_facet(cofacet, dim + 1)) == -1))
+					if ((get_index(get_apparent_cofacet(cofacet, dim)) == -1) &&
+					    (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
+					    (get_index(get_apparent_facet(cofacet, dim)) == -1))
 						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
 				}
 			}
@@ -596,11 +595,8 @@ public:
 					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 				dset.link(u, v);
-			} else {
-				if ((get_index(get_apparent_cofacet(e, 1)) == -1) &&
-				    (get_index(get_apparent_facet(e, 1)) == -1))
-					columns_to_reduce.push_back(e);
-			}
+			} else if (get_index(get_apparent_cofacet(e, 1)) == -1)
+				columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
