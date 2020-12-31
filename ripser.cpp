@@ -41,7 +41,7 @@
 #define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
-#define USE_ROBINHOOD_HASHMAP
+//#define USE_ROBINHOOD_HASHMAP
 
 #include <algorithm>
 #include <cassert>
@@ -641,7 +641,7 @@ public:
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
-		bool check_for_emergent_pair = false;
+		bool check_for_emergent_pair = true;
 		cofacet_entries.clear();
 		simplex_coboundary_enumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -649,7 +649,8 @@ public:
 			if (get_diameter(cofacet) <= threshold) {
 				cofacet_entries.push_back(cofacet);
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(cofacet))) {
-					if (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
+					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
+						(get_index(get_apparent_facet(cofacet, dim + 1)) == -1))
 						return cofacet;
 					check_for_emergent_pair = false;
 				}
@@ -658,7 +659,7 @@ public:
 		for (auto cofacet : cofacet_entries) working_coboundary.push(cofacet);
 		return get_pivot(working_coboundary);
 	}
-
+	
 	template <typename Column>
 	void add_simplex_coboundary(const diameter_entry_t simplex, const index_t& dim,
 	                            Column& working_reduction_column, Column& working_coboundary) {
