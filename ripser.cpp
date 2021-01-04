@@ -854,13 +854,17 @@ public:
 	                              const ripser& _parent)
 	    : idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1), vertices(_dim + 1),
 	      simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
-	      binomial_coeff(_parent.binomial_coeff) {
+	      binomial_coeff(_parent.binomial_coeff),
+          neighbor_it(_dim + 1), neighbor_end(_dim + 1) {
+
 		_parent.get_simplex_vertices(idx_below, _dim, _parent.n, vertices.rbegin());
 
-		for (auto v : vertices) {
-			neighbor_it.push_back(dist.neighbors[v].rbegin());
-			neighbor_end.push_back(dist.neighbors[v].rend());
+		for (size_t i = 0; i <= _dim; ++i) {
+			auto v = vertices[i];
+			neighbor_it[i] = dist.neighbors[v].rbegin();
+			neighbor_end[i] = dist.neighbors[v].rend();
 		}
+
 	}
 
 	bool has_next(bool all_cofacets = true) {
