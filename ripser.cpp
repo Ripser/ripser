@@ -679,8 +679,8 @@ public:
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index,
                                                    simplex_coboundary_enumerator& cofacets,
-												   simplex_boundary_enumerator& facets_dim_1,
-												   simplex_coboundary_enumerator& cofacets_dim
+												   simplex_boundary_enumerator& facets,
+												   simplex_coboundary_enumerator& other_cofacets
 												   ) {
 		bool check_for_emergent_pair = true;
 		cofacet_entries.clear();
@@ -691,7 +691,7 @@ public:
 				cofacet_entries.push_back(cofacet);
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(cofacet))) {
 					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
-					    (get_index(get_apparent_facet(cofacet, dim + 1, facets_dim_1, cofacets_dim)) == -1))
+					    (get_index(get_apparent_facet(cofacet, dim + 1, facets, other_cofacets)) == -1))
 						return cofacet;
 					check_for_emergent_pair = false;
 				}
@@ -738,8 +738,8 @@ public:
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
         
-        simplex_coboundary_enumerator cofacets(dim, *this), cofacets_dim(dim, *this);
-        simplex_boundary_enumerator facets_dim_1(dim + 1, *this);
+        simplex_coboundary_enumerator cofacets(dim, *this), other_cofacets(dim, *this);
+        simplex_boundary_enumerator facets(dim + 1, *this);
 
 
 #ifdef INDICATE_PROGRESS
@@ -758,7 +758,7 @@ public:
 			    working_reduction_column, working_coboundary;
 
 			diameter_entry_t e, pivot = init_coboundary_and_get_pivot(
-			                        column_to_reduce, working_coboundary, dim, pivot_column_index, cofacets, facets_dim_1, cofacets_dim);
+			                        column_to_reduce, working_coboundary, dim, pivot_column_index, cofacets, facets, other_cofacets);
 
 			while (true) {
 #ifdef INDICATE_PROGRESS
@@ -780,15 +780,15 @@ public:
 						                  modulus;
 
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-						               factor, dim, working_reduction_column, working_coboundary, cofacets_dim);
+						               factor, dim, working_reduction_column, working_coboundary, other_cofacets);
 
 						pivot = get_pivot(working_coboundary);
-					} else if (get_index(e = get_apparent_facet(pivot, dim + 1, facets_dim_1, cofacets_dim)) != -1) {
+					} else if (get_index(e = get_apparent_facet(pivot, dim + 1, facets, other_cofacets)) != -1) {
 
 						set_coefficient(e, modulus - get_coefficient(e));
 
 						add_simplex_coboundary(e, dim, working_reduction_column,
-						                       working_coboundary, cofacets_dim);
+						                       working_coboundary, other_cofacets);
 
 						pivot = get_pivot(working_coboundary);
 
