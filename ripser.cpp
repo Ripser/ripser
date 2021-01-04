@@ -36,9 +36,9 @@
 
 */
 
-#define USE_COEFFICIENTS
+//#define USE_COEFFICIENTS
 
-#define INDICATE_PROGRESS
+//#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_ROBINHOOD_HASHMAP
@@ -184,6 +184,9 @@ struct diameter_entry_t : std::pair<value_t, entry_t> {
 	diameter_entry_t(const diameter_index_t& _diameter_index, coefficient_t _coefficient)
 	    : diameter_entry_t(get_diameter(_diameter_index),
 	                       make_entry(get_index(_diameter_index), _coefficient)) {}
+	diameter_entry_t(const diameter_index_t& _diameter_index)
+	    : diameter_entry_t(get_diameter(_diameter_index),
+	                       make_entry(get_index(_diameter_index), 0)) {}
 	diameter_entry_t(const index_t& _index) : diameter_entry_t(0, _index, 0) {}
 };
 
@@ -508,14 +511,14 @@ public:
 			if (get_diameter(facet) == get_diameter(simplex)) {
                 cofacets.set_simplex(facet, dim - 1);
 				while (cofacets.has_next()) {
-					auto cofacet = cofacets.next();
+					diameter_entry_t cofacet = cofacets.next();
 					if (get_diameter(cofacet) == get_diameter(simplex))
 						return (get_index(cofacet) == get_index(simplex)) ? facet
-						                                                  : std::make_pair(0, -1);
+						                                                  : diameter_entry_t(-1);
 				}
 			}
 		}
-		return std::make_pair(0, -1);
+		return diameter_entry_t(-1);
 	}
 
     diameter_entry_t get_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
@@ -537,11 +540,11 @@ public:
 					auto facet = facets.next();
 					if (get_diameter(facet) == get_diameter(simplex))
 						return (get_index(facet) == get_index(simplex)) ? cofacet
-						                                                : std::make_pair(0, -1);
+						                                                : diameter_entry_t(-1);
 				}
 			}
 		}
-		return std::make_pair(0, -1);
+		return diameter_entry_t(-1);
 	}
 
     diameter_entry_t get_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
