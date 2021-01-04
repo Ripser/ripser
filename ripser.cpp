@@ -453,20 +453,32 @@ public:
 	class simplex_boundary_enumerator {
 	private:
 		index_t idx_below, idx_above, j, k;
-		const diameter_entry_t simplex;
+        diameter_entry_t simplex;
 		const coefficient_t modulus;
 		const binomial_coeff_table& binomial_coeff;
 		const index_t dim;
 		const ripser& parent;
 
 	public:
-		simplex_boundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
-		                            const ripser& _parent)
-		    : idx_below(get_index(_simplex)), idx_above(0), j(_parent.n - 1), k(_dim),
-		      simplex(_simplex), modulus(_parent.modulus), binomial_coeff(_parent.binomial_coeff),
-		      dim(_dim), parent(_parent) {}
+        simplex_boundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
+                                    const ripser& _parent)
+            : idx_below(get_index(_simplex)), idx_above(0), j(_parent.n - 1), k(_dim),
+              simplex(_simplex), modulus(_parent.modulus), binomial_coeff(_parent.binomial_coeff),
+              dim(_dim), parent(_parent) {}
 
-		bool has_next() { return (k >= 0); }
+        simplex_boundary_enumerator(const index_t _dim, const ripser& _parent)
+            : simplex_boundary_enumerator(-1, _dim, _parent) {}
+        
+        void set_simplex(const diameter_entry_t _simplex, const index_t _dim) {
+            idx_below = get_index(_simplex);
+            idx_above = 0;
+            j = parent.n - 1;
+            k = _dim;
+            simplex = _simplex;
+        }
+
+
+        bool has_next() { return (k >= 0); }
 
 		diameter_entry_t next() {
 			j = parent.get_max_vertex(idx_below, k + 1, j);
@@ -803,19 +815,34 @@ public:
 template <> class ripser<compressed_lower_distance_matrix>::simplex_coboundary_enumerator {
 	index_t idx_below, idx_above, j, k;
 	std::vector<index_t> vertices;
-	const diameter_entry_t simplex;
+    diameter_entry_t simplex;
 	const coefficient_t modulus;
 	const compressed_lower_distance_matrix& dist;
 	const binomial_coeff_table& binomial_coeff;
+    const ripser& parent;
 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
-	                              const ripser& parent)
-	    : idx_below(get_index(_simplex)), idx_above(0), j(parent.n - 1), k(_dim + 1),
-	      vertices(_dim + 1), simplex(_simplex), modulus(parent.modulus), dist(parent.dist),
-	      binomial_coeff(parent.binomial_coeff) {
-		parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.rbegin());
+	                              const ripser& _parent)
+	    : idx_below(get_index(_simplex)), idx_above(0), j(_parent.n - 1), k(_dim + 1),
+	      vertices(_dim + 1), simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
+          binomial_coeff(_parent.binomial_coeff), parent(_parent) {
+        if (get_index(_simplex) != -1)
+            parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.rbegin());
 	}
+    
+    simplex_coboundary_enumerator(const index_t _dim, const ripser& _parent)
+        : simplex_coboundary_enumerator(-1, _dim, _parent) {}
+
+    void set_simplex(const diameter_entry_t _simplex, const index_t _dim) {
+        idx_below = get_index(_simplex);
+        idx_above = 0;
+        j = parent.n - 1;
+        k = _dim + 1;
+        vertices.resize(_dim + 1);
+        simplex = _simplex;
+        parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.rbegin());
+    }
 
 	bool has_next(bool all_cofacets = true) {
 		return (j >= k && (all_cofacets || binomial_coeff(j, k) > idx_below));
@@ -841,31 +868,42 @@ public:
 template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator {
 	index_t idx_below, idx_above, k;
 	std::vector<index_t> vertices;
-	const diameter_entry_t simplex;
+    diameter_entry_t simplex;
 	const coefficient_t modulus;
 	const sparse_distance_matrix& dist;
 	const binomial_coeff_table& binomial_coeff;
 	std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_it;
 	std::vector<std::vector<index_diameter_t>::const_reverse_iterator> neighbor_end;
 	index_diameter_t neighbor;
+    const ripser& parent;
 
 public:
-	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
-	                              const ripser& _parent)
-	    : idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1), vertices(_dim + 1),
-	      simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
-	      binomial_coeff(_parent.binomial_coeff),
-          neighbor_it(_dim + 1), neighbor_end(_dim + 1) {
+    simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
+                                  const ripser& _parent)
+    : idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1), vertices(_dim + 1),
+    simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
+    binomial_coeff(_parent.binomial_coeff),
+    neighbor_it(_dim + 1), neighbor_end(_dim + 1), parent(_parent) {
+        if (get_index(_simplex) != -1) set_simplex(_simplex, _dim);
+    }
+    
+    simplex_coboundary_enumerator(const index_t _dim, const ripser& _parent)
+        : simplex_coboundary_enumerator(-1, _dim, _parent) {}
 
-		_parent.get_simplex_vertices(idx_below, _dim, _parent.n, vertices.rbegin());
+    void set_simplex(const diameter_entry_t _simplex, const index_t _dim) {
+        idx_below = get_index(_simplex);
+        idx_above = 0;
+        k = _dim + 1;
+        simplex = _simplex;
+        
+        parent.get_simplex_vertices(idx_below, _dim, parent.n, vertices.rbegin());
 
-		for (size_t i = 0; i <= _dim; ++i) {
-			auto v = vertices[i];
-			neighbor_it[i] = dist.neighbors[v].rbegin();
-			neighbor_end[i] = dist.neighbors[v].rend();
-		}
-
-	}
+        for (size_t i = 0; i <= _dim; ++i) {
+            auto v = vertices[i];
+            neighbor_it[i] = dist.neighbors[v].rbegin();
+            neighbor_end[i] = dist.neighbors[v].rend();
+        }
+   }
 
 	bool has_next(bool all_cofacets = true) {
 		for (auto &it0 = neighbor_it[0], &end0 = neighbor_end[0]; it0 != end0; ++it0) {
