@@ -642,7 +642,7 @@ public:
 #endif
 	}
 
-	template <typename Chain> void print_chain(Chain& cycle, index_t dim) {
+	template <typename Chain> void print_chain(Chain cycle, index_t dim) {
 		diameter_entry_t e;
 
 		std::cout << "{";
@@ -816,7 +816,7 @@ public:
 					} else {
 						if (final_coboundary.empty()) {
 							pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
-
+							
 							while (true) {
 								diameter_entry_t e = pop_pivot(working_reduction_column);
 								if (get_index(e) == -1) break;
@@ -826,6 +826,10 @@ public:
 
 							value_t birth = get_diameter(pivot);
 							if (cohomology || (birth * ratio >= diameter)) break;
+							else {
+								std::cout << " [" << birth << "," << diameter << "):  ";
+								print_chain(working_coboundary, dim - 1);
+							}
 						}
 
 						final_coboundary.push(pop_pivot(working_coboundary));
@@ -852,7 +856,7 @@ public:
 							if (cohomology)
 								std::cout << " [" << death << "," << diameter << ")" << std::endl;
 							else {
-								std::cout << " [" << death << "," << diameter << "):  ";
+//								std::cout << " [" << death << "," << diameter << "):  ";
 								print_chain(final_coboundary, dim - 1);
 							}
 						}
