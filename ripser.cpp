@@ -780,7 +780,7 @@ public:
 						                  modulus;
 
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-						               factor, dim, working_reduction_column, working_coboundary, other_cofacets);
+						               factor, dim, working_reduction_column, working_coboundary, cofacets);
 
 						pivot = get_pivot(working_coboundary);
 					} else if (get_index(e = get_apparent_facet(pivot, dim + 1, facets, other_cofacets)) != -1) {
@@ -934,7 +934,7 @@ public:
         
         parent.get_simplex_vertices(idx_below, _dim, parent.n, vertices.rbegin());
 
-        for (size_t i = 0; i <= _dim; ++i) {
+        for (index_t i = 0; i <= _dim; ++i) {
             auto v = vertices[i];
             neighbor_it[i] = dist.neighbors[v].rbegin();
             neighbor_end[i] = dist.neighbors[v].rend();
