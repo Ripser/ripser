@@ -544,12 +544,11 @@ public:
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
 
-		--dim;
 		columns_to_reduce.clear();
 		std::vector<diameter_index_t> next_simplices;
 
 		for (diameter_index_t& simplex : simplices) {
-			simplex_coboundary_enumerator cofacets(diameter_entry_t(simplex, 1), dim, *this);
+			simplex_coboundary_enumerator cofacets(diameter_entry_t(simplex, 1), dim - 1, *this);
 
 			while (cofacets.has_next(false)) {
 #ifdef INDICATE_PROGRESS
@@ -565,9 +564,9 @@ public:
 
 					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
 
-					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
-					    (get_index(get_apparent_cofacet(cofacet, dim + 1)) == -1) &&
-					    (get_index(get_apparent_facet(cofacet, dim + 1)) == -1))
+					if ((get_index(get_apparent_cofacet(cofacet, dim)) == -1) &&
+					    (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
+					    (get_index(get_apparent_facet(cofacet, dim)) == -1))
 						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
 				}
 			}
@@ -623,11 +622,8 @@ public:
 
 #endif
 				dset.link(u, v);
-			} else {
-				if ((get_index(get_apparent_cofacet(e, 1)) == -1) &&
-				    (get_index(get_apparent_facet(e, 1)) == -1))
-					columns_to_reduce.push_back(e);
-			}
+			} else if (get_index(get_apparent_cofacet(e, 1)) == -1)
+				columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
@@ -702,7 +698,7 @@ public:
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
 	                                               entry_hash_map& pivot_column_index) {
-		bool check_for_emergent_pair = false;
+		bool check_for_emergent_pair = true;
 		cofacet_entries.clear();
 		BoundaryEnumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -710,7 +706,8 @@ public:
 			if (get_diameter(cofacet) <= threshold) {
 				cofacet_entries.push_back(cofacet);
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(cofacet))) {
-					if (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end())
+					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
+					    (get_index(get_apparent_facet(cofacet, dim + 1)) == -1))
 						return cofacet;
 					check_for_emergent_pair = false;
 				}
@@ -969,13 +966,17 @@ public:
 	                              const ripser& _parent)
 	    : idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1), vertices(_dim + 1),
 	      simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
-	      binomial_coeff(_parent.binomial_coeff) {
+	      binomial_coeff(_parent.binomial_coeff),
+          neighbor_it(_dim + 1), neighbor_end(_dim + 1) {
+
 		_parent.get_simplex_vertices(idx_below, _dim, _parent.n, vertices.rbegin());
 
-		for (auto v : vertices) {
-			neighbor_it.push_back(dist.neighbors[v].rbegin());
-			neighbor_end.push_back(dist.neighbors[v].rend());
+		for (size_t i = 0; i <= _dim; ++i) {
+			auto v = vertices[i];
+			neighbor_it[i] = dist.neighbors[v].rbegin();
+			neighbor_end[i] = dist.neighbors[v].rend();
 		}
+
 	}
 
 	bool has_next(bool all_cofacets = true) {
