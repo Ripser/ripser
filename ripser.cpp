@@ -589,7 +589,7 @@ public:
 	void compute_dim_0_pairs(std::vector<diameter_index_t>& edges,
 	                         std::vector<diameter_index_t>& columns_to_reduce) {
 #ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim 0:" << std::endl;
+		std::cout << "persistent homology intervals in dim 0:" << std::endl;
 #endif
 
 		union_find dset(n);
@@ -597,11 +597,6 @@ public:
 		edges = get_edges();
 		std::sort(edges.rbegin(), edges.rend(),
 		          greater_diameter_or_smaller_index<diameter_index_t>());
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim 0:" << std::endl;
-#endif
-
 		std::vector<index_t> vertices_of_edge(2);
 		for (auto e : edges) {
 			get_simplex_vertices(get_index(e), 1, n, vertices_of_edge.rbegin());
@@ -622,8 +617,7 @@ public:
 
 #endif
 				dset.link(u, v);
-			} else if (get_index(get_apparent_cofacet(e, 1)) == -1)
-				columns_to_reduce.push_back(e);
+			} else if (get_index(get_apparent_cofacet(e, 1)) == -1) columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
 
@@ -697,8 +691,9 @@ public:
 	template <typename BoundaryEnumerator, typename Column>
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
-	                                               entry_hash_map& pivot_column_index) {
-		bool check_for_emergent_pair = true;
+	                                               entry_hash_map& pivot_column_index,
+	                                               bool cohomology) {
+		bool check_for_emergent_pair = false;
 		cofacet_entries.clear();
 		BoundaryEnumerator cofacets(simplex, dim, *this);
 		while (cofacets.has_next()) {
@@ -707,7 +702,9 @@ public:
 				cofacet_entries.push_back(cofacet);
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(cofacet))) {
 					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
-					    (get_index(get_apparent_facet(cofacet, dim + 1)) == -1))
+					     (cohomology
+					               ? get_index(get_apparent_facet(cofacet, dim + 1)) == -1
+					               : get_index(get_apparent_cofacet(cofacet, dim - 1)) == -1))
 						return cofacet;
 					check_for_emergent_pair = false;
 				}
@@ -752,8 +749,8 @@ public:
 #ifdef PRINT_PERSISTENCE_PAIRS
 		if (!cohomology)
 			std::cout << "persistent homology intervals in dim " << dim - 1 << ":" << std::endl;
-		else
-			std::cout << "persistent cohomology intervals in dim " << dim << ":" << std::endl;
+//		else
+//			std::cout << "persistent cohomology intervals in dim " << dim << ":" << std::endl;
 #endif
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
@@ -773,7 +770,7 @@ public:
 			    working_reduction_column, working_coboundary, final_coboundary;
 
 			diameter_entry_t e, pivot = init_coboundary_and_get_pivot<BoundaryEnumerator>(
-			                        column_to_reduce, working_coboundary, dim, pivot_column_index);
+			                        column_to_reduce, working_coboundary, dim, pivot_column_index, cohomology);
 
 			while (true) {
 #ifdef INDICATE_PROGRESS
@@ -824,7 +821,7 @@ public:
 							value_t birth = get_diameter(pivot);
 							if (cohomology || (birth * ratio >= diameter)) break;
 							else {
-								std::cout << " [" << birth << "," << diameter << "):  ";
+								std::cout << " [" << birth << "," << diameter << "):  " << std::endl;
 								print_chain(working_coboundary, dim - 1);
 							}
 						}
@@ -838,24 +835,17 @@ public:
 #ifdef INDICATE_PROGRESS
 						std::cerr << clear_line << std::flush;
 #endif
-						std::cout << "+[" << diameter << ", ):  ";
+						std::cout << "+[" << diameter << ", ):  " << std::endl;
 						print_chain(working_reduction_column, dim);
 #endif
 
 					} else {
-						pivot = get_pivot(final_coboundary);
-						value_t death = get_diameter(pivot);
-						if (diameter != death) {
 #ifdef INDICATE_PROGRESS
-							std::cerr << clear_line << std::flush;
+						std::cerr << clear_line << std::flush;
 #endif
 
-							if (cohomology)
-								std::cout << " [" << death << "," << diameter << ")" << std::endl;
-							else {
-//								std::cout << " [" << death << "," << diameter << "):  ";
-								print_chain(final_coboundary, dim - 1);
-							}
+						if (!cohomology) {
+							print_chain(final_coboundary, dim - 1);
 						}
 					}
 					break;
