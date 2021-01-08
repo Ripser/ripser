@@ -835,10 +835,11 @@ template <typename T> T read(std::istream& input_stream) {
 	return result;
 }
 
-template <typename T> value_t next_value_stream(T& s) {
+template <typename T> bool next_value_stream(T& s, value_t& next_value) {
 	value_t value;
 	std::string tmp;
 	bool valid = false;
+
 	if (s >> value || !s.eof()) {
 		/* Any input stream fails to convert correctly when Inf or NaN is
 		 * present, this checks if it encounters this kind of values
@@ -847,17 +848,18 @@ template <typename T> value_t next_value_stream(T& s) {
 		if (s.fail()) {
 			s.clear();
 			s >> tmp;
-			value = std::stof(tmp.c_str());
+			next_value = std::stof(tmp.c_str());
+		} else {
+			next_value = value;
 		}
 
 		/* This check prevent encountering any zero values in distances matrices */
-		if (value != 0) valid = true;
+		if (next_value != 0) valid = true;
 	}
 
 	s.ignore();
-	return valid ? value : NAN;
+	return valid;
 }
-
 
 compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	std::vector<std::vector<value_t>> points;
@@ -916,9 +918,7 @@ sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 compressed_lower_distance_matrix read_lower_distance_matrix(std::istream& input_stream) {
 	std::vector<value_t> distances;
 	value_t value;
-	while ((value = next_value_stream(input_stream)) && !std::isnan(value)) {
-		distances.push_back(value);
-	}
+	while (next_value_stream(input_stream, value)) { distances.push_back(value); }
 
 	return compressed_lower_distance_matrix(std::move(distances));
 }
@@ -926,9 +926,7 @@ compressed_lower_distance_matrix read_lower_distance_matrix(std::istream& input_
 compressed_lower_distance_matrix read_upper_distance_matrix(std::istream& input_stream) {
 	std::vector<value_t> distances;
 	value_t value;
-	while ((value = next_value_stream(input_stream)) && !std::isnan(value)) {
-		distances.push_back(value);
-	}
+	while (next_value_stream(input_stream, value)) { distances.push_back(value); }
 
 	return compressed_lower_distance_matrix(compressed_upper_distance_matrix(std::move(distances)));
 }
@@ -940,9 +938,7 @@ compressed_lower_distance_matrix read_distance_matrix(std::istream& input_stream
 	value_t value;
 	for (int i = 0; std::getline(input_stream, line); ++i) {
 		std::istringstream s(line);
-		for (int j = 0; j < i && (value = next_value_stream(s)) && !std::isnan(value); ++j) {
-			distances.push_back(value);
-		}
+		for (int j = 0; j < i && next_value_stream(s, value); ++j) { distances.push_back(value); }
 	}
 
 	return compressed_lower_distance_matrix(std::move(distances));
