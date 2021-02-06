@@ -461,9 +461,9 @@ public:
 	private:
 		index_t idx_below, idx_above, j, k;
 		diameter_entry_t simplex;
+		index_t dim;
 		const coefficient_t modulus;
 		const binomial_coeff_table& binomial_coeff;
-		const index_t dim;
 		const ripser& parent;
 
 	public:
@@ -471,7 +471,7 @@ public:
 		                            const ripser& _parent)
 		    : idx_below(get_index(_simplex)), idx_above(0), j(_parent.n - 1), k(_dim),
 		      simplex(_simplex), modulus(_parent.modulus), binomial_coeff(_parent.binomial_coeff),
-		      dim(_dim), parent(_parent) {}
+		      parent(_parent) {}
 
 		simplex_boundary_enumerator(const index_t _dim, const ripser& _parent)
 		    : simplex_boundary_enumerator(-1, _dim, _parent) {}
@@ -482,6 +482,7 @@ public:
 			j = parent.n - 1;
 			k = _dim;
 			simplex = _simplex;
+			dim = _dim;
 		}
 
 		bool has_next() { return (k >= 0); }
@@ -505,8 +506,8 @@ public:
 		}
 	};
 
-	diameter_entry_t get_zero_pivot_facet(const diameter_entry_t simplex, const index_t dim,
-	                                      simplex_boundary_enumerator& facets) {
+	diameter_entry_t get_zero_pivot_facet(const diameter_entry_t simplex, const index_t dim) {
+		static simplex_boundary_enumerator facets(0, *this);
 		facets.set_simplex(simplex, dim);
 		while (facets.has_next()) {
 			diameter_entry_t facet = facets.next();
@@ -515,8 +516,8 @@ public:
 		return diameter_entry_t(-1);
 	}
 
-	diameter_entry_t get_zero_pivot_cofacet(const diameter_entry_t simplex, const index_t dim,
-	                                        simplex_coboundary_enumerator& cofacets) {
+	diameter_entry_t get_zero_pivot_cofacet(const diameter_entry_t simplex, const index_t dim) {
+		static simplex_coboundary_enumerator cofacets(*this);
 		cofacets.set_simplex(simplex, dim);
 		while (cofacets.has_next()) {
 			diameter_entry_t cofacet = cofacets.next();
@@ -525,34 +526,25 @@ public:
 		return diameter_entry_t(-1);
 	}
 
-	diameter_entry_t get_zero_apparent_facet(const diameter_entry_t simplex, const index_t dim,
-	                                         simplex_boundary_enumerator& facets,
-	                                         simplex_coboundary_enumerator& cofacets) {
-		diameter_entry_t facet = get_zero_pivot_facet(simplex, dim, facets);
+	diameter_entry_t get_zero_apparent_facet(const diameter_entry_t simplex, const index_t dim) {
+		diameter_entry_t facet = get_zero_pivot_facet(simplex, dim);
 		return ((get_index(facet) != -1) &&
-		        (get_index(get_zero_pivot_cofacet(facet, dim - 1, cofacets)) == get_index(simplex)))
+		        (get_index(get_zero_pivot_cofacet(facet, dim - 1)) == get_index(simplex)))
 		           ? facet
 		           : diameter_entry_t(-1);
 	}
 
-	diameter_entry_t get_zero_apparent_cofacet(const diameter_entry_t simplex, const index_t dim,
-	                                           simplex_coboundary_enumerator& cofacets,
-	                                           simplex_boundary_enumerator& facets) {
-		diameter_entry_t cofacet = get_zero_pivot_cofacet(simplex, dim, cofacets);
+	diameter_entry_t get_zero_apparent_cofacet(const diameter_entry_t simplex, const index_t dim) {
+		diameter_entry_t cofacet = get_zero_pivot_cofacet(simplex, dim);
 		return ((get_index(cofacet) != -1) &&
-		        (get_index(get_zero_pivot_facet(cofacet, dim + 1, facets)) == get_index(simplex)))
+		        (get_index(get_zero_pivot_facet(cofacet, dim + 1)) == get_index(simplex)))
 		           ? cofacet
 		           : diameter_entry_t(-1);
 	}
 
-	bool is_in_zero_apparent_pair(const diameter_entry_t simplex, const index_t dim,
-	                              simplex_coboundary_enumerator& cofacets_dim,
-	                              simplex_coboundary_enumerator& cofacets_dim_1,
-	                              simplex_boundary_enumerator& facets_dim,
-	                              simplex_boundary_enumerator& facets_dim_1) {
-		return (get_index(get_zero_apparent_cofacet(simplex, dim, cofacets_dim, facets_dim_1)) !=
-		        -1) ||
-		       (get_index(get_zero_apparent_facet(simplex, dim, facets_dim, cofacets_dim_1)) != -1);
+	bool is_in_zero_apparent_pair(const diameter_entry_t simplex, const index_t dim) {
+		return (get_index(get_zero_apparent_cofacet(simplex, dim)) != -1) ||
+		       (get_index(get_zero_apparent_facet(simplex, dim)) != -1);
 	}
 
 	void assemble_columns_to_reduce(std::vector<diameter_index_t>& simplices,
@@ -567,9 +559,7 @@ public:
 		columns_to_reduce.clear();
 		std::vector<diameter_index_t> next_simplices;
 
-		simplex_coboundary_enumerator cofacets(dim - 1, *this), cofacets_dim(dim, *this),
-		    cofacets_dim_1(dim - 1, *this);
-		simplex_boundary_enumerator facets_dim(dim, *this), facets_dim_1(dim + 1, *this);
+		simplex_coboundary_enumerator cofacets(*this);
 
 		for (diameter_index_t& simplex : simplices) {
 			cofacets.set_simplex(diameter_entry_t(simplex, 1), dim - 1);
@@ -586,8 +576,7 @@ public:
 				auto cofacet = cofacets.next();
 				if (get_diameter(cofacet) <= threshold) {
 					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
-					if (!is_in_zero_apparent_pair(cofacet, dim, cofacets_dim, cofacets_dim_1,
-					                              facets_dim, facets_dim_1) &&
+					if (!is_in_zero_apparent_pair(cofacet, dim) &&
 					    (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()))
 						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
 				}
@@ -616,9 +605,6 @@ public:
 
 		union_find dset(n);
 
-		simplex_coboundary_enumerator cofacets(1, *this);
-		simplex_boundary_enumerator facets(2, *this);
-
 		edges = get_edges();
 		std::sort(edges.rbegin(), edges.rend(),
 		          greater_diameter_or_smaller_index<diameter_index_t>);
@@ -633,7 +619,7 @@ public:
 					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 				dset.link(u, v);
-			} else if (get_index(get_zero_apparent_cofacet(e, 1, cofacets, facets)) == -1)
+			} else if (get_index(get_zero_apparent_cofacet(e, 1)) == -1)
 				columns_to_reduce.push_back(e);
 		}
 		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
@@ -678,10 +664,8 @@ public:
 	template <typename Column>
 	diameter_entry_t init_coboundary_and_get_pivot(const diameter_entry_t simplex,
 	                                               Column& working_coboundary, const index_t& dim,
-	                                               entry_hash_map& pivot_column_index,
-	                                               simplex_coboundary_enumerator& cofacets,
-	                                               simplex_boundary_enumerator& facets,
-	                                               simplex_coboundary_enumerator& other_cofacets) {
+	                                               entry_hash_map& pivot_column_index) {
+		static simplex_coboundary_enumerator cofacets(*this);
 		bool check_for_emergent_pair = true;
 		cofacet_entries.clear();
 		cofacets.set_simplex(simplex, dim);
@@ -691,8 +675,7 @@ public:
 				cofacet_entries.push_back(cofacet);
 				if (check_for_emergent_pair && (get_diameter(simplex) == get_diameter(cofacet))) {
 					if ((pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()) &&
-					    (get_index(get_zero_apparent_facet(cofacet, dim + 1, facets,
-					                                       other_cofacets)) == -1))
+					    (get_index(get_zero_apparent_facet(cofacet, dim + 1)) == -1))
 						return cofacet;
 					check_for_emergent_pair = false;
 				}
@@ -704,8 +687,8 @@ public:
 
 	template <typename Column>
 	void add_simplex_coboundary(const diameter_entry_t simplex, const index_t& dim,
-	                            Column& working_reduction_column, Column& working_coboundary,
-	                            simplex_coboundary_enumerator& cofacets) {
+	                            Column& working_reduction_column, Column& working_coboundary) {
+		static simplex_coboundary_enumerator cofacets(*this);
 		working_reduction_column.push(simplex);
 		cofacets.set_simplex(simplex, dim);
 		while (cofacets.has_next()) {
@@ -719,15 +702,13 @@ public:
 	                    const std::vector<diameter_index_t>& columns_to_reduce,
 	                    const size_t index_column_to_add, const coefficient_t factor,
 	                    const size_t& dim, Column& working_reduction_column,
-	                    Column& working_coboundary, simplex_coboundary_enumerator& cofacets) {
+	                    Column& working_coboundary) {
 		diameter_entry_t column_to_add(columns_to_reduce[index_column_to_add], factor);
-		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary,
-		                       cofacets);
+		add_simplex_coboundary(column_to_add, dim, working_reduction_column, working_coboundary);
 
 		for (diameter_entry_t simplex : reduction_matrix.subrange(index_column_to_add)) {
 			set_coefficient(simplex, get_coefficient(simplex) * factor % modulus);
-			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary,
-			                       cofacets);
+			add_simplex_coboundary(simplex, dim, working_reduction_column, working_coboundary);
 		}
 	}
 
@@ -739,10 +720,7 @@ public:
 #endif
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
-
-		simplex_coboundary_enumerator cofacets(dim, *this), other_cofacets(dim, *this);
-		simplex_boundary_enumerator facets(dim + 1, *this);
-
+		
 #ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
@@ -759,8 +737,7 @@ public:
 			    working_reduction_column, working_coboundary;
 
 			diameter_entry_t e, pivot = init_coboundary_and_get_pivot(
-			                        column_to_reduce, working_coboundary, dim, pivot_column_index,
-			                        cofacets, facets, other_cofacets);
+			                        column_to_reduce, working_coboundary, dim, pivot_column_index);
 
 			while (true) {
 #ifdef INDICATE_PROGRESS
@@ -782,20 +759,15 @@ public:
 						                  modulus;
 
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
-						               factor, dim, working_reduction_column, working_coboundary,
-						               cofacets);
+						               factor, dim, working_reduction_column, working_coboundary);
 
 						pivot = get_pivot(working_coboundary);
-					} else if (get_index(e = get_zero_apparent_facet(pivot, dim + 1, facets,
-					                                                 other_cofacets)) != -1) {
-
+					} else if (get_index(e = get_zero_apparent_facet(pivot, dim + 1)) != -1) {
 						set_coefficient(e, modulus - get_coefficient(e));
 
-						add_simplex_coboundary(e, dim, working_reduction_column, working_coboundary,
-						                       other_cofacets);
+						add_simplex_coboundary(e, dim, working_reduction_column, working_coboundary);
 
 						pivot = get_pivot(working_coboundary);
-
 					} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
 						value_t death = get_diameter(pivot);
@@ -864,23 +836,22 @@ template <> class ripser<compressed_lower_distance_matrix>::simplex_coboundary_e
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
 	                              const ripser& _parent)
-	    : idx_below(get_index(_simplex)), idx_above(0), j(_parent.n - 1), k(_dim + 1),
-	      vertices(_dim + 1), simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
+	    : modulus(_parent.modulus), dist(_parent.dist),
 	      binomial_coeff(_parent.binomial_coeff), parent(_parent) {
 		if (get_index(_simplex) != -1)
 			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.rbegin());
 	}
 
-	simplex_coboundary_enumerator(const index_t _dim, const ripser& _parent)
-	    : simplex_coboundary_enumerator(-1, _dim, _parent) {}
+	simplex_coboundary_enumerator(const ripser& _parent) : modulus(_parent.modulus), dist(_parent.dist),
+	binomial_coeff(_parent.binomial_coeff), parent(_parent) {}
 
 	void set_simplex(const diameter_entry_t _simplex, const index_t _dim) {
 		idx_below = get_index(_simplex);
 		idx_above = 0;
 		j = parent.n - 1;
 		k = _dim + 1;
-		vertices.resize(_dim + 1);
 		simplex = _simplex;
+		vertices.resize(_dim + 1);
 		parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.rbegin());
 	}
 
@@ -920,24 +891,25 @@ template <> class ripser<sparse_distance_matrix>::simplex_coboundary_enumerator 
 public:
 	simplex_coboundary_enumerator(const diameter_entry_t _simplex, const index_t _dim,
 	                              const ripser& _parent)
-	    : idx_below(get_index(_simplex)), idx_above(0), k(_dim + 1), vertices(_dim + 1),
-	      simplex(_simplex), modulus(_parent.modulus), dist(_parent.dist),
-	      binomial_coeff(_parent.binomial_coeff), neighbor_it(_dim + 1), neighbor_end(_dim + 1),
-	      parent(_parent) {
+	    : modulus(_parent.modulus), dist(_parent.dist),
+	      binomial_coeff(_parent.binomial_coeff), parent(_parent) {
 		if (get_index(_simplex) != -1) set_simplex(_simplex, _dim);
 	}
 
-	simplex_coboundary_enumerator(const index_t _dim, const ripser& _parent)
-	    : simplex_coboundary_enumerator(-1, _dim, _parent) {}
+	simplex_coboundary_enumerator(const ripser& _parent)
+	    : modulus(_parent.modulus), dist(_parent.dist),
+	binomial_coeff(_parent.binomial_coeff), parent(_parent) {}
 
 	void set_simplex(const diameter_entry_t _simplex, const index_t _dim) {
 		idx_below = get_index(_simplex);
 		idx_above = 0;
 		k = _dim + 1;
 		simplex = _simplex;
-
+		vertices.resize(_dim + 1);
 		parent.get_simplex_vertices(idx_below, _dim, parent.n, vertices.rbegin());
 
+		neighbor_it.resize(_dim + 1);
+		neighbor_end.resize(_dim + 1);
 		for (index_t i = 0; i <= _dim; ++i) {
 			auto v = vertices[i];
 			neighbor_it[i] = dist.neighbors[v].rbegin();
