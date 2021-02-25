@@ -442,11 +442,11 @@ public:
 		return out;
 	}
 
-	value_t compute_diameter(const index_t index, index_t dim) const {
+	value_t compute_diameter(const index_t index, const index_t dim) const {
 		value_t diam = -std::numeric_limits<value_t>::infinity();
 
-		vertices.clear();
-		get_simplex_vertices(index, dim, dist.size(), std::back_inserter(vertices));
+		vertices.resize(dim + 1);
+		get_simplex_vertices(index, dim, dist.size(), vertices.rbegin());
 
 		for (index_t i = 0; i <= dim; ++i)
 			for (index_t j = 0; j < i; ++j) {
@@ -1260,8 +1260,7 @@ int main(int argc, char** argv) {
 		for (auto d : dist.distances) {
 			min = std::min(min, d);
 			max = std::max(max, d);
-			max_finite =
-			    d != std::numeric_limits<value_t>::infinity() ? std::max(max, d) : max_finite;
+			if (d != std::numeric_limits<value_t>::infinity()) max_finite = std::max(max_finite, d);
 			if (d <= threshold) ++num_edges;
 		}
 		std::cout << "value range: [" << min << "," << max_finite << "]" << std::endl;
