@@ -78,7 +78,6 @@ typedef float value_t;
 typedef int64_t index_t;
 typedef uint16_t coefficient_t;
 
-
 #ifdef INDICATE_PROGRESS
 static const std::chrono::milliseconds time_step(40);
 #endif
@@ -628,9 +627,8 @@ public:
 					std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
 #ifdef __EMSCRIPTEN__
-				EM_ASM_(
-				    {postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
-				    get_diameter(e));
+				EM_ASM_({postMessage({"type" : "interval", "birth" : 0., "death" : $0, "dim" : 0})},
+				        get_diameter(e));
 #endif
 				dset.link(u, v);
 			} else if (get_index(get_zero_apparent_cofacet(e, 1)) == -1)
@@ -776,9 +774,9 @@ public:
 						entry_t other_pivot = pair->first;
 						index_t index_column_to_add = pair->second;
 						coefficient_t factor =
-						    modulus -
-						    get_coefficient(pivot) *
-						        multiplicative_inverse[get_coefficient(other_pivot)] % modulus;
+						    modulus - get_coefficient(pivot) *
+						                  multiplicative_inverse[get_coefficient(other_pivot)] %
+						                  modulus;
 
 						add_coboundary(reduction_matrix, columns_to_reduce, index_column_to_add,
 						               factor, dim, working_reduction_column, working_coboundary);
@@ -800,13 +798,10 @@ public:
 							std::cout << " [" << diameter << "," << death << ")" << std::endl;
 #endif
 #ifdef __EMSCRIPTEN__
-							EM_ASM_({postMessage({
-								        "type" : "interval",
-								        "birth" : $0,
-								        "death" : $1,
-								        "dim" : $2
-								    })},
-							        diameter, death, int32_t(dim));
+							EM_ASM_(
+							    {postMessage(
+							        {"type" : "interval", "birth" : $0, "death" : $1, "dim" : $2})},
+							    diameter, death, int32_t(dim));
 #endif
 						}
 						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
@@ -971,8 +966,7 @@ public:
 				--k;
 			}
 			return true;
-		continue_outer:
-			;
+		continue_outer:;
 		}
 		return false;
 	}
@@ -1221,7 +1215,9 @@ int main(int argc, char** argv) {
 
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
-		if (arg == "--help") { print_usage_and_exit(0); } else if (arg == "--dim") {
+		if (arg == "--help") {
+			print_usage_and_exit(0);
+		} else if (arg == "--dim") {
 			std::string parameter = std::string(argv[++i]);
 			size_t next_pos;
 			dim_max = std::stol(parameter, &next_pos);
@@ -1377,7 +1373,6 @@ void run_ripser(std::string f, int dim_max, float threshold, int format_index) {
 		ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold), dim_max,
 		                               threshold, ratio, modulus)
 		    .compute_barcodes();
-
 }
 
 #ifdef __EMSCRIPTEN__
