@@ -282,9 +282,12 @@ struct sparse_distance_matrix {
 
 		for (size_t i = 0; i < size(); ++i)
 			for (size_t j = 0; j < size(); ++j)
-				if (i != j && mat(i, j) <= threshold) {
-					++num_edges;
-					neighbors[i].push_back({j, mat(i, j)});
+				if (i != j) {
+					auto d = mat(i, j);
+					if (d <= threshold) {
+						++num_edges;
+						neighbors[i].push_back({j, d});
+					}
 				}
 	}
 
@@ -993,7 +996,7 @@ template <typename T> T read(std::istream& input_stream) {
 	return result;
 }
 
-compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
+euclidean_distance_matrix read_point_cloud(std::istream& input_stream) {
 	std::vector<std::vector<value_t>> points;
 
 	std::string line;
@@ -1014,11 +1017,7 @@ compressed_lower_distance_matrix read_point_cloud(std::istream& input_stream) {
 	std::cout << "point cloud with " << n << " points in dimension "
 	          << eucl_dist.points.front().size() << std::endl;
 
-	std::vector<value_t> distances;
-	for (int i = 0; i < n; ++i)
-		for (int j = 0; j < i; ++j) distances.push_back(eucl_dist(i, j));
-
-	return compressed_lower_distance_matrix(std::move(distances));
+	return eucl_dist;
 }
 
 sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
@@ -1240,6 +1239,10 @@ int main(int argc, char** argv) {
 
 		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
 		    .compute_barcodes();
+	} else if (format == POINT_CLOUD) {
+		sparse_distance_matrix dist(read_point_cloud(filename ? file_stream : std::cin), threshold);
+		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
+				.compute_barcodes();
 	} else {
 		compressed_lower_distance_matrix dist =
 		    read_file(filename ? file_stream : std::cin, format);
