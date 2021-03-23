@@ -1239,7 +1239,7 @@ int main(int argc, char** argv) {
 
 		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
 		    .compute_barcodes();
-	} else if (format == POINT_CLOUD) {
+	} else if (format == POINT_CLOUD && threshold < std::numeric_limits<value_t>::max()) {
 		sparse_distance_matrix dist(read_point_cloud(filename ? file_stream : std::cin), threshold);
 		ripser<sparse_distance_matrix>(std::move(dist), dim_max, threshold, ratio, modulus)
 				.compute_barcodes();
