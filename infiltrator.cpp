@@ -1,10 +1,10 @@
 /*
 
- Ripser: a lean C++ code for computation of Vietoris-Rips persistence barcodes
+ Infiltrator: a lean C++ code for computation of simplicial persistence barcodes
 
  MIT License
 
- Copyright (c) 2015–2019 Ulrich Bauer
+ Copyright (c) 2015–2021 Ulrich Bauer
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -80,7 +80,7 @@ std::ostream& operator<<(std::ostream& stream, const __int128_t& i) {
 std::istream& operator>>(std::istream& stream, __int128_t& i) {
 	size_t s;
 	stream >> s;
-	i = (index_t)(s);
+	i = (__int128_t)(s);
 	return stream;
 }
 
@@ -90,10 +90,12 @@ static const std::chrono::milliseconds time_step(40);
 
 static const std::string clear_line("\r\033[K");
 
-//static const size_t num_coefficient_bits = 8;
-//
-//static const index_t max_simplex_index =
-//    (1l << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
+#ifdef USE_COEFFICIENTS
+static const size_t num_coefficient_bits = 8;
+
+static const index_t max_simplex_index =
+    (1l << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
+#endif
 
 void check_overflow(index_t i) {
 	if
@@ -400,7 +402,7 @@ index_t get_max(index_t top, const index_t bottom, const Predicate pred) {
 	return top;
 }
 
-class ripser {
+class infiltrator {
 	std::vector<std::unordered_map<index_t, value_t>> filtration;
     index_t n, dim_max;
 	value_t threshold;
@@ -425,7 +427,7 @@ class ripser {
 	typedef hash_map<entry_t, size_t, entry_hash, equal_index> entry_hash_map;
 
 public:
-    ripser(std::vector<std::unordered_map<index_t, value_t>>&& _filtration, index_t _n, index_t _dim_max, value_t _threshold,
+    infiltrator(std::vector<std::unordered_map<index_t, value_t>>&& _filtration, index_t _n, index_t _dim_max, value_t _threshold,
 	       float _ratio, coefficient_t _modulus)
 	    : filtration(std::move(_filtration)), n(_n), dim_max(_dim_max), threshold(_threshold),
 	      ratio(_ratio), modulus(_modulus), binomial_coeff(n, dim_max + 2),
@@ -464,11 +466,11 @@ public:
 		const diameter_entry_t simplex;
 		const coefficient_t modulus;
 		const binomial_coeff_table& binomial_coeff;
-		const ripser& parent;
+		const infiltrator& parent;
 		
 	public:
 		simplex_boundary_enumerator(const diameter_entry_t _simplex, index_t _dim,
-									const ripser& _parent)
+									const infiltrator& _parent)
 		: idx_below(get_index(_simplex)), idx_above(0), v(_parent.n - 1), k(_dim + 1),
 		face_dim(_dim - 1), vertices(_dim + 1),  simplex(_simplex), modulus(_parent.modulus),
 		binomial_coeff(_parent.binomial_coeff), parent(_parent) {
@@ -733,7 +735,7 @@ public:
 	}
 };
 
-std::vector<diameter_index_t> ripser::get_edges() {
+std::vector<diameter_index_t> infiltrator::get_edges() {
 	std::vector<diameter_index_t> edges;
 	for (auto entry: filtration[1]) {
 		index_t index = entry.first;
@@ -743,7 +745,7 @@ std::vector<diameter_index_t> ripser::get_edges() {
 	return edges;
 }
 
-void ripser::assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
+void infiltrator::assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
                                         entry_hash_map& pivot_column_index,
                                         index_t dim) {
 	columns_to_reduce.clear();
@@ -790,7 +792,7 @@ template <typename T> T read(std::istream& s) {
 void print_usage_and_exit(int exit_code) {
 	std::cerr
 	    << "Usage: "
-	    << "ripser "
+	    << "infiltrator "
 	    << "[options] [filename]" << std::endl
 	    << std::endl
 	    << "Options:" << std::endl
@@ -894,7 +896,7 @@ int main(int argc, const char* argv[]) {
 
 	double clock_start = std::clock();
 
-	ripser(std::move(filtration), n, dim_max, threshold, ratio, modulus).compute_barcodes();
+	infiltrator(std::move(filtration), n, dim_max, threshold, ratio, modulus).compute_barcodes();
 
 	std::cout << "Computed persistent homology in " << (std::clock()-clock_start) / CLOCKS_PER_SEC << " s\n";
 
