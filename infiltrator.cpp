@@ -721,7 +721,7 @@ public:
 		entry_hash_map pivot_column_index;
 
 
-		for (index_t dim = dim_max; dim > 1; --dim) {
+		for (index_t dim = dim_max; dim > 0; --dim) {
 			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, dim);
 			
 			pivot_column_index = entry_hash_map();
@@ -798,6 +798,7 @@ void print_usage_and_exit(int exit_code) {
 	    << "Options:" << std::endl
 	    << std::endl
 	    << "  --help           print this screen" << std::endl
+	    << "  --dim <k>        compute persistent homology up to dimension k" << std::endl
 	    << "  --threshold <t>  compute homology up to filtration value <t>" << std::endl
 #ifdef USE_COEFFICIENTS
 	    << "  --modulus <p>    compute homology with coefficients in the prime field Z/pZ"
@@ -846,7 +847,7 @@ int main(int argc, const char* argv[]) {
 
 	const char* filename = nullptr;
 
-	index_t n, dim_max = 1;
+	index_t n, dim_max = std::numeric_limits<index_t>::max(), dim;
 	value_t threshold = std::numeric_limits<value_t>::max();
 	float ratio = 1;
 	coefficient_t modulus = 2;
@@ -890,13 +891,13 @@ int main(int argc, const char* argv[]) {
 	}
 
 	std::vector<std::unordered_map<index_t, value_t>> filtration =
-	    read_file(filename ? file_stream : std::cin, n, dim_max);
+	    read_file(filename ? file_stream : std::cin, n, dim);
 
-	std::cout << "complex of dimension " << dim_max << " with " << n << " vertices" << std::endl;
+	std::cout << "complex of dimension " << dim << " with " << n << " vertices" << std::endl;
 
 	double clock_start = std::clock();
 
-	infiltrator(std::move(filtration), n, dim_max, threshold, ratio, modulus).compute_barcodes();
+	infiltrator(std::move(filtration), n, std::min(dim, dim_max), threshold, ratio, modulus).compute_barcodes();
 
 	std::cout << "Computed persistent homology in " << (std::clock()-clock_start) / CLOCKS_PER_SEC << " s\n";
 
