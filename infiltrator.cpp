@@ -329,35 +329,6 @@ index_t compute_index(const std::vector<index_t> vertices, const binomial_coeff_
 	return index;
 }
 
-class union_find {
-	std::vector<index_t> parent;
-	std::vector<uint8_t> rank;
-
-public:
-	union_find(const index_t n) : parent(n), rank(n, 0) {
-		for (index_t i = 0; i < n; ++i) parent[i] = i;
-	}
-
-	index_t find(index_t x) {
-		index_t y = x, z;
-		while ((z = parent[y]) != y) y = z;
-		while ((z = parent[x]) != y) {
-			parent[x] = y;
-			x = z;
-		}
-		return z;
-	}
-
-	void link(index_t x, index_t y) {
-		if ((x = find(x)) == (y = find(y))) return;
-		if (rank[x] > rank[y])
-			parent[y] = x;
-		else {
-			parent[x] = y;
-			if (rank[x] == rank[y]) ++rank[y];
-		}
-	}
-};
 
 template <typename T> T begin(std::pair<T, T>& p) { return p.first; }
 template <typename T> T end(std::pair<T, T>& p) { return p.second; }
@@ -510,44 +481,6 @@ public:
 
 	void assemble_columns_to_reduce(std::vector<diameter_index_t>& columns_to_reduce,
                                     entry_hash_map& pivot_column_index, index_t dim);
-
-	void compute_dim_0_pairs(std::vector<diameter_index_t>& columns_to_reduce) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim 0:" << std::endl;
-#endif
-
-		union_find dset(n);
-
-		std::vector<diameter_index_t> edges = get_edges();
-
-		std::sort(edges.begin(), edges.end(),
-		          smaller_diameter_or_greater_index<diameter_index_t>());
-		std::vector<index_t> vertices_of_edge(2);
-		for (auto e : edges) {
-			get_simplex_vertices(get_index(e), 1, n, vertices_of_edge.begin());
-			index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
-
-			if (u != v) {
-#ifdef PRINT_PERSISTENCE_PAIRS
-				if (get_diameter(e) > 0)
-					std::cout << " ["
-					<< std::max(filtration[0].find(vertices_of_edge[0])->second,
-								filtration[0].find(vertices_of_edge[1])->second)
-					<< "," << get_diameter(e) << ")" << std::endl;
-#endif
-				dset.link(u, v);
-			} else
-				columns_to_reduce.push_back(e);
-		}
-		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
-
-#ifdef PRINT_PERSISTENCE_PAIRS
-		for (index_t i = 0; i < n; ++i)
-            if (dset.find(i) == i) {
-                std::cout << " [" << filtration[0].find(i)->second << ", )" << std::endl;
-            }
-#endif
-    }
 
 	template <typename Column> diameter_entry_t pop_pivot(Column& column) {
 		diameter_entry_t pivot(-1);
@@ -729,8 +662,6 @@ public:
 
 			compute_pairs(columns_to_reduce, pivot_column_index, dim);
 		}
-
-		compute_dim_0_pairs(columns_to_reduce);
 
 	}
 };

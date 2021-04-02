@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		55E113311BD63CF3002B6F51 /* ripser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 55E113301BD63CF3002B6F51 /* ripser.cpp */; };
+		5569FC90261775AD00107DBB /* infiltrator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5569FC8F261775AD00107DBB /* infiltrator.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -24,7 +24,7 @@
 
 /* Begin PBXFileReference section */
 		551018481BD63CB300990BFF /* ripser */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ripser; sourceTree = BUILT_PRODUCTS_DIR; };
-		55E113301BD63CF3002B6F51 /* ripser.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ripser.cpp; sourceTree = SOURCE_ROOT; };
+		5569FC8F261775AD00107DBB /* infiltrator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = infiltrator.cpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,7 +57,7 @@
 		5510184A1BD63CB300990BFF /* ripser */ = {
 			isa = PBXGroup;
 			children = (
-				55E113301BD63CF3002B6F51 /* ripser.cpp */,
+				5569FC8F261775AD00107DBB /* infiltrator.cpp */,
 			);
 			path = ripser;
 			sourceTree = "<group>";
@@ -119,7 +119,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				55E113311BD63CF3002B6F51 /* ripser.cpp in Sources */,
+				5569FC90261775AD00107DBB /* infiltrator.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
