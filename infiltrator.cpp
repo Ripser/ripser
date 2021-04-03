@@ -38,7 +38,7 @@
 
 //#define USE_COEFFICIENTS
 
-#define INDICATE_PROGRESS
+//#define INDICATE_PROGRESS
 #define PRINT_PERSISTENCE_PAIRS
 
 //#define USE_GOOGLE_HASHMAP
@@ -564,7 +564,7 @@ public:
 	                   entry_hash_map& pivot_column_index, const index_t dim) {
 
 #ifdef PRINT_PERSISTENCE_PAIRS
-		std::cout << "persistence intervals in dim " << dim - 1 << " (" << columns_to_reduce.size() << " columns):" << std::endl;
+//		std::cout << "persistence intervals in dim " << dim - 1 << " (" << columns_to_reduce.size() << " columns):" << std::endl;
 #endif
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
@@ -617,7 +617,7 @@ public:
 #ifdef INDICATE_PROGRESS
 							std::cerr << clear_line << std::flush;
 #endif
-							std::cout << " [" << birth << "," << diameter << ")" << std::endl;
+							std::cout << dim - 1 << ": [" << birth << "," << diameter << ")" << std::endl;
 						}
 #endif
 						pivot_column_index.insert({get_entry(pivot), index_column_to_reduce});
@@ -635,7 +635,7 @@ public:
 #ifdef INDICATE_PROGRESS
 					std::cerr << clear_line << std::flush;
 #endif
-					std::cout << "+[" << diameter << ", )" << std::endl;
+					std::cout << dim << ": [" << diameter << ", )" << std::endl;
 #endif
 					break;
 				}
@@ -661,6 +661,17 @@ public:
 			pivot_column_index.reserve(columns_to_reduce.size());
 
 			compute_pairs(columns_to_reduce, pivot_column_index, dim);
+		}
+		
+		assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, 0);
+		
+		for (size_t index_column_to_reduce = 0; index_column_to_reduce < columns_to_reduce.size();
+		     ++index_column_to_reduce) {
+
+			diameter_entry_t column_to_reduce(columns_to_reduce[index_column_to_reduce], 1);
+			value_t diameter = get_diameter(column_to_reduce);
+			
+			std::cout << "0: [" << diameter << ", )" << std::endl;
 		}
 
 	}
@@ -824,8 +835,10 @@ int main(int argc, const char* argv[]) {
 	std::vector<std::unordered_map<index_t, value_t>> filtration =
 	    read_file(filename ? file_stream : std::cin, n, dim);
 
-	std::cout << "complex of dimension " << dim << " with " << n << " vertices" << std::endl;
-
+	std::cout << "complex of dimension " << dim << " with " << n << " vertices and " << filtration.size() << " simplices" << std::endl;
+	
+	std::cout << "persistence intervals:" << std::endl;
+	
 	double clock_start = std::clock();
 
 	infiltrator(std::move(filtration), n, std::min(dim, dim_max), threshold, ratio, modulus).compute_barcodes();
