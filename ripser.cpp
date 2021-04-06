@@ -578,7 +578,8 @@ public:
 #endif
 				auto cofacet = cofacets.next();
 				if (get_diameter(cofacet) <= threshold) {
-					next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
+					if (dim != dim_max)
+						next_simplices.push_back({get_diameter(cofacet), get_index(cofacet)});
 					if (!is_in_zero_apparent_pair(cofacet, dim) &&
 					    (pivot_column_index.find(get_entry(cofacet)) == pivot_column_index.end()))
 						columns_to_reduce.push_back({get_diameter(cofacet), get_index(cofacet)});
