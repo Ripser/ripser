@@ -840,8 +840,10 @@ public:
 #ifdef INDICATE_PROGRESS
 						std::cerr << clear_line << std::flush;
 #endif
-						out_stream << "+[" << diameter << ", ):  " << std::endl;
-						print_chain(working_reduction_column, dim);
+						if (!cohomology) {
+							out_stream << "+[" << diameter << ", ):  " << std::endl;
+							print_chain(working_reduction_column, dim);
+						}
 #endif
 
 					} else {
