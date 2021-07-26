@@ -102,13 +102,13 @@ The following experimental features are currently available in separate branches
 If you use Ripser in your research or if you want to give a reference to Ripser in a paper, you may use the following bibtex entry (will be updated with complete publication data):
 
 ```
-@misc{1908.02518,
+@article{Bauer2021Ripser,
 	Author = {Ulrich Bauer},
 	Title = {Ripser: efficient computation of Vietoris-Rips persistence barcodes},
-	Month = Feb,
+	Journal = {Journal of Applied and Computational Topology},
 	Year = {2021},
-	Eprint = {1908.02518v2},
-	Note = {Preprint}
+	Publisher = {Springer},
+	DOI = {10.1007/s41468-021-00071-5}
 }
 ```
 
