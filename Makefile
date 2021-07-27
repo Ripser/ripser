@@ -1,15 +1,15 @@
-build: ripser
+build: ripser-image
 
 
-all: ripser ripser-debug
+all: ripser-image ripser-image-debug
 
 
-ripser: ripser.cpp
-	c++ -std=c++11 ripser.cpp -o ripser -Ofast -D NDEBUG
+ripser-image: ripser.cpp
+	c++ -std=c++11 ripser.cpp -o ripser-image -Ofast -D NDEBUG
 
-ripser-debug: ripser.cpp
-	c++ -std=c++11 ripser.cpp -o ripser-debug -g
+ripser-image-debug: ripser.cpp
+	c++ -std=c++11 ripser-image -o ripser-image-debug -g
 
 
 clean:
-	rm -f ripser ripser-debug
+	rm -f ripser-image ripser-image-debug
