@@ -683,80 +683,76 @@ int main(int argc, char** argv) {
 
 void ripser::compute_barcodes() {
 
-    std::vector<diameter_index_t> columns_to_reduce_down;
-    std::vector<diameter_index_t> columns_to_reduce_image;
+	std::vector<diameter_index_t> columns_to_reduce_sub;
+	std::vector<diameter_index_t> columns_to_reduce_image;
 
 
-    {
-        union_find dset_down(n);
-        union_find dset_up(n);
-        std::vector<diameter_index_t> edges_down;
-        std::vector<diameter_index_t> edges_up;
-        for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
-            if (compute_diameter_sub(index, 1) <= threshold) {
-                edges_down.push_back(std::make_pair(compute_diameter_sub(index, 1), index));
-            }
-            if (compute_diameter(index, 1) <= threshold) {
-                edges_up.push_back(std::make_pair(compute_diameter(index, 1), index));
-            }
-        }
-        std::sort(edges_down.rbegin(), edges_down.rend(),
-                  greater_diameter_or_smaller_index<diameter_index_t>());
-        std::sort(edges_up.rbegin(), edges_up.rend(),
-                  greater_diameter_or_smaller_index<diameter_index_t>());
-        
-        //computing 0-dimensional barcode of lower filtration to initialize matrix for higher dimensions
-        std::vector<index_t> vertices_of_edge(2);
-        for (auto& e : edges_down) {
-            vertices_of_edge.clear();
-            get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
-            index_t u = dset_down.find(vertices_of_edge[0]), v = dset_down.find(vertices_of_edge[1]);
-            
-            if (u != v) {
-                dset_down.link(u, v);
-            } else
-                columns_to_reduce_down.push_back(e);
-        }
-        std::reverse(columns_to_reduce_down.begin(), columns_to_reduce_down.end());
-        
-        //computing 0-dimensional barcode of image by computing that of upper filtration
+	{
+		union_find dset(n), dset_sub(n);
+		std::vector<diameter_index_t> edges, edges_sub;
+		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
+			value_t diameter = compute_diameter(index, 1);
+			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
+			value_t diameter_sub = compute_diameter_sub(index, 1);
+			if (diameter_sub <= threshold) edges_sub.push_back(std::make_pair(diameter_sub, index));
+		}
+		std::sort(edges.rbegin(), edges.rend(),
+				  greater_diameter_or_smaller_index<diameter_index_t>());
+		std::sort(edges_sub.rbegin(), edges_sub.rend(),
+				  greater_diameter_or_smaller_index<diameter_index_t>());
+		
+		//computing 0-dimensional barcode of lower filtration to initialize matrix for higher dimensions
+		std::vector<index_t> vertices_of_edge(2);
+		for (auto& e : edges_sub) {
+			vertices_of_edge.clear();
+			get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
+			index_t u = dset_sub.find(vertices_of_edge[0]), v = dset_sub.find(vertices_of_edge[1]);
+
+			if (u != v) {
+				dset_sub.link(u, v);
+			} else
+				columns_to_reduce_sub.push_back(e);
+		}
+		std::reverse(columns_to_reduce_sub.begin(), columns_to_reduce_sub.end());
+		
+		//computing 0-dimensional barcode of image by computing that of upper filtration
 #ifdef PRINT_PERSISTENCE_PAIRS
         std::cout << "persistence intervals in dim 0:" << std::endl;
 #endif
         
-        for (auto& e : edges_up) {
+        for (auto& e : edges) {
             vertices_of_edge.clear();
             get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
-            index_t u = dset_up.find(vertices_of_edge[0]), v = dset_up.find(vertices_of_edge[1]);
+            index_t u = dset.find(vertices_of_edge[0]), v = dset.find(vertices_of_edge[1]);
             
             if (u != v) {
 #ifdef PRINT_PERSISTENCE_PAIRS
                 if (get_diameter(e) != 0)
                     std::cout << " [0," << get_diameter(e) << ")" << std::endl;
 #endif
-                dset_up.link(u, v);
+                dset.link(u, v);
             }
         }
         
 #ifdef PRINT_PERSISTENCE_PAIRS
         for (index_t i = 0; i < n; ++i)
-            if (dset_up.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
+            if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
 #endif
-    }
+	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
-		hash_map<index_t, index_t> pivot_column_index_down;
+		hash_map<index_t, index_t> pivot_column_index_sub;
         hash_map<index_t, index_t> pivot_column_index_image;
         
 #ifdef PRINT_PERSISTENCE_PAIRS
         std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
         //reducing matrix corresponding to lower filtration
-        pivot_column_index_down.reserve(columns_to_reduce_down.size());
-        compute_pairs(columns_to_reduce_down, pivot_column_index_down, dim, false);
+        pivot_column_index_sub.reserve(columns_to_reduce_sub.size());
+        compute_pairs(columns_to_reduce_sub, pivot_column_index_sub, dim, false);
         
         //initializing matrix for image with same column ordering as previous matrix
-        columns_to_reduce_image = columns_to_reduce_down;
+        columns_to_reduce_image = columns_to_reduce_sub;
         for (auto& col : columns_to_reduce_image) {
             col = std::make_pair(compute_diameter(get_index(col), dim), get_index(col));
         }
@@ -766,7 +762,7 @@ void ripser::compute_barcodes() {
         compute_pairs(columns_to_reduce_image, pivot_column_index_image, dim, true);
 
 		if (dim < dim_max) {
-			assemble_columns_to_reduce(columns_to_reduce_down, pivot_column_index_down, dim + 1);
+			assemble_columns_to_reduce(columns_to_reduce_sub, pivot_column_index_sub, dim + 1);
 		}
 	}
 }
