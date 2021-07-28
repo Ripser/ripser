@@ -570,7 +570,7 @@ void print_usage_and_exit(int exit_code) {
 	    << std::endl
 	    << "                     distance       (full distance matrix)" << std::endl
 	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
-	    << "                     ripser         (distance matrix in Ripser binary file format)"
+	    << "                     binary         (distance matrix in Ripser binary file format)"
 	    << std::endl
         << "  --subfiltration <f>  use f as second filtration for image persistence" << std::endl
 	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
