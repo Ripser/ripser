@@ -7,7 +7,7 @@ Copyright © 2015–2021 [Ulrich Bauer], [Maximilian Schmahl].
 
 Ripser is a lean C++ code for the computation of Vietoris–Rips persistence barcodes. It can do just this one thing, but does it extremely well.
 
-This branch conputes the image persistence barcode induced by a nonexpanding of metric spaces with the same underlying set, specified by two distance matrices of the same size.
+This branch computes the image persistence barcode induced by a nonexpanding map of metric spaces with the same underlying set, specified by two distance matrices of the same size.
 
 The input is given either in a file whose name is passed as an argument, or through stdin. The following options are supported at the command line:
 
