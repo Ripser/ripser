@@ -100,19 +100,19 @@ class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
 
 public:
-	binomial_coeff_table(index_t n, index_t k) : B(n + 1, std::vector<index_t>(k + 1, 0)) {
+	binomial_coeff_table(index_t n, index_t k) : B(k + 1, std::vector<index_t>(n + 1, 0)) {
 		for (index_t i = 0; i <= n; ++i) {
-			B[i][0] = 1;
+			B[0][i] = 1;
 			for (index_t j = 1; j < std::min(i, k + 1); ++j)
-				B[i][j] = B[i - 1][j - 1] + B[i - 1][j];
+				B[j][i] = B[j - 1][i - 1] + B[j][i - 1];
 			if (i <= k) B[i][i] = 1;
-			check_overflow(B[i][std::min(i >> 1, k)]);
+			check_overflow(B[std::min(i >> 1, k)][i]);
 		}
 	}
 
 	index_t operator()(index_t n, index_t k) const {
 		assert(n < B.size() && k < B[n].size() && n >= k - 1);
-		return B[n][k];
+		return B[k][n];
 	}
 };
 
