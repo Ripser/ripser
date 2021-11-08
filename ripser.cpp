@@ -82,7 +82,7 @@ static const std::string clear_line("\r\033[K");
 static const size_t num_coefficient_bits = 8;
 
 static const index_t max_simplex_index =
-    (1l << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
+    (index_t(1) << (8 * sizeof(index_t) - 1 - num_coefficient_bits)) - 1;
 
 void check_overflow(index_t i) {
 	if
@@ -98,6 +98,7 @@ void check_overflow(index_t i) {
 
 class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
+	
 
 public:
 	binomial_coeff_table(index_t n, index_t k) : B(k + 1, std::vector<index_t>(n + 1, 0)) {
