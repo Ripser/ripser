@@ -100,9 +100,8 @@ class binomial_coeff_table {
 	std::vector<std::vector<index_t>> B;
 
 public:
-	binomial_coeff_table(index_t n, index_t k) : B(n + 1) {
+	binomial_coeff_table(index_t n, index_t k) : B(n + 1, std::vector<index_t>(k + 1, 0)) {
 		for (index_t i = 0; i <= n; ++i) {
-			B[i].resize(k + 1, 0);
 			B[i][0] = 1;
 			for (index_t j = 1; j < std::min(i, k + 1); ++j)
 				B[i][j] = B[i - 1][j - 1] + B[i - 1][j];
