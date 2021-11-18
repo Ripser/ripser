@@ -55,10 +55,18 @@ public:
 };
 
 
-typedef std::pair<value_t, index_t> diameter_index_t;
-value_t get_diameter(const diameter_index_t& i) { return i.first; }
-index_t get_index(const diameter_index_t& i) { return i.second; }
+struct diameter_index_t {
+	value_t diameter;
+	index_t index;
+	
+	diameter_index_t() {}
+	diameter_index_t(const diameter_index_t& i): diameter(i.diameter), index(i.index) {}
+	diameter_index_t(const value_t _diameter, const index_t _index): diameter(_diameter), index(_index) {}
+};
 
+	value_t get_diameter(const diameter_index_t& i) { return i.diameter; }
+	index_t get_index(const diameter_index_t& i) { return i.index; }
+	
 template <typename Entry> struct greater_diameter_or_smaller_index {
 	bool operator()(const Entry& a, const Entry& b) {
 		return (get_diameter(a) > get_diameter(b)) ||
@@ -343,7 +351,7 @@ public:
 			if (pivot_column_index.find(index) == pivot_column_index.end()) {
 				value_t diameter_sub = compute_diameter_sub(index, dim);
                 if (diameter_sub <= threshold) {
-					columns_to_reduce.push_back(std::make_pair(diameter_sub, index));
+					columns_to_reduce.push_back(diameter_index_t(diameter_sub, index));
                 }
 			}
 		}
@@ -708,9 +716,9 @@ void ripser::compute_barcodes() {
 		std::vector<diameter_index_t> edges, edges_sub;
 		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
 			value_t diameter = compute_diameter(index, 1);
-			if (diameter <= threshold) edges.push_back(std::make_pair(diameter, index));
+			if (diameter <= threshold) edges.push_back(diameter_index_t(diameter, index));
 			value_t diameter_sub = compute_diameter_sub(index, 1);
-			if (diameter_sub <= threshold) edges_sub.push_back(std::make_pair(diameter_sub, index));
+			if (diameter_sub <= threshold) edges_sub.push_back(diameter_index_t(diameter_sub, index));
 		}
 		std::sort(edges.rbegin(), edges.rend(),
 				  greater_diameter_or_smaller_index<diameter_index_t>());
@@ -770,7 +778,7 @@ void ripser::compute_barcodes() {
         //initializing matrix for image with same column ordering as previous matrix
         columns_to_reduce_image = columns_to_reduce_sub;
         for (auto& col : columns_to_reduce_image) {
-            col = std::make_pair(compute_diameter(get_index(col), dim), get_index(col));
+            col = diameter_index_t(compute_diameter(get_index(col), dim), get_index(col));
         }
         
         //reducing matrix corresponding to image
