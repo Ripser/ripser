@@ -341,7 +341,7 @@ public:
 
 		for (index_t index = 0; index < num_simplices; ++index) {
 			if (pivot_column_index.find(index) == pivot_column_index.end()) {
-				value_t diameter_sub = compute_diameter(index, dim);
+				value_t diameter_sub = compute_diameter_sub(index, dim);
                 if (diameter_sub <= threshold) {
 					columns_to_reduce.push_back(std::make_pair(diameter_sub, index));
                 }
