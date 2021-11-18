@@ -359,6 +359,7 @@ public:
 												  Column& working_coboundary,
 												  const index_t& dim,
 												  hash_map<index_t, index_t>& pivot_column_index,
+												  bool& might_be_apparent_pair,
                                                   const compressed_lower_distance_matrix& _dist)
 	{
 		for (auto it = column_begin;
@@ -371,8 +372,19 @@ public:
 			simplex_coboundary_enumerator cofaces(simplex, dim, *this, _dist);
 			while (cofaces.has_next()) {
 				diameter_index_t coface = cofaces.next();
-				if (compute_diameter_sub(get_index(coface), dim + 1) <= threshold) {
+				value_t coface_diam_sub = compute_diameter_sub(get_index(coface), dim + 1);
+				
+				if (coface_diam_sub <= threshold) {
 					coface_entries.push_back(coface);
+					value_t simplex_diam_sub = compute_diameter_sub(get_index(simplex), dim);
+					if (might_be_apparent_pair &&
+						(simplex_diam_sub == coface_diam_sub)) {
+						if (pivot_column_index.find(get_index(coface)) ==
+							pivot_column_index.end()) {
+							return coface;
+						}
+						might_be_apparent_pair = false;
+					}
 				}
 			}
 			for (auto coface : coface_entries) working_coboundary.push(coface);
@@ -402,6 +414,8 @@ public:
 			// initialize reduction_matrix as identity matrix
 			reduction_matrix.append_column();
 			reduction_matrix.push_back(diameter_index_t(column_to_reduce));
+			
+			bool might_be_apparent_pair = (index_column_to_reduce == index_column_to_add);
 
 			while (true) {
                 
@@ -412,6 +426,7 @@ public:
                                                          working_coboundary,
                                                          dim,
                                                          pivot_column_index,
+                                                         might_be_apparent_pair,
                                                          dist);
                 } else {
                     pivot = add_coboundary_and_get_pivot(reduction_matrix.cbegin(index_column_to_add),
@@ -420,6 +435,7 @@ public:
                                                          working_coboundary,
                                                          dim,
                                                          pivot_column_index,
+                                                         might_be_apparent_pair,
                                                          dist_sub);
                 }
                 
