@@ -1165,6 +1165,8 @@ compressed_lower_distance_matrix read_file(std::istream& input_stream, const fil
 		return read_point_cloud(input_stream);
 	case DIPHA:
 		return read_dipha(input_stream);
+	case SPARSE:
+		return read_sparse_distance_matrix(input_stream);
 	default:
 		return read_binary(input_stream);
 	}
