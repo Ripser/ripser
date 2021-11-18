@@ -8,7 +8,7 @@ ripser-image: ripser.cpp
 	c++ -std=c++11 ripser.cpp -o ripser-image -Ofast -D NDEBUG
 
 ripser-image-debug: ripser.cpp
-	c++ -std=c++11 ripser-image -o ripser-image-debug -g
+	c++ -std=c++11 ripser.cpp -o ripser-image-debug -g
 
 
 clean:
