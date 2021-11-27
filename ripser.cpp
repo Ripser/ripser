@@ -56,20 +56,26 @@ public:
 
 
 struct diameter_index_t {
-	value_t diameter;
+	value_t diameter, diameter_sub;
 	index_t index;
 	
-	diameter_index_t() {}
-	diameter_index_t(const diameter_index_t& i): diameter(i.diameter), index(i.index) {}
-	diameter_index_t(const value_t _diameter, const index_t _index): diameter(_diameter), index(_index) {}
+	diameter_index_t(): diameter(0), diameter_sub(0), index(-1) {}
+	diameter_index_t(const diameter_index_t& i): diameter(i.diameter_sub), diameter_sub(i.diameter_sub), index(i.index) {}
+	diameter_index_t(const value_t _diameter, const value_t _diameter_sub, const index_t _index): diameter(_diameter), diameter_sub(_diameter_sub), index(_index) {}
 };
 
-	value_t get_diameter(const diameter_index_t& i) { return i.diameter; }
-	index_t get_index(const diameter_index_t& i) { return i.index; }
+value_t get_diameter(const diameter_index_t& i) { return i.diameter; }
+value_t get_diameter_sub(const diameter_index_t& i) { return i.diameter_sub; }
+index_t get_index(const diameter_index_t& i) { return i.index; }
 	
 template <typename Entry> struct greater_diameter_or_smaller_index {
+	bool use_diameter_sub;
+	greater_diameter_or_smaller_index(bool _use_diameter_sub) : use_diameter_sub(_use_diameter_sub) {}
 	bool operator()(const Entry& a, const Entry& b) {
-		return (get_diameter(a) > get_diameter(b)) ||
+		return use_diameter_sub ?
+		(get_diameter_sub(a) > get_diameter_sub(b)) ||
+		       ((get_diameter_sub(a) == get_diameter_sub(b)) && (get_index(a) < get_index(b))):
+		(get_diameter(a) > get_diameter(b)) ||
 		       ((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
 	}
 };
@@ -169,7 +175,7 @@ public:
 
 template <typename Heap> diameter_index_t pop_pivot(Heap& column) {
 	if (column.empty())
-		return diameter_index_t(0, -1);
+		return diameter_index_t();
 	else {
 		auto pivot = column.top();
 
@@ -177,7 +183,7 @@ template <typename Heap> diameter_index_t pop_pivot(Heap& column) {
 		while (!column.empty() && get_index(column.top()) == get_index(pivot)) {
 			column.pop();
 			if (column.empty())
-				return diameter_index_t(0, -1);
+				return diameter_index_t();
 			else {
 				pivot = column.top();
 				column.pop();
@@ -309,13 +315,14 @@ public:
 		std::vector<index_t> vertices;
 		const diameter_index_t simplex;
 		const compressed_lower_distance_matrix& dist;
+		const compressed_lower_distance_matrix& dist_sub;
 		const binomial_coeff_table& binomial_coeff;
 
 	public:
 		simplex_coboundary_enumerator(const diameter_index_t _simplex, index_t _dim,
-		                              const ripser& parent, const compressed_lower_distance_matrix& _dist)
+		                              const ripser& parent)
 		    : idx_below(get_index(_simplex)), idx_above(0), v(parent.n - 1), k(_dim + 1),
-              vertices(_dim + 1), simplex(_simplex), dist(_dist),
+              vertices(_dim + 1), simplex(_simplex), dist(parent.dist), dist_sub(parent.dist_sub),
 		      binomial_coeff(parent.binomial_coeff) {
 			parent.get_simplex_vertices(get_index(_simplex), _dim, parent.n, vertices.begin());
 		}
@@ -333,9 +340,13 @@ public:
 
 		diameter_index_t next() {
 			value_t coface_diameter = get_diameter(simplex);
-			for (index_t w : vertices) coface_diameter = std::max(coface_diameter, dist(v, w));
+			value_t coface_diameter_sub = get_diameter_sub(simplex);
+			for (index_t w : vertices) {
+				coface_diameter = std::max(coface_diameter, dist(v, w));
+				coface_diameter_sub = std::max(coface_diameter_sub, dist_sub(v, w));
+			}
 			index_t coface_index = idx_above + binomial_coeff(v--, k + 1) + idx_below;
-			return diameter_index_t(coface_diameter, coface_index);
+			return diameter_index_t(coface_diameter, coface_diameter_sub, coface_index);
 		}
 	};
 
@@ -349,15 +360,16 @@ public:
 
 		for (index_t index = 0; index < num_simplices; ++index) {
 			if (pivot_column_index.find(index) == pivot_column_index.end()) {
+				value_t diameter = compute_diameter(index, dim);
 				value_t diameter_sub = compute_diameter_sub(index, dim);
                 if (diameter_sub <= threshold) {
-					columns_to_reduce.push_back(diameter_index_t(diameter_sub, index));
+					columns_to_reduce.push_back(diameter_index_t(diameter, diameter_sub, index));
                 }
 			}
 		}
 
 		std::sort(columns_to_reduce.begin(), columns_to_reduce.end(),
-		          greater_diameter_or_smaller_index<diameter_index_t>());
+		          greater_diameter_or_smaller_index<diameter_index_t>(true));
 	}
 	
 	template <typename Column, typename Iterator>
@@ -368,7 +380,7 @@ public:
 												  const index_t& dim,
 												  hash_map<index_t, index_t>& pivot_column_index,
 												  bool& might_be_apparent_pair,
-                                                  const compressed_lower_distance_matrix& _dist)
+												  bool image)
 	{
 		for (auto it = column_begin;
 		it != column_end; ++it) {
@@ -377,16 +389,15 @@ public:
 			working_reduction_column.push(simplex);
 			
 			coface_entries.clear();
-			simplex_coboundary_enumerator cofaces(simplex, dim, *this, _dist);
+			simplex_coboundary_enumerator cofaces(simplex, dim, *this);
 			while (cofaces.has_next()) {
 				diameter_index_t coface = cofaces.next();
-				value_t coface_diam_sub = compute_diameter_sub(get_index(coface), dim + 1);
+				value_t diam_coface = image ? get_diameter(coface) : get_diameter_sub(coface);
 				
-				if (coface_diam_sub <= threshold) {
+				if (diam_coface <= threshold) {
 					coface_entries.push_back(coface);
-					value_t simplex_diam_sub = compute_diameter_sub(get_index(simplex), dim);
 					if (might_be_apparent_pair &&
-						(simplex_diam_sub == coface_diam_sub)) {
+						(get_diameter_sub(simplex) == diam_coface)) {
 						if (pivot_column_index.find(get_index(coface)) ==
 							pivot_column_index.end()) {
 							return coface;
@@ -412,12 +423,13 @@ public:
 
 			std::priority_queue<diameter_index_t, std::vector<diameter_index_t>,
 			                    greater_diameter_or_smaller_index<diameter_index_t>>
-			    working_reduction_column, working_coboundary;
+			    working_reduction_column(!image), working_coboundary(!image);
             
+			value_t diameter = get_diameter_sub(column_to_reduce);
+			
 			index_t index_column_to_add = index_column_to_reduce;
 			
 			diameter_index_t pivot;
-            value_t birth = compute_diameter_sub(get_index(column_to_reduce), dim);
             
 			// initialize reduction_matrix as identity matrix
 			reduction_matrix.append_column();
@@ -427,25 +439,14 @@ public:
 
 			while (true) {
                 
-                if (image) {
-                    pivot = add_coboundary_and_get_pivot(reduction_matrix.cbegin(index_column_to_add),
+                pivot = add_coboundary_and_get_pivot(reduction_matrix.cbegin(index_column_to_add),
                                                          reduction_matrix.cend(index_column_to_add),
                                                          working_reduction_column,
                                                          working_coboundary,
                                                          dim,
                                                          pivot_column_index,
                                                          might_be_apparent_pair,
-                                                         dist);
-                } else {
-                    pivot = add_coboundary_and_get_pivot(reduction_matrix.cbegin(index_column_to_add),
-                                                         reduction_matrix.cend(index_column_to_add),
-                                                         working_reduction_column,
-                                                         working_coboundary,
-                                                         dim,
-                                                         pivot_column_index,
-                                                         might_be_apparent_pair,
-                                                         dist_sub);
-                }
+                                                         image);
                 
 				if (get_index(pivot) != -1) {
 					auto pair = pivot_column_index.find(get_index(pivot));
@@ -457,7 +458,7 @@ public:
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
                     if (!image) {
-                        std::cout << " [" << birth << ", )" << std::endl << std::flush;
+                        std::cout << " [" << diameter << ", )" << std::endl << std::flush;
                     }
 #endif
                     break;
@@ -466,12 +467,14 @@ public:
 #ifdef PRINT_PERSISTENCE_PAIRS
                 if (image) {
                     value_t death = get_diameter(pivot);
-                    if (birth < death) {
-                        std::cout << " [" << birth << "," << death << ")" << std::endl << std::flush;
+                    if (diameter != death) {
+                        std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
                     }
                 }
 #endif
+
                 pivot_column_index.insert(std::make_pair(get_index(pivot), index_column_to_reduce));
+                
                 
 // replace current column of reduction_matrix (with a single diagonal 1 entry)
 // by reduction_column (possibly with a different entry on the diagonal)
@@ -707,38 +710,23 @@ int main(int argc, char** argv) {
 
 void ripser::compute_barcodes() {
 
-	std::vector<diameter_index_t> columns_to_reduce_sub;
-	std::vector<diameter_index_t> columns_to_reduce_image;
+	std::vector<diameter_index_t> columns_to_reduce;
+	std::vector<index_t> vertices_of_edge(2);
 
 
 	{
 		union_find dset(n), dset_sub(n);
-		std::vector<diameter_index_t> edges, edges_sub;
+		std::vector<diameter_index_t> edges;
 		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
 			value_t diameter = compute_diameter(index, 1);
-			if (diameter <= threshold) edges.push_back(diameter_index_t(diameter, index));
 			value_t diameter_sub = compute_diameter_sub(index, 1);
-			if (diameter_sub <= threshold) edges_sub.push_back(diameter_index_t(diameter_sub, index));
+			if (diameter_sub <= threshold) edges.push_back(diameter_index_t(diameter, diameter_sub, index));
 		}
-		std::sort(edges.rbegin(), edges.rend(),
-				  greater_diameter_or_smaller_index<diameter_index_t>());
-		std::sort(edges_sub.rbegin(), edges_sub.rend(),
-				  greater_diameter_or_smaller_index<diameter_index_t>());
-		
-		//computing 0-dimensional barcode of lower filtration to initialize matrix for higher dimensions
-		std::vector<index_t> vertices_of_edge(2);
-		for (auto& e : edges_sub) {
-			vertices_of_edge.clear();
-			get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
-			index_t u = dset_sub.find(vertices_of_edge[0]), v = dset_sub.find(vertices_of_edge[1]);
 
-			if (u != v) {
-				dset_sub.link(u, v);
-			} else
-				columns_to_reduce_sub.push_back(e);
-		}
-		std::reverse(columns_to_reduce_sub.begin(), columns_to_reduce_sub.end());
-		
+
+		std::sort(edges.rbegin(), edges.rend(),
+				  greater_diameter_or_smaller_index<diameter_index_t>(false));
+
 		//computing 0-dimensional barcode of image by computing that of upper filtration
 #ifdef PRINT_PERSISTENCE_PAIRS
         std::cout << "persistence intervals in dim 0:" << std::endl;
@@ -758,6 +746,23 @@ void ripser::compute_barcodes() {
             }
         }
         
+		std::sort(edges.rbegin(), edges.rend(),
+				  greater_diameter_or_smaller_index<diameter_index_t>(true));
+		
+		//computing 0-dimensional barcode of lower filtration to initialize matrix for higher dimensions
+		for (auto& e : edges) {
+			vertices_of_edge.clear();
+			get_simplex_vertices(get_index(e), 1, n, std::back_inserter(vertices_of_edge));
+			index_t u = dset_sub.find(vertices_of_edge[0]), v = dset_sub.find(vertices_of_edge[1]);
+
+			if (u != v) {
+				dset_sub.link(u, v);
+			} else
+				columns_to_reduce.push_back(e);
+		}
+		std::reverse(columns_to_reduce.begin(), columns_to_reduce.end());
+
+        
 #ifdef PRINT_PERSISTENCE_PAIRS
         for (index_t i = 0; i < n; ++i)
             if (dset.find(i) == i) std::cout << " [0, )" << std::endl << std::flush;
@@ -772,21 +777,15 @@ void ripser::compute_barcodes() {
         std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
         //reducing matrix corresponding to lower filtration
-        pivot_column_index_sub.reserve(columns_to_reduce_sub.size());
-        compute_pairs(columns_to_reduce_sub, pivot_column_index_sub, dim, false);
-        
-        //initializing matrix for image with same column ordering as previous matrix
-        columns_to_reduce_image = columns_to_reduce_sub;
-        for (auto& col : columns_to_reduce_image) {
-            col = diameter_index_t(compute_diameter(get_index(col), dim), get_index(col));
-        }
+        pivot_column_index_sub.reserve(columns_to_reduce.size());
+        compute_pairs(columns_to_reduce, pivot_column_index_sub, dim, false);
         
         //reducing matrix corresponding to image
-        pivot_column_index_image.reserve(columns_to_reduce_image.size());
-        compute_pairs(columns_to_reduce_image, pivot_column_index_image, dim, true);
+        pivot_column_index_image.reserve(columns_to_reduce.size());
+        compute_pairs(columns_to_reduce, pivot_column_index_image, dim, true);
 
 		if (dim < dim_max) {
-			assemble_columns_to_reduce(columns_to_reduce_sub, pivot_column_index_sub, dim + 1);
+			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index_sub, dim + 1);
 		}
 	}
 }
