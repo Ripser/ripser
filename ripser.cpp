@@ -770,22 +770,22 @@ void ripser::compute_barcodes() {
 	}
 
 	for (index_t dim = 1; dim <= dim_max; ++dim) {
-		hash_map<index_t, index_t> pivot_column_index_sub;
-        hash_map<index_t, index_t> pivot_column_index_image;
+		hash_map<index_t, index_t> pivot_column_index;
         
 #ifdef PRINT_PERSISTENCE_PAIRS
         std::cout << "persistence intervals in dim " << dim << ":" << std::endl;
 #endif
-        //reducing matrix corresponding to lower filtration
-        pivot_column_index_sub.reserve(columns_to_reduce.size());
-        compute_pairs(columns_to_reduce, pivot_column_index_sub, dim, false);
-        
-        //reducing matrix corresponding to image
-        pivot_column_index_image.reserve(columns_to_reduce.size());
-        compute_pairs(columns_to_reduce, pivot_column_index_image, dim, true);
+        pivot_column_index.reserve(columns_to_reduce.size());
 
+        //reducing matrix corresponding to image
+        compute_pairs(columns_to_reduce, pivot_column_index, dim, true);
+
+        //reducing matrix corresponding to lower filtration
+        pivot_column_index.clear();
+        compute_pairs(columns_to_reduce, pivot_column_index, dim, false);
+        
 		if (dim < dim_max) {
-			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index_sub, dim + 1);
+			assemble_columns_to_reduce(columns_to_reduce, pivot_column_index, dim + 1);
 		}
 	}
 }
