@@ -392,12 +392,13 @@ public:
 			simplex_coboundary_enumerator cofaces(simplex, dim, *this);
 			while (cofaces.has_next()) {
 				diameter_index_t coface = cofaces.next();
+				value_t diam_simplex = image ? get_diameter(simplex) : get_diameter_sub(simplex);
 				value_t diam_coface = image ? get_diameter(coface) : get_diameter_sub(coface);
 				
 				if (diam_coface <= threshold) {
 					coface_entries.push_back(coface);
 					if (might_be_apparent_pair &&
-						(get_diameter_sub(simplex) == diam_coface)) {
+						(diam_simplex == diam_coface)) {
 						if (pivot_column_index.find(get_index(coface)) ==
 							pivot_column_index.end()) {
 							return coface;
