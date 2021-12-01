@@ -60,7 +60,6 @@ struct diameter_index_t {
 	index_t index;
 	
 	diameter_index_t(): diameter(0), diameter_sub(0), index(-1) {}
-	diameter_index_t(const diameter_index_t& i): diameter(i.diameter_sub), diameter_sub(i.diameter_sub), index(i.index) {}
 	diameter_index_t(const value_t _diameter, const value_t _diameter_sub, const index_t _index): diameter(_diameter), diameter_sub(_diameter_sub), index(_index) {}
 };
 
@@ -468,7 +467,7 @@ public:
 #ifdef PRINT_PERSISTENCE_PAIRS
                 if (image) {
                     value_t death = get_diameter(pivot);
-                    if (diameter != death) {
+                    if (diameter < death) {
                         std::cout << " [" << diameter << "," << death << ")" << std::endl << std::flush;
                     }
                 }
@@ -721,6 +720,9 @@ void ripser::compute_barcodes() {
 		for (index_t index = binomial_coeff(n, 2); index-- > 0;) {
 			value_t diameter = compute_diameter(index, 1);
 			value_t diameter_sub = compute_diameter_sub(index, 1);
+			
+			assert(diameter <= diameter_sub);
+			
 			if (diameter_sub <= threshold) edges.push_back(diameter_index_t(diameter, diameter_sub, index));
 		}
 
