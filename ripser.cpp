@@ -443,11 +443,12 @@ public:
 	OutputIterator get_simplex_vertices(index_t idx, const index_t dim, index_t n,
 	                                    OutputIterator out) const {
 		--n;
-		for (index_t k = dim + 1; k > 0; --k) {
+		for (index_t k = dim + 1; k > 1; --k) {
 			n = get_max_vertex(idx, k, n);
 			*out++ = n;
 			idx -= binomial_coeff(n, k);
 		}
+		*out = idx;
 		return out;
 	}
 
