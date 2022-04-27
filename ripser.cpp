@@ -1150,10 +1150,10 @@ void print_usage_and_exit(int exit_code) {
 	    << "  --help           print this screen" << std::endl
 	    << "  --format         use the specified file format for the input. Options are:"
 	    << std::endl
-	    << "                     lower-distance (lower triangular distance matrix; default)"
+	    << "                     lower-distance (lower triangular distance matrix)"
 	    << std::endl
 	    << "                     upper-distance (upper triangular distance matrix)" << std::endl
-	    << "                     distance       (full distance matrix)" << std::endl
+	    << "         (default:)  distance       (distance matrix; only lower triangular part is read)" << std::endl
 	    << "                     point-cloud    (point cloud in Euclidean space)" << std::endl
 	    << "                     dipha          (distance matrix in DIPHA file format)" << std::endl
 	    << "                     sparse         (sparse distance matrix in sparse triplet format)"
