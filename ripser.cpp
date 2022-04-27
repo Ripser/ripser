@@ -1284,7 +1284,7 @@ int main(int argc, char** argv) {
 			    .compute_barcodes();
 		} else {
 			std::cout << "sparse distance matrix with " << dist.size() << " points and "
-			          << num_edges << "/" << (dist.size() * dist.size() - 1) / 2 << " entries"
+			          << num_edges << "/" << (dist.size() * (dist.size() - 1)) / 2 << " entries"
 			          << std::endl;
 
 			ripser<sparse_distance_matrix>(sparse_distance_matrix(std::move(dist), threshold),
