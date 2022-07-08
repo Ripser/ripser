@@ -723,7 +723,7 @@ void ripser::compute_barcodes() {
 			
 			assert(diameter <= diameter_sub);
 			
-			if (diameter_sub <= threshold) edges.push_back(diameter_index_t(diameter, diameter_sub, index));
+			if (diameter <= threshold) edges.push_back(diameter_index_t(diameter, diameter_sub, index));
 		}
 
 
