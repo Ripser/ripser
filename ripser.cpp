@@ -361,7 +361,7 @@ public:
 			if (pivot_column_index.find(index) == pivot_column_index.end()) {
 				value_t diameter = compute_diameter(index, dim);
 				value_t diameter_sub = compute_diameter_sub(index, dim);
-                if (diameter_sub <= threshold) {
+                if (diameter <= threshold) {
 					columns_to_reduce.push_back(diameter_index_t(diameter, diameter_sub, index));
                 }
 			}
@@ -457,7 +457,7 @@ public:
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
-                    if (!image) {
+                    if (!image && diameter < threshold) {
                         std::cout << " [" << diameter << ", )" << std::endl << std::flush;
                     }
 #endif
