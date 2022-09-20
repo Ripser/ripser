@@ -238,6 +238,22 @@ template <compressed_matrix_layout Layout> struct compressed_distance_matrix {
 	void init_rows();
 };
 
+template<
+	class T,
+	class Container = std::vector<T>,
+	class Compare = std::less<typename Container::value_type>
+>
+class heap : public std::priority_queue<T,Container,Compare> {
+	using std::priority_queue<T,Container,Compare>::c;
+public:
+	void clear() {
+		c.clear();
+	}
+	size_t capacity() {
+		return c.capacity();
+	}
+};
+
 typedef compressed_distance_matrix<LOWER_TRIANGULAR> compressed_lower_distance_matrix;
 typedef compressed_distance_matrix<UPPER_TRIANGULAR> compressed_upper_distance_matrix;
 
@@ -354,7 +370,7 @@ public:
 template <typename T> T begin(std::pair<T, T>& p) { return p.first; }
 template <typename T> T end(std::pair<T, T>& p) { return p.second; }
 
-template <typename ValueType> class compressed_sparse_matrix {
+template <typename ValueType> struct compressed_sparse_matrix {
 	std::vector<size_t> bounds;
 	std::vector<ValueType> entries;
 
@@ -723,7 +739,10 @@ public:
 #endif
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
-		
+		heap<diameter_entry_t, std::vector<diameter_entry_t>,
+							greater_diameter_or_smaller_index_comp<diameter_entry_t>>
+			working_reduction_column, working_coboundary;
+
 #ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
 #endif
@@ -735,9 +754,8 @@ public:
 
 			reduction_matrix.append_column();
 
-			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-			                    greater_diameter_or_smaller_index_comp<diameter_entry_t>>
-			    working_reduction_column, working_coboundary;
+			working_reduction_column.clear();
+			working_coboundary.clear();
 
 			diameter_entry_t e, pivot = init_coboundary_and_get_pivot(
 			                        column_to_reduce, working_coboundary, dim, pivot_column_index);
@@ -805,6 +823,10 @@ public:
 #ifdef INDICATE_PROGRESS
 		std::cerr << clear_line << std::flush;
 #endif
+		std::cout << "size of reduction_matrix: " << reduction_matrix.entries.size() << std::endl;
+		std::cout << "size of working_reduction_column: " << working_reduction_column.capacity() << std::endl;
+		std::cout << "size of working_coboundary: " << working_coboundary.capacity() << std::endl;
+		std::cout << "size of pivot_column_index: " << pivot_column_index.bucket_count() << std::endl;
 	}
 
 	std::vector<diameter_index_t> get_edges();
