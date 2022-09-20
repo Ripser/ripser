@@ -1030,8 +1030,11 @@ sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 		size_t i, j;
 		value_t value;
 		s >> i;
+		s.ignore();
 		s >> j;
+		s.ignore();
 		s >> value;
+		s.ignore();
 		if (i != j) {
 			neighbors.resize(std::max({neighbors.size(), i + 1, j + 1}));
 			neighbors[i].push_back({j, value});
