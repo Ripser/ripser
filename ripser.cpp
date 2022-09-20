@@ -136,20 +136,14 @@ std::vector<coefficient_t> multiplicative_inverse_vector(const coefficient_t m) 
 
 #ifdef USE_COEFFICIENTS
 
-#ifdef _MSC_VER
-#define PACK(...) __pragma(pack(push, 1)) __VA_ARGS__ __pragma(pack(pop))
-#else
-#define PACK(...) __attribute__((__packed__)) __VA_ARGS__
-#endif
-
-PACK(struct entry_t {
+struct entry_t {
 	index_t index : 8 * sizeof(index_t) - num_coefficient_bits;
 	coefficient_t coefficient : num_coefficient_bits;
 	entry_t(index_t _index, coefficient_t _coefficient)
 	    : index(_index), coefficient(_coefficient) {}
 	entry_t(index_t _index) : index(_index), coefficient(0) {}
 	entry_t() : index(0), coefficient(0) {}
-};)
+};
 
 static_assert(sizeof(entry_t) == sizeof(index_t), "size of entry_t is not the same as index_t");
 
@@ -1037,8 +1031,11 @@ sparse_distance_matrix read_sparse_distance_matrix(std::istream& input_stream) {
 		size_t i, j;
 		value_t value;
 		s >> i;
+		s.ignore();
 		s >> j;
+		s.ignore();
 		s >> value;
+		s.ignore();
 		if (i != j) {
 			neighbors.resize(std::max({neighbors.size(), i + 1, j + 1}));
 			neighbors[i].push_back({j, value});

@@ -103,12 +103,20 @@ If you use Ripser in your research or if you want to give a reference to Ripser 
 
 ```
 @article{Bauer2021Ripser,
-	Author = {Ulrich Bauer},
-	Title = {Ripser: efficient computation of Vietoris-Rips persistence barcodes},
-	Journal = {Journal of Applied and Computational Topology},
-	Year = {2021},
-	Publisher = {Springer},
-	DOI = {10.1007/s41468-021-00071-5}
+    AUTHOR = {Bauer, Ulrich},
+     TITLE = {Ripser: efficient computation of {V}ietoris-{R}ips persistence
+              barcodes},
+   JOURNAL = {J. Appl. Comput. Topol.},
+  FJOURNAL = {Journal of Applied and Computational Topology},
+    VOLUME = {5},
+      YEAR = {2021},
+    NUMBER = {3},
+     PAGES = {391--423},
+      ISSN = {2367-1726},
+   MRCLASS = {55N31 (55-04)},
+  MRNUMBER = {4298669},
+       DOI = {10.1007/s41468-021-00071-5},
+       URL = {https://doi.org/10.1007/s41468-021-00071-5},
 }
 ```
 
