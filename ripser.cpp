@@ -246,11 +246,12 @@ class ripser {
 	const binomial_coeff_table binomial_coeff;
 	mutable std::vector<index_t> vertices;
 	mutable std::vector<diameter_index_t> coface_entries;
+    bool use_clearing;
 
 public:
-	ripser(compressed_lower_distance_matrix&& _dist, compressed_lower_distance_matrix&& _dist_sub, index_t _dim_max, value_t _threshold)
+	ripser(compressed_lower_distance_matrix&& _dist, compressed_lower_distance_matrix&& _dist_sub, index_t _dim_max, value_t _threshold, bool _use_clearing = true)
     : dist(std::move(_dist)), dist_sub(std::move(_dist_sub)), dim_max(std::min(_dim_max, index_t(dist.size() - 2))),
-	      n(dist.size()), threshold(_threshold), binomial_coeff(n, dim_max + 2) {}
+	      n(dist.size()), threshold(_threshold), binomial_coeff(n, dim_max + 2), use_clearing(_use_clearing) {}
 
 	index_t get_next_vertex(index_t& v, const index_t idx, const index_t k) const {
 		if (binomial_coeff(v, k) > idx) {
@@ -358,7 +359,7 @@ public:
 		columns_to_reduce.clear();
 
 		for (index_t index = 0; index < num_simplices; ++index) {
-			if (pivot_column_index.find(index) == pivot_column_index.end()) {
+			if (!use_clearing || pivot_column_index.find(index) == pivot_column_index.end()) {
 				value_t diameter = compute_diameter(index, dim);
 				value_t diameter_sub = compute_diameter_sub(index, dim);
                 if (diameter <= threshold) {
@@ -457,7 +458,7 @@ public:
 					}
 				} else {
 #ifdef PRINT_PERSISTENCE_PAIRS
-                    if (!image && diameter < threshold) {
+                    if (!image && diameter < threshold && (use_clearing || pivot_column_index.find(get_index(pivot)) != pivot_column_index.end())) {
                         std::cout << " [" << diameter << ", )" << std::endl << std::flush;
                     }
 #endif
@@ -602,6 +603,7 @@ void print_usage_and_exit(int exit_code) {
         << "  --subfiltration <f>  use f as second filtration for image persistence" << std::endl
 	    << "  --dim <k>        compute persistent homology up to dimension <k>" << std::endl
 	    << "  --threshold <t>  compute Rips complexes up to diameter <t>" << std::endl
+        << "  --no-clearing    disable clearing (for benchmarking only)" << std::endl
 	    << std::endl;
 
 	exit(exit_code);
@@ -616,6 +618,7 @@ int main(int argc, char** argv) {
 
 	index_t dim_max = 1;
 	value_t threshold = std::numeric_limits<value_t>::infinity();
+    bool use_clearing = true;
 
 	for (index_t i = 1; i < argc; ++i) {
 		const std::string arg(argv[i]);
@@ -646,6 +649,8 @@ int main(int argc, char** argv) {
         } else if (arg == "--subfiltration") {
             if (filename_sub) { print_usage_and_exit(-1); }
             filename_sub = argv[++i];
+        } else if (arg == "--no-clearing") {
+            use_clearing = false;
         } else {
             if (filename) { print_usage_and_exit(-1); }
             filename = argv[i];
@@ -705,7 +710,7 @@ int main(int argc, char** argv) {
     std::cout << "subfiltration value range: [" << min << "," << max << "]"
     << std::endl;
     
-	ripser(std::move(dist), std::move(dist_sub), dim_max, threshold).compute_barcodes();
+	ripser(std::move(dist), std::move(dist_sub), dim_max, threshold, use_clearing).compute_barcodes();
 }
 
 void ripser::compute_barcodes() {
@@ -760,6 +765,8 @@ void ripser::compute_barcodes() {
 
 			if (u != v) {
 				dset_sub.link(u, v);
+                if (!use_clearing)
+                    columns_to_reduce.push_back(e);
 			} else
 				columns_to_reduce.push_back(e);
 		}

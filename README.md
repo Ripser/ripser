@@ -1,6 +1,6 @@
 # Ripser for image persistence
 
-Copyright © 2015–2021 [Ulrich Bauer], [Maximilian Schmahl].
+Copyright © 2015–2017 [Ulrich Bauer], 2022 anonymous authors.
 
 
 ### Description
@@ -26,10 +26,9 @@ The input is given either in a file whose name is passed as an argument, or thro
 
 ### License
 
-Ripser for image persistence is licensed under the [LGPL] 3.0. Please contact the authors if you want to use Ripser in your software under a different license. 
+Ripser for image persistence is licensed under the [LGPL] 3.0.
 
 [Ulrich Bauer]: <http://ulrich-bauer.org>
-[Maximilian Schmahl]: <mailto:maximilian.schmahl@web.de>
 [live.ripser.org]: <http://live.ripser.org>
 [PNaCl]: <https://www.chromium.org/nativeclient/pnacl/>
 [Emscripten]: <http://emscripten.org>
