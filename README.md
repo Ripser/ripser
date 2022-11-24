@@ -1,6 +1,6 @@
 # Ripser for image persistence
 
-Copyright © 2015–2017 [Ulrich Bauer], 2022 anonymous authors.
+Copyright © 2022 anonymous authors, 2015–2017 [Ulrich Bauer].
 
 
 ### Description
