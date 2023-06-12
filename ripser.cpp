@@ -51,6 +51,7 @@
 #include <iostream>
 #include <numeric>
 #include <queue>
+#include <stack>
 #include <sstream>
 #include <unordered_map>
 #include <ctime>
