@@ -54,6 +54,10 @@
 #include <sstream>
 #include <unordered_map>
 
+#ifdef USE_BOOST_HEAP
+#include <boost/heap/d_ary_heap.hpp>
+#endif
+
 #ifdef USE_ROBINHOOD_HASHMAP
 
 #include "robin-hood-hashing/src/include/robin_hood.h"
@@ -202,7 +206,7 @@ void set_coefficient(diameter_entry_t& p, const coefficient_t c) {
 }
 
 template <typename Entry> struct greater_diameter_or_smaller_index_comp {
-	bool operator()(const Entry& a, const Entry& b) {
+	bool operator()(const Entry& a, const Entry& b) const {
 		return greater_diameter_or_smaller_index(a, b);
 	}
 };
@@ -736,8 +740,13 @@ public:
 
 			reduction_matrix.append_column();
 
+#ifdef USE_BOOST_HEAP
+			boost::heap::d_ary_heap<diameter_entry_t, boost::heap::arity<16>,
+			                    boost::heap::compare<greater_diameter_or_smaller_index_comp<diameter_entry_t>>>
+#else
 			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
 			                    greater_diameter_or_smaller_index_comp<diameter_entry_t>>
+#endif
 			    working_reduction_column, working_coboundary;
 
 			diameter_entry_t e, pivot = init_coboundary_and_get_pivot(
