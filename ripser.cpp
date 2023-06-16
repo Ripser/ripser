@@ -728,6 +728,15 @@ public:
 #endif
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
+
+#ifdef USE_BOOST_HEAP
+		boost::heap::d_ary_heap<diameter_entry_t, boost::heap::arity<16>,
+		                    boost::heap::compare<greater_diameter_or_smaller_index_comp<diameter_entry_t>>>
+#else
+		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
+		                    greater_diameter_or_smaller_index_comp<diameter_entry_t>>
+#endif
+		    working_reduction_column, working_coboundary;
 		
 #ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
@@ -740,14 +749,7 @@ public:
 
 			reduction_matrix.append_column();
 
-#ifdef USE_BOOST_HEAP
-			boost::heap::d_ary_heap<diameter_entry_t, boost::heap::arity<16>,
-			                    boost::heap::compare<greater_diameter_or_smaller_index_comp<diameter_entry_t>>>
-#else
-			std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-			                    greater_diameter_or_smaller_index_comp<diameter_entry_t>>
-#endif
-			    working_reduction_column, working_coboundary;
+			working_reduction_column.clear(); working_coboundary.clear();
 
 			diameter_entry_t e, pivot = init_coboundary_and_get_pivot(
 			                        column_to_reduce, working_coboundary, dim, pivot_column_index);
