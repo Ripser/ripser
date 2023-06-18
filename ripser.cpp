@@ -54,10 +54,6 @@
 #include <sstream>
 #include <unordered_map>
 
-#ifdef USE_BOOST_HEAP
-#include <boost/heap/d_ary_heap.hpp>
-#endif
-
 #ifdef USE_ROBINHOOD_HASHMAP
 
 #include "robin-hood-hashing/src/include/robin_hood.h"
@@ -215,6 +211,17 @@ template <typename Entry> bool greater_diameter_or_smaller_index(const Entry& a,
 	return (get_diameter(a) > get_diameter(b)) ||
 	       ((get_diameter(a) == get_diameter(b)) && (get_index(a) < get_index(b)));
 }
+
+#ifdef USE_BOOST_HEAP
+#include <boost/heap/d_ary_heap.hpp>
+typedef boost::heap::d_ary_heap<diameter_entry_t, boost::heap::arity<8>,
+	    boost::heap::compare<greater_diameter_or_smaller_index_comp<diameter_entry_t>>> heap;
+#else
+struct heap : std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
+				  greater_diameter_or_smaller_index_comp<diameter_entry_t>> {
+	void clear() { this->c.clear(); }
+};
+#endif
 
 enum compressed_matrix_layout { LOWER_TRIANGULAR, UPPER_TRIANGULAR };
 
@@ -729,14 +736,7 @@ public:
 
 		compressed_sparse_matrix<diameter_entry_t> reduction_matrix;
 
-#ifdef USE_BOOST_HEAP
-		boost::heap::d_ary_heap<diameter_entry_t, boost::heap::arity<16>,
-		                    boost::heap::compare<greater_diameter_or_smaller_index_comp<diameter_entry_t>>>
-#else
-		std::priority_queue<diameter_entry_t, std::vector<diameter_entry_t>,
-		                    greater_diameter_or_smaller_index_comp<diameter_entry_t>>
-#endif
-		    working_reduction_column, working_coboundary;
+		heap working_reduction_column, working_coboundary;
 		
 #ifdef INDICATE_PROGRESS
 		std::chrono::steady_clock::time_point next = std::chrono::steady_clock::now() + time_step;
