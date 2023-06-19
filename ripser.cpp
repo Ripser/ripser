@@ -112,7 +112,7 @@ public:
 	}
 
 	index_t operator()(index_t n, index_t k) const {
-		assert(n < B.size() && k < B[n].size() && n >= k - 1);
+		assert(k < B.size() && n < B[k].size() && n >= k - 1);
 		return B[k][n];
 	}
 };
