@@ -1115,7 +1115,11 @@ compressed_lower_distance_matrix read_dipha(std::istream& input_stream) {
 
 compressed_lower_distance_matrix read_binary(std::istream& input_stream) {
 	std::vector<value_t> distances;
-	while (!input_stream.eof()) distances.push_back(read<value_t>(input_stream));
+	value_t value;
+	while (input_stream.read(reinterpret_cast<char*>(&value), sizeof(value))) {
+		distances.push_back(value);
+	}
+	assert(input_stream.gcount() == 0);
 	return compressed_lower_distance_matrix(std::move(distances));
 }
 
